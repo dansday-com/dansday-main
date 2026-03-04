@@ -25,18 +25,18 @@ admin/bootstrap/cache/*
 admin/.phpunit.result.cache
 admin/.phpunit.cache
 
-# Vite (built by make install / npm run build)
+# Vite (built by make install / npm run build); public/assets is symlink to assets
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-admin/public/assets/admin/css/admin.css
-admin/public/assets/admin/css/manifest.json
+admin/public/assets/
 admin/assets/admin/css/admin.css
 admin/assets/admin/css/manifest.json
 
 # OS
 .DS_Store
 
-# Uploads (admin uses storage/app/public via symlink public/storage)
+# Symlink (make install); uploads in storage/app/public
+admin/public/storage
 admin/storage/app/public/uploads/*
 !admin/storage/app/public/uploads/img/
 admin/storage/app/public/uploads/img/*
