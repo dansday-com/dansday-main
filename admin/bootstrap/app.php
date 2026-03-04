@@ -3,7 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\SeedOnFirstVisit;
+use App\Http\Middleware\RunSetupOnFirstVisit;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'XSS' => \App\Http\Middleware\XSS::class,
         ]);
-        $middleware->prependToGroup('web', SeedOnFirstVisit::class);
+        $middleware->prependToGroup('web', RunSetupOnFirstVisit::class);
         $middleware->redirectTo(guests: fn () => route('login'), users: '/admin/home');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
