@@ -21,31 +21,35 @@ Ports **80**, **8080**, **3306**, and **6379** must be free.
 
 ### How to run (first time)
 
-**You do not need to create any `.env` files.** All config is provided by Docker Compose.
+**Step 1 – Clone the repo**
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/dansday-svelte-laravel.git
 cd dansday-svelte-laravel
+```
+
+**Step 2 – Install dependencies (one time, but safe to re-run)**
+
+This runs inside Docker and will create `vendor/`, `node_modules/`, Laravel `bootstrap/cache`, `storage/*`, and `.env` for the admin app on your machine:
+
+```bash
+make install
+```
+
+**Step 3 – Start everything**
+
+```bash
 make up
 ```
 
-First run will build images and install dependencies (a few minutes). Then open:
+Then open:
 
 - **Frontend**: http://localhost  
 - **Admin**: http://localhost:8080  
 
-**Stop:**
+**Stop:** `make down`
 
-```bash
-make down
-```
-
-**Optional** — install or update dependencies without starting the app:
-
-```bash
-make install   # install deps
-make update    # update deps
-```
+**Update deps (no need to start app):** `make update`
 
 ### Running without Docker (optional)
 
@@ -84,5 +88,4 @@ Only if you run the apps directly on your machine (no Docker): copy `main/.env.e
 
 - **Infrastructure / Tooling**
   - **Docker**, **Docker Compose**
-  - `Makefile` helpers (`make up`, `make down`, `make install`)
-
+  - Make: `up`, `down`, `install`, `update`
