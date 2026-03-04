@@ -16,7 +16,10 @@ function resolveUrl(url: string | null | undefined, base: string): string {
 	if (!url || typeof url !== 'string') return '';
 	const b = base.replace(/\/$/, '');
 	if (url.startsWith('http://') || url.startsWith('https://')) return url;
-	return url.startsWith('/') ? `${b}${url}` : `${b}/${url}`;
+	const path = url.startsWith('/') ? url : `/${url}`;
+	// Admin uploads live at /storage/uploads/...
+	if (path.startsWith('/uploads/')) return `${b}/storage${path}`;
+	return `${b}${path}`;
 }
 
 export const load: LayoutServerLoad = async () => {
