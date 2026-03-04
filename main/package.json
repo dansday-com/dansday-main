@@ -25,6 +25,7 @@
 	},
 	"dependencies": {
 		"@fontsource/commit-mono": "^5.2.5",
+		"dotenv": "^16.4.5",
 		"figlet": "^1.10.0",
 		"mysql2": "^3.17.4",
 		"shiki": "^3.22.0"
