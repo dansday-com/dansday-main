@@ -19,7 +19,9 @@ Ports **80**, **8080**, **3306**, and **6379** must be free.
 
 ---
 
-### How to run
+### How to run (first time)
+
+**You do not need to create any `.env` files.** All config is provided by Docker Compose.
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/dansday-svelte-laravel.git
@@ -44,6 +46,10 @@ make down
 make install   # install deps
 make update    # update deps
 ```
+
+### Running without Docker (optional)
+
+Only if you run the apps directly on your machine (no Docker): copy `main/.env.example` → `main/.env` and `admin/.env.example` → `admin/.env`, fill in your database and URLs, and for admin run `php artisan key:generate`.
 
 ### What’s running (services)
 
