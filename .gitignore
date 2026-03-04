@@ -37,8 +37,9 @@ admin/assets/admin/css/manifest.json
 .DS_Store
 
 # Uploads (admin uses storage/app/public via symlink public/storage)
-admin/public/uploads/**/*
-admin/storage/app/public/uploads/**/*
+admin/storage/app/public/uploads/*
+!admin/storage/app/public/uploads/img/
+admin/storage/app/public/uploads/img/*
 !admin/storage/app/public/uploads/img/image_default.png
 
 # References
