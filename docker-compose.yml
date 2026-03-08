@@ -1,83 +1,43 @@
-services:
-  mysql:
-    image: mysql:latest
-    container_name: dansday-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: dansday_main
-      MYSQL_USER: dansday_main
-      MYSQL_PASSWORD: password
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ppassword"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+# No MySQL/Redis in this stack; use external DB and Redis and set DB_* / REDIS_* in env.
+# Main and admin are separate services; both expose 80 (reverse proxy routes by path or domain).
 
-  redis:
-    image: redis:alpine
-    container_name: dansday-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+services:
+  main:
+    build:
+      context: ./main
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 80
+      BASE_URL: ${BASE_URL:-http://localhost}
+      ADMIN_PUBLIC_URL: ${ADMIN_PUBLIC_URL:-http://localhost}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      NODE_ENV: production
+    expose:
+      - "80"
 
   admin:
     build:
       context: ./admin
       dockerfile: Dockerfile
-    container_name: dansday-admin
-    ports:
-      - "8080:8080"
+    restart: unless-stopped
     environment:
-      APP_URL: http://localhost:8080
+      APP_URL: ${ADMIN_APP_URL:-http://localhost}
+      APP_KEY: ${APP_KEY}
       DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: dansday_main
-      DB_USERNAME: dansday_main
-      DB_PASSWORD: password
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_CLIENT: phpredis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT:-6379}
       SESSION_DRIVER: redis
       QUEUE_CONNECTION: redis
-    volumes:
-      - ./admin:/app
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_started
-
-  main:
-    build:
-      context: ./main
-      dockerfile: Dockerfile
-    container_name: dansday-main
-    ports:
-      - "80:3000"
-    environment:
-      BASE_URL: http://localhost:80
-      ADMIN_PUBLIC_URL: http://localhost:8080
-      DB_HOST: mysql
-      DB_PORT: "3306"
-      DB_DATABASE: dansday_main
-      DB_USERNAME: dansday_main
-      DB_PASSWORD: password
-      NODE_ENV: development
-    volumes:
-      - ./main:/app
-    command: npm run dev
-    depends_on:
-      mysql:
-        condition: service_healthy
-      admin:
-        condition: service_started
-
-volumes:
-  mysql_data:
-  redis_data:
+    expose:
+      - "80"

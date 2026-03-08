@@ -1,22 +1,20 @@
 .PHONY: up down install update
 
+# Run built images (set DB_* and REDIS_* in .env)
 up:
 	docker compose up --build -d
 
 down:
 	docker compose down
 
+# Local dev: install deps on host (for npm run dev / composer dev)
 install:
-	docker compose run --rm -v $(PWD)/main:/app main npm install
-	docker compose run --rm -v $(PWD)/main:/app main npm run build
-	@test -f main/.env || cp main/.env.example main/.env
-	docker compose run --rm -v $(PWD)/admin:/app admin sh -c "mkdir -p public/uploads bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs && chmod -R 775 bootstrap/cache storage public/uploads"
-	docker compose run --rm -v $(PWD)/admin:/app admin composer install
-	docker compose run --rm -v $(PWD)/admin:/app admin npm install
-	docker compose run --rm -v $(PWD)/admin:/app admin sh -c "ln -snf ../assets public/assets"
-	docker compose run --rm -v $(PWD)/admin:/app admin npm run build
-	docker compose run --rm -v $(PWD)/admin:/app admin sh -c "test -f .env || cp .env.example .env; php artisan key:generate --no-interaction --force"
+	cd main && npm install
+	cd admin && composer install && npm install
+	@test -f admin/.env || cp admin/.env.example admin/.env
+	@test -f main/.env || (test -f main/.env.example && cp main/.env.example main/.env || true)
 
+# Bump and install deps (run from repo root)
 update:
-	docker compose run --rm -v $(PWD)/main:/app main sh -c "npx --yes npm-check-updates -u && npm install"
-	docker compose run --rm -v $(PWD)/admin:/app admin sh -c "composer update --with-all-dependencies --no-interaction && npx --yes npm-check-updates -u && npm install"
+	cd main && npx --yes npm-check-updates -u && npm install
+	cd admin && composer update --with-all-dependencies --no-interaction && npx --yes npm-check-updates -u && npm install

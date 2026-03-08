@@ -5,7 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "prettier --write . && prettier --check . && svelte-kit sync && vite build"
+		"build": "prettier --write . && prettier --check . && svelte-kit sync && vite build",
+		"build:prod": "svelte-kit sync && vite build"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.5.4",

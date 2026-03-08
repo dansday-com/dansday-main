@@ -1,0 +1,8 @@
+# Local: map host ports. Set DB_* and REDIS_* in .env (e.g. external or local MySQL/Redis).
+services:
+  main:
+    ports:
+      - "80:80"
+  admin:
+    ports:
+      - "8080:80"

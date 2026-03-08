@@ -1,5 +1,16 @@
-# Dev use: compose mounts ./main and main_node_modules; no build step needed.
+# Production: deps + Svelte build in image (no host deps).
 FROM node:alpine
+
 WORKDIR /app
-EXPOSE 3000
-CMD ["npm", "run", "dev"]
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY . .
+RUN npm run build:prod
+
+EXPOSE 80
+
+ENV PORT=80
+ENV HOST=0.0.0.0
+CMD ["node", "build/index.js"]
