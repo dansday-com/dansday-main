@@ -5,8 +5,8 @@ WORKDIR /app
 
 # Install deps (include devDependencies for build; Coolify may set NODE_ENV=production)
 COPY package.json package-lock.json* ./
-RUN npm config set fund false && \
-    ( [ -f package-lock.json ] && npm ci --include=dev || npm install --include=dev )
+RUN sh -c 'unset NODE_OPTIONS; npm config set fund false && \
+    ( [ -f package-lock.json ] && npm ci --include=dev || npm install --include=dev )'
 
 COPY . .
 RUN npm run build:prod
