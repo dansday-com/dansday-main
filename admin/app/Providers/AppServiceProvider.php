@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\General;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Artisan;
@@ -57,15 +58,25 @@ class AppServiceProvider extends ServiceProvider
             'filesystems.disks.uploads.url'   => $appUrl.'/uploads',
         ]);
 
-        $aiUrl = env('OPENAI_BASE_URL');
-        $aiKey = env('OPENAI_API_KEY');
-        if ($aiUrl !== null && $aiUrl !== '') {
-            config(['ai.providers.openai.url' => $aiUrl]);
-            config(['prism.providers.openai.url' => $aiUrl]);
-        }
-        if ($aiKey !== null && $aiKey !== '') {
-            config(['ai.providers.openai.key' => $aiKey]);
-            config(['prism.providers.openai.api_key' => $aiKey]);
+        // OpenAI URL and key come only from General settings (DB), not env
+        if (Schema::hasTable('page_setting') && Schema::hasColumn('page_setting', 'openai_url')) {
+            try {
+                $general = General::find(1);
+                if ($general) {
+                    $url = isset($general->openai_url) ? trim((string) $general->openai_url) : '';
+                    $key = isset($general->openai_key) ? trim((string) $general->openai_key) : '';
+                    if ($url !== '') {
+                        config(['ai.providers.openai.url' => $url]);
+                        config(['prism.providers.openai.url' => $url]);
+                    }
+                    if ($key !== '') {
+                        config(['ai.providers.openai.key' => $key]);
+                        config(['prism.providers.openai.api_key' => $key]);
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore (e.g. migration not run yet)
+            }
         }
     }
 

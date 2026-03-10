@@ -50,7 +50,7 @@ class AiGenerateController extends Controller
             return response()->json(['error' => 'Only description/content generation is supported.'], 422);
         }
 
-        $baseUrl = config('ai.providers.openai.url') ?: config('prism.providers.openai.url') ?: env('OPENAI_BASE_URL');
+        $baseUrl = config('ai.providers.openai.url') ?: config('prism.providers.openai.url');
         $baseUrl = is_string($baseUrl) ? trim($baseUrl) : '';
         if ($baseUrl === '' || ! str_starts_with($baseUrl, 'http')) {
             return response()->json(['error' => __('content.ai_unavailable')], 503);
@@ -95,7 +95,7 @@ class AiGenerateController extends Controller
         $ttl = 3600;
 
         $list = Cache::remember($cacheKey, $ttl, function () {
-            $baseUrl = config('ai.providers.openai.url') ?? env('OPENAI_BASE_URL');
+            $baseUrl = config('ai.providers.openai.url') ?? config('prism.providers.openai.url');
             if (empty($baseUrl)) {
                 return $this->fallbackModelsList();
             }
