@@ -54,7 +54,7 @@
                                     <div class="form-group mt-4">
                                         <label for="openai_model" class="form-label">Open AI Model</label>
                                         <input class="form-control @error('openai_model') is-invalid @enderror" type="text" name="openai_model" value="{{ old('openai_model', $general->openai_model ?? '') }}" placeholder="your-model-alias" />
-                                        <div class="form-text">Model name sent to the internal gateway (no model selector in the UI).</div>
+                                        <div class="form-text">Model name sent to the internal gateway.</div>
                                         @error('openai_model')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                     </div>
                                 </div>
