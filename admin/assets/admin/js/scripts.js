@@ -105,44 +105,54 @@ $(document).ready(function() {
 
     $('[data-bs-toggle="tooltip"]').tooltip();
 
-    if ($('.ai-model-select').length > 0) {
+    function loadAiModalModels() {
         var modelsUrl = window.adminAiModelsUrl || '/admin/ai-models';
-        fetch(modelsUrl, {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            var list = data.models || [];
-            var $sel = $('#ai_model_select');
-            $sel.find('option:not(:first)').remove();
-            list.forEach(function(m) {
-                $sel.append($('<option></option>').attr('value', m.id).text(m.name));
-            });
-            if (list.length > 0) {
-                $sel.val(list[0].id);
-            }
-        })
-        .catch(function() {});
+        return fetch(modelsUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var list = data.models || [];
+                var $sel = $('#ai_modal_model');
+                $sel.find('option:not(:first)').remove();
+                list.forEach(function(m) {
+                    $sel.append($('<option></option>').attr('value', m.id).text(m.name));
+                });
+                if (list.length > 0) {
+                    $sel.val(list[0].id);
+                }
+            })
+            .catch(function() {});
     }
 
     $(document).on('click', '.ai-generate-btn', function() {
-        var $btn = $(this),
-            type = $btn.data('type'),
-            field = $btn.data('field'),
-            inputName = $btn.data('input-name'),
-            isSummernote = $btn.data('summernote') === 1;
-        var context = '';
-        if (isSummernote) {
-            context = $('textarea[name="' + inputName + '"]').summernote('code') || '';
-        } else {
-            context = ($('input[name="' + inputName + '"], textarea[name="' + inputName + '"]').val() || '').trim();
+        var $btn = $(this);
+        $('#ai_modal_type').val($btn.data('type'));
+        $('#ai_modal_field').val($btn.data('field'));
+        $('#ai_modal_input_name').val($btn.data('input-name'));
+        $('#ai_modal_summernote').val($btn.data('summernote') ? '1' : '0');
+        $('#ai_modal_prompt').val('');
+        var modalEl = document.getElementById('aiGenerateModal');
+        if (modalEl) {
+            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+            if ($('#ai_modal_model option').length <= 1) {
+                loadAiModalModels();
+            }
         }
-        var title = ($('input[name="title"]').val() || '').trim();
-        if (title && inputName !== 'title') {
-            context = (context ? context + '\n\n' : '') + 'Title: ' + title;
+    });
+
+    $('#ai_modal_generate_btn').on('click', function() {
+        var type = $('#ai_modal_type').val();
+        var field = $('#ai_modal_field').val();
+        var inputName = $('#ai_modal_input_name').val();
+        var isSummernote = $('#ai_modal_summernote').val() === '1';
+        var prompt = ($('#ai_modal_prompt').val() || '').trim();
+        var model = $('#ai_modal_model').val();
+        if (!model) {
+            alert('Please select a model.');
+            return;
         }
-        var model = ($('#ai_model_select').length) ? $('#ai_model_select').val() : '';
-        $btn.prop('disabled', true).addClass('disabled');
+        var $btn = $('#ai_modal_generate_btn');
+        $btn.prop('disabled', true).text('…');
         fetch(window.adminAiGenerateUrl || '/admin/ai-generate', {
             method: 'POST',
             headers: {
@@ -151,7 +161,7 @@ $(document).ready(function() {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ type: type, field: field, topic: context, model: model })
+            body: JSON.stringify({ type: type, field: field, topic: prompt, model: model })
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -164,10 +174,17 @@ $(document).ready(function() {
             } else {
                 $('input[name="' + inputName + '"], textarea[name="' + inputName + '"]').val(data.text || '');
             }
+            var modalEl = document.getElementById('aiGenerateModal');
+            if (modalEl) {
+                bootstrap.Modal.getInstance(modalEl).hide();
+            }
         })
         .catch(function() { alert('Request failed.'); })
-        .finally(function() { $btn.prop('disabled', false).removeClass('disabled'); });
+        .finally(function() {
+            $btn.prop('disabled', false).text($btn.data('label'));
+        });
     });
+
 
     $(".summernote").each(function() {
         var $this = $(this),

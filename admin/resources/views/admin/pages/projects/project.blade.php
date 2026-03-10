@@ -21,14 +21,6 @@
                         @csrf
                         <div class="modal-body">
                             <input type="hidden" name="order" value="@php echo (count($projects) > 0) ? (count($projects)+1) : 1; @endphp" />
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="ai_model_select" class="form-label">{{ __('content.ai_model') }}</label>
-                                    <select id="ai_model_select" class="form-select ai-model-select" aria-label="{{ __('content.ai_model') }}">
-                                        <option value="">— {{ __('content.ai_model') }} —</option>
-                                    </select>
-                                </div>
-                            </div>
                             <div class="row">
                                 <div class="col-md-12 mb-4">
                                     <label for="enable_project" class="form-label">{{ __('content.enable') }}</label>

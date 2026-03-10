@@ -21,14 +21,6 @@
                         @csrf
                         @method('PUT')
                         <div class="modal-body">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="ai_model_select" class="form-label">{{ __('content.ai_model') }}</label>
-                                    <select id="ai_model_select" class="form-select ai-model-select" aria-label="{{ __('content.ai_model') }}">
-                                        <option value="">— {{ __('content.ai_model') }} —</option>
-                                    </select>
-                                </div>
-                            </div>
                             <div class="row">
                                 <input type="hidden" name="id" value="{{$post->id}}" />
                                 <div class="col-md-6 mb-3">

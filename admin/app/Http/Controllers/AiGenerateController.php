@@ -51,9 +51,16 @@ class AiGenerateController extends Controller
         }
 
         $baseUrl = config('ai.providers.openai.url') ?: config('prism.providers.openai.url');
-        if (empty($baseUrl) || ! str_starts_with((string) $baseUrl, 'http')) {
+        $baseUrl = is_string($baseUrl) ? trim($baseUrl) : '';
+        if ($baseUrl === '' || ! str_starts_with($baseUrl, 'http')) {
             return response()->json([
-                'error' => 'AI gateway URL not configured. Set OPENAI_BASE_URL in .env (e.g. https://gateway.hebo.ai/v1).',
+                'error' => 'AI gateway URL not set. In Coolify: add env OPENAI_BASE_URL=https://gateway.hebo.ai/v1 (and OPENAI_API_KEY), then redeploy and run: php artisan config:clear',
+            ], 503);
+        }
+        $host = parse_url($baseUrl, PHP_URL_HOST);
+        if (empty($host) || strpos($host, '.') === false) {
+            return response()->json([
+                'error' => 'AI gateway URL is invalid (host looks wrong). In Coolify set OPENAI_BASE_URL=https://gateway.hebo.ai/v1 and redeploy.',
             ], 503);
         }
 
