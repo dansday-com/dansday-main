@@ -1,16 +1,6 @@
 import '@opentelemetry/api-logs';
 import loggerProvider from './logger.js';
 
-const logger = loggerProvider.getLogger('default', '1.0.0');
-
-const originalConsole = {
-	log: console.log,
-	info: console.info,
-	warn: console.warn,
-	error: console.error,
-	debug: console.debug
-};
-
 const SeverityNumber = {
 	DEBUG: 5,
 	INFO: 9,
@@ -25,7 +15,7 @@ function serializeMessage(...args: unknown[]): string {
 }
 
 function isPlainRecord(v: unknown): v is Record<string, unknown> {
-	return !!v && typeof v === 'object' && (v as any).constructor === Object;
+	return !!v && typeof v === 'object' && (v as { constructor?: unknown }).constructor === Object;
 }
 
 function toAttributeValue(v: unknown): string | number | boolean {
@@ -51,52 +41,63 @@ function attributesFromConsoleArgs(args: unknown[]): Record<string, string | num
 	return {};
 }
 
-console.log = function (...args: unknown[]) {
-	logger.emit({
-		severityNumber: SeverityNumber.INFO,
-		severityText: 'INFO',
-		body: serializeMessage(...args),
-		attributes: attributesFromConsoleArgs(args)
-	});
-	originalConsole.log.apply(console, args);
-};
+if (loggerProvider) {
+	const logger = loggerProvider.getLogger('default', '1.0.0');
+	const originalConsole = {
+		log: console.log,
+		info: console.info,
+		warn: console.warn,
+		error: console.error,
+		debug: console.debug
+	};
 
-console.info = function (...args: unknown[]) {
-	logger.emit({
-		severityNumber: SeverityNumber.INFO,
-		severityText: 'INFO',
-		body: serializeMessage(...args),
-		attributes: attributesFromConsoleArgs(args)
-	});
-	originalConsole.info.apply(console, args);
-};
+	console.log = function (...args: unknown[]) {
+		logger.emit({
+			severityNumber: SeverityNumber.INFO,
+			severityText: 'INFO',
+			body: serializeMessage(...args),
+			attributes: attributesFromConsoleArgs(args)
+		});
+		originalConsole.log.apply(console, args);
+	};
 
-console.warn = function (...args: unknown[]) {
-	logger.emit({
-		severityNumber: SeverityNumber.WARN,
-		severityText: 'WARN',
-		body: serializeMessage(...args),
-		attributes: attributesFromConsoleArgs(args)
-	});
-	originalConsole.warn.apply(console, args);
-};
+	console.info = function (...args: unknown[]) {
+		logger.emit({
+			severityNumber: SeverityNumber.INFO,
+			severityText: 'INFO',
+			body: serializeMessage(...args),
+			attributes: attributesFromConsoleArgs(args)
+		});
+		originalConsole.info.apply(console, args);
+	};
 
-console.error = function (...args: unknown[]) {
-	logger.emit({
-		severityNumber: SeverityNumber.ERROR,
-		severityText: 'ERROR',
-		body: serializeMessage(...args),
-		attributes: attributesFromConsoleArgs(args)
-	});
-	originalConsole.error.apply(console, args);
-};
+	console.warn = function (...args: unknown[]) {
+		logger.emit({
+			severityNumber: SeverityNumber.WARN,
+			severityText: 'WARN',
+			body: serializeMessage(...args),
+			attributes: attributesFromConsoleArgs(args)
+		});
+		originalConsole.warn.apply(console, args);
+	};
 
-console.debug = function (...args: unknown[]) {
-	logger.emit({
-		severityNumber: SeverityNumber.DEBUG,
-		severityText: 'DEBUG',
-		body: serializeMessage(...args),
-		attributes: attributesFromConsoleArgs(args)
-	});
-	originalConsole.debug.apply(console, args);
-};
+	console.error = function (...args: unknown[]) {
+		logger.emit({
+			severityNumber: SeverityNumber.ERROR,
+			severityText: 'ERROR',
+			body: serializeMessage(...args),
+			attributes: attributesFromConsoleArgs(args)
+		});
+		originalConsole.error.apply(console, args);
+	};
+
+	console.debug = function (...args: unknown[]) {
+		logger.emit({
+			severityNumber: SeverityNumber.DEBUG,
+			severityText: 'DEBUG',
+			body: serializeMessage(...args),
+			attributes: attributesFromConsoleArgs(args)
+		});
+		originalConsole.debug.apply(console, args);
+	};
+}

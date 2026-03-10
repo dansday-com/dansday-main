@@ -15,4 +15,4 @@ EXPOSE 80
 
 ENV PORT=80
 ENV HOST=0.0.0.0
-CMD ["node", "build/index.js"]
+CMD ["node", "--import", "./otel/console-instrumentation.js", "build/index.js"]
