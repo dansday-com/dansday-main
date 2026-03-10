@@ -131,8 +131,16 @@ $(document).ready(function() {
             field = $btn.data('field'),
             inputName = $btn.data('input-name'),
             isSummernote = $btn.data('summernote') === 1;
-        var topic = prompt('Optional: describe the topic or leave blank');
-        if (topic === null) return;
+        var context = '';
+        if (isSummernote) {
+            context = $('textarea[name="' + inputName + '"]').summernote('code') || '';
+        } else {
+            context = ($('input[name="' + inputName + '"], textarea[name="' + inputName + '"]').val() || '').trim();
+        }
+        var title = ($('input[name="title"]').val() || '').trim();
+        if (title && inputName !== 'title') {
+            context = (context ? context + '\n\n' : '') + 'Title: ' + title;
+        }
         var model = ($('#ai_model_select').length) ? $('#ai_model_select').val() : '';
         $btn.prop('disabled', true).addClass('disabled');
         fetch(window.adminAiGenerateUrl || '/admin/ai-generate', {
@@ -143,7 +151,7 @@ $(document).ready(function() {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ type: type, field: field, topic: topic, model: model })
+            body: JSON.stringify({ type: type, field: field, topic: context, model: model })
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {

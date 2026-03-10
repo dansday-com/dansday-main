@@ -29,7 +29,7 @@ class AiGenerateController extends Controller
         $validator = Validator::make($request->all(), [
             'type' => ['required', 'string', 'in:article,project'],
             'field' => ['required', 'string'],
-            'topic' => ['nullable', 'string', 'max:500'],
+            'topic' => ['nullable', 'string', 'max:15000'],
             'model' => ['required', 'string', 'max:255'],
         ]);
 
@@ -47,7 +47,10 @@ class AiGenerateController extends Controller
         }
 
         $basePrompt = $allowed[$field];
-        $userHint = trim($topic) !== '' ? " Topic or context: {$topic}." : '';
+        $context = trim($topic);
+        $userHint = $context !== ''
+            ? " Use the following as context, outline, or draft (expand or refine based on this):\n\n{$context}"
+            : '';
         $prompt = $basePrompt . $userHint;
 
         $model = trim((string) $request->input('model'));
