@@ -1,6 +1,36 @@
 import type { Handle } from '@sveltejs/kit';
 
+function detectDevice(ua: string): 'mobile' | 'tablet' | 'desktop' | 'bot' | 'unknown' {
+	const v = ua.toLowerCase();
+	if (!v) return 'unknown';
+	if (/(bot|crawler|spider|slurp|facebookexternalhit|twitterbot)/i.test(v)) return 'bot';
+	if (/(ipad|tablet)/i.test(v)) return 'tablet';
+	if (/(mobi|iphone|android)/i.test(v)) return 'mobile';
+	return 'desktop';
+}
+
+function detectBrowser(ua: string): string {
+	if (!ua) return 'unknown';
+	if (/Edg\//.test(ua)) return 'edge';
+	if (/OPR\//.test(ua) || /Opera/.test(ua)) return 'opera';
+	if (/Chrome\//.test(ua) && !/Edg\//.test(ua) && !/OPR\//.test(ua)) return 'chrome';
+	if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) return 'safari';
+	if (/Firefox\//.test(ua)) return 'firefox';
+	return 'unknown';
+}
+
+function detectOs(ua: string): string {
+	if (!ua) return 'unknown';
+	if (/Windows NT/.test(ua)) return 'windows';
+	if (/Android/.test(ua)) return 'android';
+	if (/(iPhone|iPad|iPod)/.test(ua)) return 'ios';
+	if (/Mac OS X/.test(ua)) return 'macos';
+	if (/Linux/.test(ua)) return 'linux';
+	return 'unknown';
+}
+
 const preloadHandle: Handle = async ({ event, resolve }) => {
+	const start = Date.now();
 	const fonts = ['commit-mono-latin-400-normal'];
 	const response = await resolve(event, {
 		preload: ({ type, path }) => {
@@ -11,6 +41,29 @@ const preloadHandle: Handle = async ({ event, resolve }) => {
 			return type === 'js' || type === 'css';
 		}
 	});
+
+	const headers = event.request.headers;
+	const ua = headers.get('user-agent') ?? '';
+	const xff = headers.get('x-forwarded-for');
+	const ipFromXff = xff ? xff.split(',')[0]?.trim() : '';
+	const ip = ipFromXff || event.getClientAddress();
+
+	console.info('[visit]', {
+		ip,
+		ip_source: ipFromXff ? 'x-forwarded-for' : 'getClientAddress',
+		device: detectDevice(ua),
+		browser: detectBrowser(ua),
+		os: detectOs(ua),
+		user_agent: ua,
+		method: event.request.method,
+		path: event.url.pathname,
+		query: event.url.search,
+		referrer: headers.get('referer') ?? headers.get('referrer') ?? '',
+		accept_language: headers.get('accept-language') ?? '',
+		status: response.status,
+		duration_ms: Date.now() - start
+	});
+
 	return response;
 };
 
