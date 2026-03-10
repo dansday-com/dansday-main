@@ -7,7 +7,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 (async () => {
 	// OpenTelemetry console logging to SigNoz – must run before the app (build:otel-logs)
 	try {
-		await import(path.join(__dirname, 'console-instrumentation.js'));
+		await import(path.join(__dirname, 'otel', 'console-instrumentation.js'));
 	} catch (_) {
 		// If instrumentation not built, continue without logs export
 	}
