@@ -11,14 +11,14 @@ return new class extends Migration
         Schema::table('page_setting', function (Blueprint $table) {
             $table->string('openai_url', 500)->nullable()->after('image_favicon');
             $table->string('openai_key', 500)->nullable()->after('openai_url');
-            $table->text('openai_model_alias')->nullable()->after('openai_key');
+            $table->string('openai_model', 255)->nullable()->after('openai_key');
         });
     }
 
     public function down(): void
     {
         Schema::table('page_setting', function (Blueprint $table) {
-            $table->dropColumn(['openai_url', 'openai_key', 'openai_model_alias']);
+            $table->dropColumn(['openai_url', 'openai_key', 'openai_model']);
         });
     }
 };

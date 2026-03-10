@@ -42,7 +42,7 @@ class GeneralController extends Controller
             'analytics_code' => $request->input('analytics_code'),
             'openai_url'     => $request->input('openai_url'),
             'openai_key'     => $request->input('openai_key'),
-            'openai_model_alias' => $request->input('openai_model_alias'),
+            'openai_model'   => $request->input('openai_model'),
             'social_links'   => $request->input('social_links'),
             'image_favicon'  => $request->file('image_favicon'),
             'image_favicon_current' => $request->input('image_favicon_current'),
@@ -55,7 +55,7 @@ class GeneralController extends Controller
             'analytics_code' => ['nullable', 'string', 'max:55'],
             'openai_url'     => ['nullable', 'string', 'max:500'],
             'openai_key'     => ['nullable', 'string', 'max:500'],
-            'openai_model_alias' => ['nullable', 'string', 'max:5000'],
+            'openai_model'   => ['nullable', 'string', 'max:255'],
             'social_links'   => ['string'],
         ]);
         if ($validate->fails()) {
@@ -183,7 +183,7 @@ class GeneralController extends Controller
             'description'    => $data['description'],
             'analytics_code' => $data['analytics_code'],
             'openai_url'     => $data['openai_url'] ? trim($data['openai_url']) : null,
-            'openai_model_alias' => $data['openai_model_alias'] !== null ? trim((string) $data['openai_model_alias']) : null,
+            'openai_model'   => $data['openai_model'] ? trim((string) $data['openai_model']) : null,
             'image_favicon'  => $route_image_favicon,
             'social_links'   => $data['social_links'],
         ];

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\General;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -67,16 +68,24 @@ class AiGenerateController extends Controller
             : '';
         $prompt = $basePrompt . $userHint;
 
-        // Gateway handles model mapping; we don't expose model selection in the UI.
+        // Model is set in General settings (DB); UI has no model selector.
         $model = 'default';
-        $resolvedModel = $model;
+        try {
+            $general = General::find(1);
+            $fromDb = $general?->openai_model;
+            if (is_string($fromDb) && trim($fromDb) !== '') {
+                $model = trim($fromDb);
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
 
         try {
             $response = agent(
                 instructions: 'You are a concise copywriter. Reply with only the requested content, no preamble or quotes.',
                 messages: [],
                 tools: [],
-            )->prompt($prompt, provider: config('ai.default'), model: $resolvedModel);
+            )->prompt($prompt, provider: config('ai.default'), model: $model);
 
             $raw = $response->text ?? '';
             $text = is_string($raw) ? trim($raw) : '';
