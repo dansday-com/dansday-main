@@ -9,9 +9,7 @@ const SeverityNumber = {
 };
 
 function serializeMessage(...args: unknown[]): string {
-	return args
-		.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg)))
-		.join(' ');
+	return args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' ');
 }
 
 function isPlainRecord(v: unknown): v is Record<string, unknown> {

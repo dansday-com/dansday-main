@@ -26,6 +26,13 @@ export const load: LayoutServerLoad = async () => {
 		const publicBase = env.ADMIN_PUBLIC_URL?.replace(/\/$/, '') ?? '';
 		const [generalData, home, sectionData, aboutsData] = await Promise.all([fetchGeneral(), fetchHome(), fetchSection(), fetchAbouts()]);
 		const general = (generalData as Record<string, unknown>) ?? {};
+		
+		const aiTerminalConfigured = Boolean(general.openai_url && general.openai_key && general.openai_model);
+
+		delete general.openai_key;
+		delete general.openai_url;
+		delete general.openai_model;
+
 		const homeRecord = (home as Record<string, unknown>) ?? {};
 		const section = (sectionData as Record<string, unknown>) ?? {};
 		const siteName = (general.title as string) ?? (homeRecord.title as string) ?? '';
@@ -64,7 +71,8 @@ export const load: LayoutServerLoad = async () => {
 			emp_experiences,
 			testimonials,
 			services,
-			projectsListMeta
+			projectsListMeta,
+			aiTerminalConfigured
 		};
 	} catch {
 		const publicBase = env.ADMIN_PUBLIC_URL?.replace(/\/$/, '') ?? '';
@@ -84,7 +92,8 @@ export const load: LayoutServerLoad = async () => {
 			emp_experiences: [],
 			testimonials: [],
 			services: [],
-			projectsListMeta: { title: 'Projects', description: '' }
+			projectsListMeta: { title: 'Projects', description: '' },
+			aiTerminalConfigured: false
 		};
 	}
 };

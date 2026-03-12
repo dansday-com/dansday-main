@@ -82,7 +82,7 @@
 >
 	<Header siteName={data.siteName} {isFullscreen} {onMouseDown} {toggleFullscreen} />
 	{@render children()}
-	<Navbar siteName={data.siteName} socialLinks={data.socialLinks} section={data.section} />
+	<Navbar siteName={data.siteName} socialLinks={data.socialLinks} section={data.section} aiTerminalConfigured={data.aiTerminalConfigured} />
 </main>
 
 <div class="grid-pattern absolute top-0 left-0 h-full w-full" aria-hidden="true"></div>

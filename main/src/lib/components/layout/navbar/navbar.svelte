@@ -22,9 +22,10 @@
 		siteName: string;
 		socialLinks: SocialLink[];
 		section?: SectionFlags | Record<string, unknown>;
+		aiTerminalConfigured?: boolean;
 	}
 
-	let { siteName, socialLinks = [], section = {} }: $$Props = $props();
+	let { siteName, socialLinks = [], section = {}, aiTerminalConfigured = false }: $$Props = $props();
 
 	const notDisabled = (v: unknown) => v !== 0 && v !== false;
 
@@ -40,6 +41,7 @@
 			if (item.href === '/abouts') return notDisabled((section as SectionFlags).about_enable) && hasAboutsChildren;
 			if (item.href === '/projects') return notDisabled((section as SectionFlags).projects_enable);
 			if (item.href === '/articles') return notDisabled((section as SectionFlags).articles_enable);
+			if (item.href === '/terminal') return aiTerminalConfigured;
 			return true;
 		})
 	);

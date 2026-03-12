@@ -25,4 +25,3 @@ export const navbarMenu = [
 		key: 't'
 	}
 ] as const;
-

@@ -1,7 +1,4 @@
-import {
-	LoggerProvider,
-	BatchLogRecordProcessor
-} from '@opentelemetry/sdk-logs';
+import { LoggerProvider, BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
@@ -20,10 +17,7 @@ if (endpoint?.trim()) {
 			resource,
 			processors: [new BatchLogRecordProcessor(logExporter)]
 		});
-		const flushInterval = setInterval(
-			() => loggerProvider?.forceFlush().catch(() => {}),
-			5000
-		);
+		const flushInterval = setInterval(() => loggerProvider?.forceFlush().catch(() => {}), 5000);
 		if (flushInterval.unref) flushInterval.unref();
 	} catch (_) {
 		loggerProvider = null;
