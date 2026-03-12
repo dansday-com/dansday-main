@@ -2,12 +2,22 @@ import { json } from '@sveltejs/kit';
 import { fetchGeneral } from '$lib/server/data';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	try {
 		const { messages } = await request.json();
 
 		if (!Array.isArray(messages) || messages.length === 0) {
 			return json({ error: 'Invalid messages array' }, { status: 400 });
+		}
+
+		// Log terminal usage for security/Otel tracking
+		const lastMessage = messages[messages.length - 1];
+		if (lastMessage?.role === 'user') {
+			let clientIp = 'unknown';
+			try {
+				clientIp = getClientAddress();
+			} catch(e) {}
+			console.info(`[Terminal Activity] Command executed by IP ${clientIp}: ${lastMessage.content}`);
 		}
 
 		const generalData = await fetchGeneral();
