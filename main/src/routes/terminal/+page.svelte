@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Metadata from '$lib/components/metadata.svelte';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
+	const general = (data.general ?? {}) as Record<string, unknown>;
+	const metaTitle = (general.title as string) ?? data.siteName ?? '';
+	const metaDescription = (general.description as string) ?? '';
 
 	interface CommandHistory {
 		command: string;
@@ -115,7 +121,7 @@
 	}
 </script>
 
-<Metadata title="Terminal | {username}" description="Ubuntu Terminal instance for {username}" />
+<Metadata title={metaTitle} description={metaDescription} image={data.defaultOgImage} />
 
 <section class="flex h-full grow flex-col bg-black font-mono text-sm md:text-base" onclick={focusInput} role="presentation">
 	<div class="text-ash-100 flex-1 overflow-y-auto p-4 sm:p-6">
