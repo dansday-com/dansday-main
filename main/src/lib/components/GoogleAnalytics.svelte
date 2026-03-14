@@ -16,7 +16,7 @@
 		script1.async = true;
 		script1.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id.trim())}`;
 		document.head.appendChild(script1);
-		
+
 		const script2 = document.createElement('script');
 		script2.textContent = `
 			window.dataLayer = window.dataLayer || [];
