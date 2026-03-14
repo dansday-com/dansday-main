@@ -78,6 +78,8 @@ Route::namespace('Admin')->middleware(['auth', 'XSS'])->group(function () {
 Route::namespace('Admin')->middleware(['auth', 'XSS'])->group(function () {
     Route::get('admin/general', [App\Http\Controllers\GeneralController::class, 'index']);
     Route::put('admin/general', [App\Http\Controllers\GeneralController::class, 'update']);
+    Route::get('admin/ai', [App\Http\Controllers\GeneralController::class, 'aiIndex']);
+    Route::put('admin/ai', [App\Http\Controllers\GeneralController::class, 'updateAi']);
 });
 
 Route::namespace('Admin')->middleware(['auth', 'XSS'])->group(function () {

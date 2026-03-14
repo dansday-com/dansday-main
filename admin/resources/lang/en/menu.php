@@ -8,6 +8,7 @@ return [
     'articles_sections' => 'Articles sections',
     'categories'        => 'Categories',
     'general'           => 'General',
+    'ai'                => 'AI',
     'home'              => 'Home',
     'logout'            => 'Logout',
     'pages'             => 'Pages',

@@ -101,6 +101,13 @@
         </a>
     </li>
 
+    <li class="nav-item {{ request()->is('admin/ai*') ? 'active' : '' }}">
+        <a class="nav-link css3animate padding-sm" href="{{ url('admin/ai') }}">
+            <i class="fas fa-robot css3animate"></i>
+            <span>{{ __('menu.ai') ?? 'AI' }}</span>
+        </a>
+    </li>
+
     <li class="nav-item {{ request()->is('admin/sections*') ? 'active' : '' }}">
         <a class="nav-link css3animate padding-sm" href="{{ url('admin/sections') }}">
             <i class="fas fa-puzzle-piece css3animate"></i>
