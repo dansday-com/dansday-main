@@ -61,7 +61,11 @@
                                         <div class="row">
                                             <div class="col-4">
                                                 <div class="input-group mb-3">
-                                                    <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-icons"></i></span></div>
+                                                    <div class="input-group-prepend">
+                                                        <button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#iconPickerModal" title="Browse Icons">
+                                                            <i class="fas fa-icons" id="icon-picker-preview"></i>
+                                                        </button>
+                                                    </div>
                                                     <input type="text" class="form-control" name="social_network" id="info_label_social-links" placeholder="fab fa-twitter">
                                                 </div>
                                                 <small class="form-text text-muted">Use Font Awesome classes (e.g. <code>fab fa-github</code>)</small>
@@ -100,6 +104,26 @@
                             <button type="submit" class="btn btn-primary check-summernote">{{ __('content.update') }}</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Icon Picker Modal -->
+<div class="modal fade" id="iconPickerModal" tabindex="-1" role="dialog" aria-labelledby="iconPickerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="iconPickerModalLabel">Choose an Icon</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" id="iconSearchInput" class="form-control" placeholder="Search icons...">
+                </div>
+                <div id="iconGrid" class="d-flex flex-wrap gap-2" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Icons injected via JS -->
                 </div>
             </div>
         </div>

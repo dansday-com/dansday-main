@@ -1,4 +1,4 @@
-$(document).ready(function() {
+$(document).ready(function () {
     "use strict";
 
     if ($(".datatable").length > 0) {
@@ -6,15 +6,15 @@ $(document).ready(function() {
     }
 
     if ($(".alert.alert-message").length > 0) {
-        window.setTimeout(function() {
-            $("#alert_message").fadeTo(500, 0).slideUp(500, function() {
+        window.setTimeout(function () {
+            $("#alert_message").fadeTo(500, 0).slideUp(500, function () {
                 $(this).remove();
             });
         }, 3000);
     }
 
     if ($(".info-content").length > 0) {
-        $('.addInfo').on("click", function() {
+        $('.addInfo').on("click", function () {
 
             var target = $(this).attr('data-target'),
                 info_label = $('#info_label_' + target).val(),
@@ -43,7 +43,7 @@ $(document).ready(function() {
                 $("#" + target).val(JSON.stringify(listInfo));
             } else {
                 $('.invalid-' + target).removeClass("d-none");
-                setTimeout(function() {
+                setTimeout(function () {
                     $('.invalid-' + target).addClass("d-none");
                 }, 2500);
             }
@@ -53,7 +53,7 @@ $(document).ready(function() {
         });
     }
 
-    $('.table-elements').on('click', 'button.deleteInfo', function() {
+    $('.table-elements').on('click', 'button.deleteInfo', function () {
         var target = $(this).parent().parent().parent().parent().attr('data-target'),
             listInfo = JSON.parse($("#" + target).val()),
             title = $(this).attr('data-info'),
@@ -67,13 +67,13 @@ $(document).ready(function() {
         }
     });
 
-    $('.previewImage ').on("change", function() {
+    $('.previewImage ').on("change", function () {
         var image = this.files[0],
             type = $(this).attr("name");
         if (image["type"] == "image/jpeg" || image["type"] == "image/jpg" || image["type"] == "image/png") {
             var dataImage = new FileReader();
             dataImage.readAsDataURL(image);
-            $(dataImage).on("load", function(event) {
+            $(dataImage).on("load", function (event) {
                 var routeImage = event.target.result;
                 $(".previewImage_" + type).attr("src", routeImage);
             });
@@ -87,7 +87,7 @@ $(document).ready(function() {
     }
 
     if ($("form.form-visibility").length > 0) {
-        $('.form-check-input').on("change", function() {
+        $('.form-check-input').on("change", function () {
             var target = $(this).attr('data-visibility');
             if (target != null) {
                 if ($(this).prop("checked") == true) {
@@ -101,13 +101,13 @@ $(document).ready(function() {
 
     $('[data-bs-toggle="tooltip"]').tooltip();
 
-    $(document).on('click', '.ai-generate-btn', function() {
+    $(document).on('click', '.ai-generate-btn', function () {
         var $btn = $(this);
         var type = $btn.data('type');
         var field = $btn.data('field');
         var inputName = $btn.data('input-name');
         var isSummernote = $btn.data('summernote') ? '1' : '0';
-        
+
         // Take the prompt directly from the Summernote editor content (or text input)
         var promptContext = '';
         if (isSummernote === '1') {
@@ -122,10 +122,10 @@ $(document).ready(function() {
             alert('Please enter some text in the content editor to use as a prompt for AI.');
             return;
         }
-        
+
         var originalHtml = $btn.html();
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
-        
+
         fetch(window.adminAiGenerateUrl || '/admin/ai-generate', {
             method: 'POST',
             headers: {
@@ -136,26 +136,26 @@ $(document).ready(function() {
             },
             body: JSON.stringify({ type: type, field: field, topic: promptContext })
         })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
-            if (isSummernote === '1') {
-                $('textarea[name="' + inputName + '"]').summernote('code', data.text || '');
-            } else {
-                $('input[name="' + inputName + '"], textarea[name="' + inputName + '"]').val(data.text || '');
-            }
-        })
-        .catch(function() { alert('Request failed.'); })
-        .finally(function() {
-            $btn.prop('disabled', false).html(originalHtml);
-        });
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                if (isSummernote === '1') {
+                    $('textarea[name="' + inputName + '"]').summernote('code', data.text || '');
+                } else {
+                    $('input[name="' + inputName + '"], textarea[name="' + inputName + '"]').val(data.text || '');
+                }
+            })
+            .catch(function () { alert('Request failed.'); })
+            .finally(function () {
+                $btn.prop('disabled', false).html(originalHtml);
+            });
     });
 
 
-    $(".summernote").each(function() {
+    $(".summernote").each(function () {
         var $this = $(this),
             name = $this.attr('name'),
             folder = $this.attr('data-folder'),
@@ -174,14 +174,14 @@ $(document).ready(function() {
                 ['view', ['fullscreen', 'help']],
             ],
             callbacks: {
-                onImageUpload: function(files) {
+                onImageUpload: function (files) {
                     for (var i = 0; i < files.length; i++) {
                         upload(files[i], name, folder, route, code);
                     }
                 }
             }
         });
-        $('.check-summernote').on('click', function(e) {
+        $('.check-summernote').on('click', function (e) {
             e.preventDefault();
             var html = $('.note-editor .note-editable').html();
             if (html) {
@@ -191,7 +191,7 @@ $(document).ready(function() {
             $('form').trigger('submit');
         });
     });
-    $(".summernote-simple").each(function() {
+    $(".summernote-simple").each(function () {
         $(".summernote-simple").summernote({
             height: 200,
             toolbar: [
@@ -203,7 +203,7 @@ $(document).ready(function() {
                 ['view', ['fullscreen', 'codeview', 'help']],
             ]
         });
-        $('.check-summernote').on('click', function() {
+        $('.check-summernote').on('click', function () {
             $('form').trigger('submit');
         });
     });
@@ -222,10 +222,10 @@ $(document).ready(function() {
             cache: false,
             processData: false,
             headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-            success: function(response) {
-                $("[name='" + name + "']").summernote("insertImage", response, function() {});
+            success: function (response) {
+                $("[name='" + name + "']").summernote("insertImage", response, function () { });
             },
-            error: function(jqXHR, textStatus, errorThrown) {
+            error: function (jqXHR, textStatus, errorThrown) {
                 console.error(textStatus + "" + errorThrown);
             }
         });
@@ -234,12 +234,12 @@ $(document).ready(function() {
     $('.dropdown-toggle').dropdown();
 
     if ($(".form-password").length > 0) {
-        $('.form-password i.password-visible').on("click", function() {
+        $('.form-password i.password-visible').on("click", function () {
             $(this).parent().find('input').get(0).type = 'text';
             $(this).addClass('d-none');
             $(this).parent().find('.password-hidden').removeClass('d-none');
         });
-        $('.form-password i.password-hidden').on("click", function() {
+        $('.form-password i.password-hidden').on("click", function () {
             $(this).parent().find('input').get(0).type = 'password';
             $(this).addClass('d-none');
             $(this).parent().find('.password-visible').removeClass('d-none');
@@ -247,7 +247,7 @@ $(document).ready(function() {
     }
 
     if ($(".remove-image").length > 0) {
-        $('.remove-image').on("click", function() {
+        $('.remove-image').on("click", function () {
             var target = $(this).attr('data-target'),
                 url = $(this).attr('data-url');
             $('input[name="' + target + '_current"]').val('');
@@ -258,10 +258,160 @@ $(document).ready(function() {
         });
     }
     if ($(".remove-file").length > 0) {
-        $('.remove-file').on("click", function() {
+        $('.remove-file').on("click", function () {
             var target = $(this).attr('data-target');
             $('input[name="' + target + '_current"]').val('');
             $('input[name="' + target + '"]').val('');
+        });
+    }
+
+    // Icon Picker Modal Logic
+    if ($("#iconPickerModal").length > 0) {
+        const iconGrid = $("#iconGrid");
+        let allIcons = [];
+
+        // Load all available metadata to significantly improve searching and grouping
+        Promise.all([
+            fetch('/assets/metadata/icons.json').then(r => r.json()).catch(() => ({})),
+            fetch('/assets/metadata/categories.yml').then(r => r.text()).catch(() => ""),
+            fetch('/assets/metadata/sponsors.yml').then(r => r.text()).catch(() => ""),
+            fetch('/assets/metadata/shims.json').then(r => r.json()).catch(() => ([]))
+        ]).then(([iconsData, categoriesYml, sponsorsYml, shimsData]) => {
+            
+            // Pre-process categories
+            let iconCategories = {};
+            if (categoriesYml) {
+                let currentCategory = '';
+                categoriesYml.split('\n').forEach(line => {
+                    const catMatch = line.match(/^([a-z0-9-]+):$/);
+                    if (catMatch) {
+                        currentCategory = catMatch[1].replace(/-/g, ' ');
+                    } else if (currentCategory && line.includes('- ')) {
+                        const iconName = line.split('- ')[1].trim().replace(/['"]/g, '');
+                        if (!iconCategories[iconName]) iconCategories[iconName] = [];
+                        iconCategories[iconName].push(currentCategory);
+                    }
+                });
+            }
+
+            // Pre-process sponsors
+            let iconSponsors = {}; 
+            if (sponsorsYml) {
+                let currentSponsor = '';
+                sponsorsYml.split('\n').forEach(line => {
+                    const spMatch = line.match(/^([a-z0-9-]+):$/);
+                    if (spMatch) {
+                        currentSponsor = spMatch[1].replace(/-/g, ' ');
+                    } else if (currentSponsor && line.includes('- ')) {
+                        const iconName = line.split('- ')[1].trim().replace(/['"]/g, '');
+                        if (!iconSponsors[iconName]) iconSponsors[iconName] = [];
+                        iconSponsors[iconName].push(currentSponsor);
+                    }
+                });
+            }
+
+            // Pre-process shims to map old names to new icons
+            let iconShims = {};
+            if (Array.isArray(shimsData)) {
+                shimsData.forEach(shim => {
+                    if (!Array.isArray(shim)) return;
+                    const oldName = shim[0];
+                    const newName = shim[2];
+                    if (typeof oldName === 'string' && typeof newName === 'string' && newName) {
+                        if (!iconShims[newName]) iconShims[newName] = [];
+                        iconShims[newName].push(oldName.replace(/-/g, ' '));
+                    }
+                });
+            }
+
+            // Base icons
+            for (const [iconName, iconData] of Object.entries(iconsData)) {
+                const styles = iconData.styles || [];
+                let searchTerms = (iconData.search?.terms || []).join(' ');
+                
+                // Incorporate additional metadata for better searching
+                if (iconCategories[iconName]) {
+                    searchTerms += ' ' + iconCategories[iconName].join(' ');
+                }
+
+                if (iconSponsors[iconName]) {
+                    searchTerms += ' sponsor ' + iconSponsors[iconName].join(' ');
+                }
+
+                if (iconShims[iconName]) {
+                    searchTerms += ' ' + iconShims[iconName].join(' ');
+                }
+                
+                // If it's a brand/sponsor, let's tag it for better searchability
+                if (styles.includes('brands')) {
+                    searchTerms += ' brand social';
+                }
+
+                styles.forEach(style => {
+                    let prefix = 'fas';
+                    if (style === 'brands') prefix = 'fab';
+                    else if (style === 'regular') prefix = 'far';
+                    else if (style === 'solid') prefix = 'fas';
+                    else if (style === 'light') prefix = 'fal';
+                    else if (style === 'duotone') prefix = 'fad';
+                    else if (style === 'thin') prefix = 'fat';
+
+                    allIcons.push({ 
+                        c: prefix + ' fa-' + iconName, 
+                        n: iconName.replace(/-/g, ' '), 
+                        t: searchTerms 
+                    });
+                });
+            }
+
+            // Deduplicate
+            allIcons = allIcons.filter((value, index, self) =>
+              index === self.findIndex((t) => (t.c === value.c))
+            );
+        });
+
+        const renderIcons = (query = '') => {
+            iconGrid.empty();
+            const lowerQuery = query.toLowerCase();
+            const filtered = allIcons.filter(icon =>
+                icon.n.toLowerCase().includes(lowerQuery) ||
+                icon.c.toLowerCase().includes(lowerQuery) ||
+                (icon.t && icon.t.toLowerCase().includes(lowerQuery))
+            ).slice(0, 300); // Limit to 300 to prevent browser lag with thousands of icons
+
+            filtered.forEach(icon => {
+                const btn = $('<button>', {
+                    type: 'button',
+                    class: 'btn btn-outline-secondary m-1 px-3 py-2',
+                    title: icon.n,
+                    html: '<i class="' + icon.c + ' fa-lg"></i>'
+                });
+                btn.on('click', function () {
+                    $('#info_label_social-links').val(icon.c);
+                    $('#icon-picker-preview').attr('class', icon.c);
+                    $('#iconPickerModal').modal('hide');
+                });
+                iconGrid.append(btn);
+            });
+        };
+
+        $('#iconPickerModal').on('shown.bs.modal', function () {
+            $('#iconSearchInput').val('');
+            renderIcons();
+            $('#iconSearchInput').trigger('focus');
+        });
+
+        $('#iconSearchInput').on('input', function () {
+            renderIcons($(this).val());
+        });
+
+        $('#info_label_social-links').on('input', function () {
+            const val = $(this).val();
+            if (val.length > 3) {
+                $('#icon-picker-preview').attr('class', val);
+            } else {
+                $('#icon-picker-preview').attr('class', 'fas fa-icons');
+            }
         });
     }
 
@@ -272,7 +422,7 @@ if ($(".popup-image").length > 0) {
         type: 'image',
         removalDelay: 500,
         callbacks: {
-            beforeOpen: function() {
+            beforeOpen: function () {
                 this.st.image.markup = this.st.image.markup.replace('mfp-figure', 'mfp-figure mfp-with-anim');
                 this.st.mainClass = 'mfp-zoom-in';
             }
@@ -281,5 +431,3 @@ if ($(".popup-image").length > 0) {
         fixedContentPos: false
     });
 }
-
-
