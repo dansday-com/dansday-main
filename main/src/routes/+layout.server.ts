@@ -26,7 +26,7 @@ export const load: LayoutServerLoad = async () => {
 		const publicBase = env.ADMIN_PUBLIC_URL?.replace(/\/$/, '') ?? '';
 		const [generalData, home, sectionData, aboutsData] = await Promise.all([fetchGeneral(), fetchHome(), fetchSection(), fetchAbouts()]);
 		const general = (generalData as Record<string, unknown>) ?? {};
-		
+
 		const hasUrl = Boolean(general.ai_url && typeof general.ai_url === 'string' && general.ai_url.trim() !== '');
 		const hasKey = Boolean(general.ai_key && typeof general.ai_key === 'string' && general.ai_key.trim() !== '');
 		const hasModel = Boolean(general.ai_model && typeof general.ai_model === 'string' && general.ai_model.trim() !== '');

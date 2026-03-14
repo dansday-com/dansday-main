@@ -47,7 +47,7 @@ const preloadHandle: Handle = async ({ event, resolve }) => {
 	const cfIp = headers.get('cf-connecting-ip');
 	const realIp = headers.get('x-real-ip');
 	const xff = headers.get('x-forwarded-for');
-	
+
 	const ipFromHeader = cfIp || realIp || (xff ? xff.split(',')[0]?.trim() : '');
 	const ip = ipFromHeader || event.getClientAddress();
 

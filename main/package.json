@@ -5,8 +5,9 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "prettier --write . && prettier --check . && svelte-kit sync && vite build && npm run build:otel-logs",
-		"build:prod": "svelte-kit sync && vite build && npm run build:otel-logs",
+		"build": "vite build",
+		"build:format": "prettier --write . && prettier --check .",
+		"build:sync": "svelte-kit sync",
 		"build:otel-logs": "tsc -p tsconfig.otel.json"
 	},
 	"devDependencies": {

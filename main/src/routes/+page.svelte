@@ -12,7 +12,7 @@
 <Metadata title={metaTitle} description={metaDescription} image={data.defaultOgImage} />
 
 <section class="flex grow flex-col items-center justify-center space-y-2.5 md:space-y-5">
-	<div class="flex flex-col text-center items-center justify-center">
+	<div class="flex flex-col items-center justify-center text-center">
 		{#if data.homeTitleAscii}
 			<pre
 				class="max-w-full overflow-x-auto text-left font-mono text-[0.4rem] leading-tight sm:text-[0.5rem] md:text-[0.6rem] lg:text-[0.65rem]"

@@ -56,7 +56,7 @@
 
 		try {
 			const apiMessages = [];
-			
+
 			for (let i = 0; i < history.length - 1; i++) {
 				const item = history[i];
 				if (item.command) {
@@ -126,9 +126,9 @@
 
 <Metadata title={metaTitle} description={metaDescription} image={data.defaultOgImage} />
 
-<main class="flex min-h-0 flex-1 flex-col font-mono text-sm md:text-base relative" onclick={focusInput} role="presentation">
-	<div class="absolute inset-0 bg-[#080808]/80 backdrop-blur-sm -z-10"></div>
-	<div bind:this={containerElement} class="text-ash-100 flex-1 overflow-y-auto p-4 sm:p-6 pb-12 z-10">
+<main class="relative flex min-h-0 flex-1 flex-col font-mono text-sm md:text-base" onclick={focusInput} role="presentation">
+	<div class="absolute inset-0 -z-10 bg-[#080808]/80 backdrop-blur-sm"></div>
+	<div bind:this={containerElement} class="text-ash-100 z-10 flex-1 overflow-y-auto p-4 pb-12 sm:p-6">
 		<div class="mb-4">
 			<div>Welcome to Ubuntu 24.04 LTS (GNU/Linux 6.6.87.2-microsoft-standard-WSL2 x86_64)</div>
 			<br />

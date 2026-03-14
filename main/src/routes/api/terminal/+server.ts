@@ -15,11 +15,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		if (lastMessage?.role === 'user') {
 			let clientIp = 'unknown';
 			try {
-				clientIp = request.headers.get('cf-connecting-ip') 
-					|| request.headers.get('x-real-ip')
-					|| request.headers.get('x-forwarded-for')?.split(',')[0].trim() 
-					|| getClientAddress();
-			} catch(e) {}
+				clientIp =
+					request.headers.get('cf-connecting-ip') ||
+					request.headers.get('x-real-ip') ||
+					request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+					getClientAddress();
+			} catch (e) {}
 			console.info(`[Terminal Activity] Command executed by IP ${clientIp}: ${lastMessage.content}`);
 		}
 
@@ -33,22 +34,20 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		const hasModel = Boolean(openaiModel && openaiModel.trim() !== '');
 
 		if (!hasUrl || !hasKey || !hasModel) {
-			return json(
-				{ 
-					response: "Error: AI Terminal is not configured. Please set the OpenAI URL, Key, and Model in the admin settings." 
-				}
-			);
+			return json({
+				response: 'Error: AI Terminal is not configured. Please set the OpenAI URL, Key, and Model in the admin settings.'
+			});
 		}
 
 		let baseURL = openaiUrl.trim().replace(/\/+$/, '');
-		
+
 		if (baseURL.endsWith('/chat/completions')) {
 			baseURL = baseURL.replace('/chat/completions', '');
 		}
 
 		const openai = new OpenAI({
 			baseURL: baseURL,
-			apiKey: openaiKey.trim(),
+			apiKey: openaiKey.trim()
 		});
 
 		const systemPrompt = {
@@ -71,11 +70,9 @@ If they ask a general question, answer it concisely in a terminal-friendly forma
 			return json({ response: reply });
 		} catch (error: any) {
 			console.error('OpenAI API Error:', error);
-			return json(
-				{ 
-					response: `Error: Failed to connect to AI service.\n${error.message}` 
-				}
-			);
+			return json({
+				response: `Error: Failed to connect to AI service.\n${error.message}`
+			});
 		}
 	} catch (error: any) {
 		console.error('Terminal API Error:', error);

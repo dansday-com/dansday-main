@@ -34,8 +34,8 @@
 					src={resolveImageUrl(project.poster, baseUrl)}
 					alt={project.title}
 					class="size-full object-cover object-center grayscale-50 transition-all duration-500 group-hover:grayscale-0"
-					loading={i < 4 ? "eager" : "lazy"}
-					fetchpriority={i < 4 ? "high" : "auto"}
+					loading={i < 4 ? 'eager' : 'lazy'}
+					fetchpriority={i < 4 ? 'high' : 'auto'}
 				/>
 				<div class="absolute top-0 left-0 grid h-full w-full place-items-center bg-[#080808]/90 transition-opacity duration-500 group-hover:opacity-0">
 					<p class="px-4 text-center text-3xl font-semibold uppercase">{project.title}</p>

@@ -19,7 +19,7 @@
 	<title>{title}</title>
 	<meta name="description" content={description} />
 	<meta name="theme-color" content={isMobile ? '#262626' : '#454545'} />
-	
+
 	<link rel="canonical" href={finalCanonical} />
 
 	<meta property="og:url" content={finalCanonical} />

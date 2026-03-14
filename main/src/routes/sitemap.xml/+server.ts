@@ -31,7 +31,7 @@ export const GET: RequestHandler = async () => {
 
 	try {
 		section = (await fetchSection()) as Record<string, unknown>;
-		const general = await fetchGeneral() as Record<string, unknown>;
+		const general = (await fetchGeneral()) as Record<string, unknown>;
 		const hasUrl = Boolean(general.ai_url && typeof general.ai_url === 'string' && general.ai_url.trim() !== '');
 		const hasKey = Boolean(general.ai_key && typeof general.ai_key === 'string' && general.ai_key.trim() !== '');
 		const hasModel = Boolean(general.ai_model && typeof general.ai_model === 'string' && general.ai_model.trim() !== '');
@@ -95,9 +95,7 @@ export const GET: RequestHandler = async () => {
 		...(notDisabled(section.articles_enable)
 			? [{ loc: `${baseUrl}/articles`, changefreq: 'daily' as const, priority: 1.0, lastmod: new Date().toISOString() }]
 			: []),
-		...(aiTerminalConfigured
-			? [{ loc: `${baseUrl}/terminal`, changefreq: 'daily' as const, priority: 0.8, lastmod: new Date().toISOString() }]
-			: []),
+		...(aiTerminalConfigured ? [{ loc: `${baseUrl}/terminal`, changefreq: 'daily' as const, priority: 0.8, lastmod: new Date().toISOString() }] : []),
 		...aboutsUrlData,
 		...articleUrlData,
 		...projectUrlData
