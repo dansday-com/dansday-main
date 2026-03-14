@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN NODE_OPTIONS="" npm install
+RUN NODE_ENV=development NODE_OPTIONS="" npm install
 
 COPY . .
 RUN NODE_OPTIONS="" npm run build:prod
