@@ -30,7 +30,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="ai_key" class="form-label">{{ __('content.ai_api_key') ?? 'AI API Key' }}</label>
-                                    <input class="form-control @error('ai_key') is-invalid @enderror" type="password" name="ai_key" value="{{ ($general->ai_key ?? '') !== '' ? str_repeat('*', 8) : '' }}" autocomplete="new-password" />
+                                    <input class="form-control @error('ai_key') is-invalid @enderror" type="password" name="ai_key" value="{{ ($general->ai_key ?? '') !== '' ? preg_replace('/./', '*', $general->ai_key) : '' }}" autocomplete="new-password" />
                                     <div class="form-text">{{ __('content.ai_api_key_desc') ?? 'API key. Leave blank to keep the current key.' }}</div>
                                     @error('ai_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>

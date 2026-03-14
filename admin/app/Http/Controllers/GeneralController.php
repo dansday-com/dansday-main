@@ -191,8 +191,12 @@ class GeneralController extends Controller
             'ai_model' => $request->input('ai_model'),
         ];
 
-        // If the submitted key is just the dummy mask, treat it as null/unchanged for validation
-        if ($data['ai_key'] === '********') {
+        // Find current general config
+        $general = General::find(1);
+
+        // If the submitted key matches the exact mask of the current key, it means it wasn't changed
+        $currentKeyMask = ($general && !empty($general->ai_key)) ? preg_replace('/./', '*', $general->ai_key) : null;
+        if ($currentKeyMask && $data['ai_key'] === $currentKeyMask) {
             $data['ai_key'] = null;
         }
 
@@ -212,9 +216,8 @@ class GeneralController extends Controller
             'ai_url'   => $data['ai_url'] ? trim($data['ai_url']) : null,
             'ai_model' => $data['ai_model'] ? trim((string) $data['ai_model']) : null,
         ];
-        $keyInput = $request->input('ai_key');
-        if ($keyInput !== null && trim((string) $keyInput) !== '' && $keyInput !== '********') {
-            $data_new['ai_key'] = trim($keyInput);
+        if (!empty($data['ai_key'])) {
+            $data_new['ai_key'] = trim($data['ai_key']);
         }
         
         General::where('id', 1)->update($data_new);
