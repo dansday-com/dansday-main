@@ -269,6 +269,7 @@ $(document).ready(function () {
     if ($("#iconPickerModal").length > 0) {
         const iconGrid = $("#iconGrid");
         let allIcons = [];
+        let categoriesData = {}; // Store categories and their icons
 
         // Load all available metadata to significantly improve searching and grouping
         Promise.all([
@@ -282,17 +283,24 @@ $(document).ready(function () {
             let iconCategories = {};
             if (categoriesYml) {
                 let currentCategory = '';
+                let currentCategoryLabel = '';
                 categoriesYml.split('\n').forEach(line => {
                     const catMatch = line.match(/^([a-z0-9-]+):$/);
                     if (catMatch) {
-                        currentCategory = catMatch[1].replace(/-/g, ' ');
+                        currentCategory = catMatch[1];
+                        currentCategoryLabel = currentCategory.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        categoriesData[currentCategoryLabel] = [];
                     } else if (currentCategory && line.includes('- ')) {
                         const iconName = line.split('- ')[1].trim().replace(/['"]/g, '');
                         if (!iconCategories[iconName]) iconCategories[iconName] = [];
-                        iconCategories[iconName].push(currentCategory);
+                        iconCategories[iconName].push(currentCategoryLabel);
                     }
                 });
             }
+
+            // Other groups
+            categoriesData["Brands"] = [];
+            categoriesData["Uncategorized"] = [];
 
             // Pre-process sponsors
             let iconSponsors = {}; 
@@ -356,47 +364,159 @@ $(document).ready(function () {
                     else if (style === 'duotone') prefix = 'fad';
                     else if (style === 'thin') prefix = 'fat';
 
-                    allIcons.push({ 
+                    const iconObj = { 
                         c: prefix + ' fa-' + iconName, 
                         n: iconName.replace(/-/g, ' '), 
                         t: searchTerms 
-                    });
+                    };
+
+                    allIcons.push(iconObj);
+
+                    // Assign to categories
+                    if (style === 'brands') {
+                        categoriesData["Brands"].push(iconObj);
+                    } else if (iconCategories[iconName]) {
+                        iconCategories[iconName].forEach(cat => {
+                            if (categoriesData[cat]) {
+                                categoriesData[cat].push(iconObj);
+                            }
+                        });
+                    } else {
+                        categoriesData["Uncategorized"].push(iconObj);
+                    }
                 });
             }
 
-            // Deduplicate
+            // Deduplicate categories data
+            for (const cat in categoriesData) {
+                categoriesData[cat] = categoriesData[cat].filter((value, index, self) =>
+                    index === self.findIndex((t) => (t.c === value.c))
+                );
+                // Remove empty categories
+                if (categoriesData[cat].length === 0) {
+                    delete categoriesData[cat];
+                }
+            }
+
+            // Deduplicate allIcons
             allIcons = allIcons.filter((value, index, self) =>
               index === self.findIndex((t) => (t.c === value.c))
             );
+            
+            // Re-render immediately if search input is focused but empty
+            if ($('#iconPickerModal').hasClass('show') && $('#iconSearchInput').val().trim() === '') {
+                renderCategoryButtons();
+                renderIcons();
+            }
         });
+
+        let selectedCategory = null;
+        const categoryFilterContainer = $('<div class="mb-3 d-flex flex-wrap gap-1 align-items-center" id="iconCategoryFilters" style="max-height: 120px; overflow-y: auto;"></div>');
+        iconGrid.before(categoryFilterContainer);
+
+        const renderCategoryButtons = () => {
+            categoryFilterContainer.empty();
+            const allBtn = $('<button>', {
+                type: 'button',
+                class: 'btn btn-sm ' + (selectedCategory === null ? 'btn-primary' : 'btn-outline-primary'),
+                text: 'All'
+            }).on('click', function() {
+                selectedCategory = null;
+                renderCategoryButtons();
+                renderIcons($('#iconSearchInput').val());
+            });
+            categoryFilterContainer.append(allBtn);
+
+            for (const cat of Object.keys(categoriesData).sort()) {
+                const btn = $('<button>', {
+                    type: 'button',
+                    class: 'btn btn-sm ' + (selectedCategory === cat ? 'btn-primary' : 'btn-outline-primary'),
+                    text: cat
+                }).on('click', function() {
+                    selectedCategory = selectedCategory === cat ? null : cat;
+                    renderCategoryButtons();
+                    renderIcons($('#iconSearchInput').val());
+                });
+                categoryFilterContainer.append(btn);
+            }
+        };
+
+        const createIconButton = (icon) => {
+            const btn = $('<button>', {
+                type: 'button',
+                class: 'btn btn-outline-secondary m-1 px-3 py-2',
+                title: icon.n,
+                html: '<i class="' + icon.c + ' fa-lg"></i>'
+            });
+            btn.on('click', function () {
+                $('#info_label_social-links').val(icon.c);
+                $('#icon-picker-preview').attr('class', icon.c);
+                $('#iconPickerModal').modal('hide');
+            });
+            return btn;
+        };
 
         const renderIcons = (query = '') => {
             iconGrid.empty();
-            const lowerQuery = query.toLowerCase();
-            const filtered = allIcons.filter(icon =>
-                icon.n.toLowerCase().includes(lowerQuery) ||
-                icon.c.toLowerCase().includes(lowerQuery) ||
-                (icon.t && icon.t.toLowerCase().includes(lowerQuery))
-            ).slice(0, 300); // Limit to 300 to prevent browser lag with thousands of icons
+            const lowerQuery = query.toLowerCase().trim();
 
-            filtered.forEach(icon => {
-                const btn = $('<button>', {
-                    type: 'button',
-                    class: 'btn btn-outline-secondary m-1 px-3 py-2',
-                    title: icon.n,
-                    html: '<i class="' + icon.c + ' fa-lg"></i>'
-                });
-                btn.on('click', function () {
-                    $('#info_label_social-links').val(icon.c);
-                    $('#icon-picker-preview').attr('class', icon.c);
-                    $('#iconPickerModal').modal('hide');
-                });
-                iconGrid.append(btn);
-            });
+            if (selectedCategory !== null) {
+                // Show only selected category
+                const icons = categoriesData[selectedCategory] || [];
+                let filtered = icons;
+                
+                if (lowerQuery !== '') {
+                    filtered = icons.filter(icon =>
+                        icon.n.toLowerCase().includes(lowerQuery) ||
+                        icon.c.toLowerCase().includes(lowerQuery) ||
+                        (icon.t && icon.t.toLowerCase().includes(lowerQuery))
+                    );
+                }
+
+                if (filtered.length > 0) {
+                    filtered.forEach(icon => {
+                        iconGrid.append(createIconButton(icon));
+                    });
+                } else {
+                    iconGrid.append($('<p>', { class: 'text-muted mt-3', text: 'No icons found in this category.' }));
+                }
+            } else {
+                if (lowerQuery === '') {
+                    // Show grouped by category
+                    for (const cat of Object.keys(categoriesData).sort()) {
+                        const icons = categoriesData[cat];
+                        if (icons.length > 0) {
+                            iconGrid.append($('<h5>', { class: 'w-100 mt-3 mb-2 border-bottom pb-1', text: cat }));
+                            icons.forEach(icon => {
+                                iconGrid.append(createIconButton(icon));
+                            });
+                        }
+                    }
+                } else {
+                    // Show flat search results
+                    const filtered = allIcons.filter(icon =>
+                        icon.n.toLowerCase().includes(lowerQuery) ||
+                        icon.c.toLowerCase().includes(lowerQuery) ||
+                        (icon.t && icon.t.toLowerCase().includes(lowerQuery))
+                    );
+
+                    if (filtered.length > 0) {
+                        filtered.forEach(icon => {
+                            iconGrid.append(createIconButton(icon));
+                        });
+                    } else {
+                        iconGrid.append($('<p>', { class: 'text-muted mt-3', text: 'No icons found.' }));
+                    }
+                }
+            }
         };
 
         $('#iconPickerModal').on('shown.bs.modal', function () {
             $('#iconSearchInput').val('');
+            selectedCategory = null;
+            if (Object.keys(categoriesData).length > 0) {
+                renderCategoryButtons();
+            }
             renderIcons();
             $('#iconSearchInput').trigger('focus');
         });
