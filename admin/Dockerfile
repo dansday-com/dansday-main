@@ -68,25 +68,16 @@ RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'CADDYEOF'
     root * /app/public
     encode gzip
 
-    @fonts_cors {
+    @fonts {
         path_regexp \.(woff2?|ttf|eot|otf)$
-        header Origin ~^https?://([a-z0-9-]+\.)?dansday\.com$
     }
 
-    header @fonts_cors {
-        Access-Control-Allow-Origin "{header.Origin}"
+    header @fonts {
+        Access-Control-Allow-Origin "*"
         Access-Control-Allow-Methods "GET, OPTIONS"
         Access-Control-Allow-Headers "*"
-        Vary "Origin"
         Cache-Control "no-cache"
     }
-
-    @fontsPreflight {
-        method OPTIONS
-        path_regexp \.(woff2?|ttf|eot|otf)$
-        header Origin ~^https?://([a-z0-9-]+\.)?dansday\.com$
-    }
-    respond @fontsPreflight 204
 
     php_server {
         worker /app/public/index.php
