@@ -30,7 +30,6 @@ class AiGenerateController extends Controller
             'type' => ['required', 'string', 'in:article,project'],
             'field' => ['required', 'string'],
             'topic' => ['nullable', 'string', 'max:15000'],
-            'model' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -64,15 +63,15 @@ class AiGenerateController extends Controller
         $dbUrl = '';
         try {
             $general = General::find(1);
-            $fromDb = $general?->openai_model;
+            $fromDb = $general?->ai_model;
             if (is_string($fromDb) && trim($fromDb) !== '') {
                 $model = trim($fromDb);
             }
-            $keyFromDb = $general?->openai_key;
+            $keyFromDb = $general?->ai_key;
             if (is_string($keyFromDb) && trim($keyFromDb) !== '') {
                 $apiKey = trim($keyFromDb);
             }
-            $urlFromDb = $general?->openai_url;
+            $urlFromDb = $general?->ai_url;
             if (is_string($urlFromDb) && trim($urlFromDb) !== '') {
                 $dbUrl = trim($urlFromDb);
             }
@@ -143,54 +142,4 @@ class AiGenerateController extends Controller
             return response()->json(['error' => __('content.ai_unavailable')], 502);
         }
     }
-
-    public function models(): JsonResponse
-    {
-        $cacheKey = 'ai_models_list';
-        $ttl = 3600;
-
-        $list = Cache::remember($cacheKey, $ttl, function () {
-            $general = General::find(1);
-            $baseUrl = $general?->openai_url;
-            if (empty($baseUrl)) {
-                return $this->fallbackModelsList();
-            }
-            $url = rtrim($baseUrl, '/') . '/models';
-            try {
-                $response = Http::timeout(10)->get($url);
-                if (! $response->successful()) {
-                    return $this->fallbackModelsList();
-                }
-                $data = $response->json();
-                $items = $data['data'] ?? [];
-                $models = [];
-                foreach ($items as $m) {
-                    $id = $m['id'] ?? null;
-                    $name = $m['name'] ?? $id;
-                    $modality = $m['architecture']['modality'] ?? $m['architecture']['output_modalities'][0] ?? null;
-                    if ($id && ($modality === 'text->text' || ($m['architecture']['output_modalities'][0] ?? null) === 'text')) {
-                        $models[] = ['id' => $id, 'name' => $name];
-                    }
-                }
-                return ! empty($models) ? $models : $this->fallbackModelsList();
-            } catch (\Throwable $e) {
-                return $this->fallbackModelsList();
-            }
-        });
-
-        return response()->json(['models' => $list]);
-    }
-
-    private function fallbackModelsList(): array
-    {
-        return [
-            ['id' => 'openai/gpt-oss-20b', 'name' => 'GPT-OSS 20B'],
-            ['id' => 'openai/gpt-oss-120b', 'name' => 'GPT-OSS 120B'],
-            ['id' => 'google/gemini-3-flash-preview', 'name' => 'Gemini 3 Flash'],
-            ['id' => 'google/gemini-3.1-flash-lite-preview', 'name' => 'Gemini 3.1 Flash-Lite'],
-            ['id' => 'google/gemini-3.1-pro-preview', 'name' => 'Gemini 3.1 Pro'],
-            ['id' => 'anthropic/claude-opus-4.6', 'name' => 'Claude Opus 4.6'],
-        ];
-    }
-
 }

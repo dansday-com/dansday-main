@@ -17,28 +17,28 @@
                     <h6 class="font-weight-bold text-primary m-0">{{ __('content.ai') ?? 'AI' }}</h6>
                 </div>
                 <div class="card-body">
-                    <form class="form-visibility" action="{{ url('/').'/admin/ai' }}" method="POST">
+                    <form class="form-visibility" action="{{ url('/').'/admin/ai' }}" method="POST" autocomplete="off">
                         @csrf
                         @method('PUT')
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group mb-4">
-                                    <label for="openai_url" class="form-label">{{ __('content.ai_gateway_url') ?? 'AI Gateway URL' }}</label>
-                                    <input class="form-control @error('openai_url') is-invalid @enderror" type="url" name="openai_url" value="{{ old('openai_url', $general->openai_url ?? '') }}" placeholder="https://..." />
+                                    <label for="ai_url" class="form-label">{{ __('content.ai_gateway_url') ?? 'AI Gateway URL' }}</label>
+                                    <input class="form-control @error('ai_url') is-invalid @enderror" type="url" name="ai_url" value="{{ old('ai_url', $general->ai_url ?? '') }}" placeholder="https://..." autocomplete="off" />
                                     <div class="form-text">{{ __('content.ai_gateway_url_desc') ?? 'Base URL for the AI API (OpenAI compatible).' }}</div>
-                                    @error('openai_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    @error('ai_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
                                 <div class="form-group">
-                                    <label for="openai_key" class="form-label">{{ __('content.ai_api_key') ?? 'AI API Key' }}</label>
-                                    <input class="form-control @error('openai_key') is-invalid @enderror" type="password" name="openai_key" value="" placeholder="{{ ($general->openai_key ?? '') !== '' ? '••••••••' : '' }}" autocomplete="off" />
+                                    <label for="ai_key" class="form-label">{{ __('content.ai_api_key') ?? 'AI API Key' }}</label>
+                                    <input class="form-control @error('ai_key') is-invalid @enderror" type="password" name="ai_key" value="{{ ($general->ai_key ?? '') !== '' ? str_repeat('*', 8) : '' }}" autocomplete="new-password" />
                                     <div class="form-text">{{ __('content.ai_api_key_desc') ?? 'API key. Leave blank to keep the current key.' }}</div>
-                                    @error('openai_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    @error('ai_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
                                 <div class="form-group mt-4">
-                                    <label for="openai_model" class="form-label">{{ __('content.ai_model') ?? 'AI Model' }}</label>
-                                    <input class="form-control @error('openai_model') is-invalid @enderror" type="text" name="openai_model" value="{{ old('openai_model', $general->openai_model ?? '') }}" placeholder="your-model-alias" />
+                                    <label for="ai_model" class="form-label">{{ __('content.ai_model') ?? 'AI Model' }}</label>
+                                    <input class="form-control @error('ai_model') is-invalid @enderror" type="text" name="ai_model" value="{{ old('ai_model', $general->ai_model ?? '') }}" placeholder="your-model-alias" autocomplete="off" />
                                     <div class="form-text">{{ __('content.ai_model_desc') ?? 'Model name sent to the AI gateway.' }}</div>
-                                    @error('openai_model')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    @error('ai_model')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
                             </div>
                         </div>

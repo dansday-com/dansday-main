@@ -9,16 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('page_setting', function (Blueprint $table) {
-            $table->string('openai_url', 500)->nullable()->after('image_favicon');
-            $table->string('openai_key', 500)->nullable()->after('openai_url');
-            $table->string('openai_model', 255)->nullable()->after('openai_key');
+            $table->string('ai_url', 500)->nullable()->after('image_favicon');
+            $table->string('ai_key', 500)->nullable()->after('ai_url');
+            $table->string('ai_model', 255)->nullable()->after('ai_key');
         });
     }
 
     public function down(): void
     {
         Schema::table('page_setting', function (Blueprint $table) {
-            $table->dropColumn(['openai_url', 'openai_key', 'openai_model']);
+            $table->dropColumn(['ai_url', 'ai_key', 'ai_model']);
         });
     }
 };

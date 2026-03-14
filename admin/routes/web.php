@@ -26,7 +26,6 @@ Route::middleware(['auth', 'XSS'])->group(function () {
     Route::get('admin/home', [App\Http\Controllers\PageHomeController::class, 'index']);
     Route::put('admin/home', [App\Http\Controllers\PageHomeController::class, 'update']);
     Route::post('admin/summernote/upload', App\Http\Controllers\SummernoteUploadController::class)->name('admin.summernote.upload');
-    Route::get('admin/ai-models', [App\Http\Controllers\AiGenerateController::class, 'models'])->name('admin.ai.models');
     Route::post('admin/ai-generate', [App\Http\Controllers\AiGenerateController::class, 'generate'])->name('admin.ai.generate');
 });
 

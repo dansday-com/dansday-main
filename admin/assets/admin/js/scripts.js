@@ -107,26 +107,29 @@ $(document).ready(function() {
 
     $(document).on('click', '.ai-generate-btn', function() {
         var $btn = $(this);
-        $('#ai_modal_type').val($btn.data('type'));
-        $('#ai_modal_field').val($btn.data('field'));
-        $('#ai_modal_input_name').val($btn.data('input-name'));
-        $('#ai_modal_summernote').val($btn.data('summernote') ? '1' : '0');
-        $('#ai_modal_prompt').val('');
-        var modalEl = document.getElementById('aiGenerateModal');
-        if (modalEl) {
-            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-            modal.show();
+        var type = $btn.data('type');
+        var field = $btn.data('field');
+        var inputName = $btn.data('input-name');
+        var isSummernote = $btn.data('summernote') ? '1' : '0';
+        
+        // Take the prompt directly from the Summernote editor content (or text input)
+        var promptContext = '';
+        if (isSummernote === '1') {
+            // Get raw text without HTML tags to use as the prompt
+            var rawText = $('textarea[name="' + inputName + '"]').summernote('code');
+            promptContext = $('<div>').html(rawText).text().trim();
+        } else {
+            promptContext = $('input[name="' + inputName + '"], textarea[name="' + inputName + '"]').val().trim();
         }
-    });
 
-    $('#ai_modal_generate_btn').on('click', function() {
-        var type = $('#ai_modal_type').val();
-        var field = $('#ai_modal_field').val();
-        var inputName = $('#ai_modal_input_name').val();
-        var isSummernote = $('#ai_modal_summernote').val() === '1';
-        var prompt = ($('#ai_modal_prompt').val() || '').trim();
-        var $btn = $('#ai_modal_generate_btn');
-        $btn.prop('disabled', true).text('…');
+        if (!promptContext) {
+            alert('Please enter some text in the content editor to use as a prompt for AI.');
+            return;
+        }
+        
+        var originalHtml = $btn.html();
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
+        
         fetch(window.adminAiGenerateUrl || '/admin/ai-generate', {
             method: 'POST',
             headers: {
@@ -135,7 +138,7 @@ $(document).ready(function() {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ type: type, field: field, topic: prompt })
+            body: JSON.stringify({ type: type, field: field, topic: promptContext })
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -143,19 +146,15 @@ $(document).ready(function() {
                 alert(data.error);
                 return;
             }
-            if (isSummernote) {
+            if (isSummernote === '1') {
                 $('textarea[name="' + inputName + '"]').summernote('code', data.text || '');
             } else {
                 $('input[name="' + inputName + '"], textarea[name="' + inputName + '"]').val(data.text || '');
             }
-            var modalEl = document.getElementById('aiGenerateModal');
-            if (modalEl) {
-                bootstrap.Modal.getInstance(modalEl).hide();
-            }
         })
         .catch(function() { alert('Request failed.'); })
         .finally(function() {
-            $btn.prop('disabled', false).text($btn.data('label'));
+            $btn.prop('disabled', false).html(originalHtml);
         });
     });
 

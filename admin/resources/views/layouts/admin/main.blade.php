@@ -37,7 +37,6 @@
 
     </div>
 
-    @include('admin.modules.ai-generate-modal')
 
 <script>
     window.summernoteUploadUrl = "{{ route('admin.summernote.upload') }}";

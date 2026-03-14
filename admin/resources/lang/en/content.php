@@ -78,8 +78,6 @@ return [
     'general_settings'          => 'General settings',
     'go_to_homepage'            => 'HOME',
     'generate_with_ai'          => 'Generate with AI',
-    'ai_prompt_context'         => 'Prompt (context for generation)',
-    'ai_generate'               => 'Generate',
     'home'                      => 'Home',
     'icon'                      => 'Icon',
     'iframe_not_valid'          => 'The iframe is not valid',

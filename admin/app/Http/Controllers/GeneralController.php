@@ -186,15 +186,20 @@ class GeneralController extends Controller
     public function updateAi(Request $request)
     {
         $data = [
-            'openai_url'   => $request->input('openai_url'),
-            'openai_key'   => $request->input('openai_key'),
-            'openai_model' => $request->input('openai_model'),
+            'ai_url'   => $request->input('ai_url'),
+            'ai_key'   => $request->input('ai_key'),
+            'ai_model' => $request->input('ai_model'),
         ];
 
+        // If the submitted key is just the dummy mask, treat it as null/unchanged for validation
+        if ($data['ai_key'] === '********') {
+            $data['ai_key'] = null;
+        }
+
         $validate = Validator::make($data, [
-            'openai_url'   => ['nullable', 'string', 'max:500'],
-            'openai_key'   => ['nullable', 'string', 'max:500'],
-            'openai_model' => ['nullable', 'string', 'max:255'],
+            'ai_url'   => ['nullable', 'string', 'max:500'],
+            'ai_key'   => ['nullable', 'string', 'max:500'],
+            'ai_model' => ['nullable', 'string', 'max:255'],
         ]);
         if ($validate->fails()) {
             return redirect('/admin/ai')
@@ -204,12 +209,12 @@ class GeneralController extends Controller
         }
 
         $data_new = [
-            'openai_url'   => $data['openai_url'] ? trim($data['openai_url']) : null,
-            'openai_model' => $data['openai_model'] ? trim((string) $data['openai_model']) : null,
+            'ai_url'   => $data['ai_url'] ? trim($data['ai_url']) : null,
+            'ai_model' => $data['ai_model'] ? trim((string) $data['ai_model']) : null,
         ];
-        $keyInput = $request->input('openai_key');
-        if ($keyInput !== null && trim((string) $keyInput) !== '') {
-            $data_new['openai_key'] = trim($keyInput);
+        $keyInput = $request->input('ai_key');
+        if ($keyInput !== null && trim((string) $keyInput) !== '' && $keyInput !== '********') {
+            $data_new['ai_key'] = trim($keyInput);
         }
         
         General::where('id', 1)->update($data_new);
