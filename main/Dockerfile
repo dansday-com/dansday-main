@@ -18,6 +18,8 @@ FROM node:25.8.1-alpine AS runner
 
 WORKDIR /app
 
+RUN apk add --no-cache curl
+
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
