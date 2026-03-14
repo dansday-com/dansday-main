@@ -32,9 +32,9 @@ export const GET: RequestHandler = async () => {
 	try {
 		section = (await fetchSection()) as Record<string, unknown>;
 		const general = await fetchGeneral() as Record<string, unknown>;
-		const hasUrl = Boolean(general.openai_url && typeof general.openai_url === 'string' && general.openai_url.trim() !== '');
-		const hasKey = Boolean(general.openai_key && typeof general.openai_key === 'string' && general.openai_key.trim() !== '');
-		const hasModel = Boolean(general.openai_model && typeof general.openai_model === 'string' && general.openai_model.trim() !== '');
+		const hasUrl = Boolean(general.ai_url && typeof general.ai_url === 'string' && general.ai_url.trim() !== '');
+		const hasKey = Boolean(general.ai_key && typeof general.ai_key === 'string' && general.ai_key.trim() !== '');
+		const hasModel = Boolean(general.ai_model && typeof general.ai_model === 'string' && general.ai_model.trim() !== '');
 		aiTerminalConfigured = hasUrl && hasKey && hasModel;
 	} catch {}
 

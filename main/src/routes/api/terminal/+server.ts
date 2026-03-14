@@ -24,9 +24,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		}
 
 		const generalData = await fetchGeneral();
-		const openaiUrl = generalData.openai_url as string | null;
-		const openaiKey = generalData.openai_key as string | null;
-		const openaiModel = generalData.openai_model as string | null;
+		const openaiUrl = generalData.ai_url as string | null;
+		const openaiKey = generalData.ai_key as string | null;
+		const openaiModel = generalData.ai_model as string | null;
 
 		const hasUrl = Boolean(openaiUrl && openaiUrl.trim() !== '');
 		const hasKey = Boolean(openaiKey && openaiKey.trim() !== '');
