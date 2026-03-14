@@ -68,14 +68,9 @@ RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'EOF'
     root * /app/public
     encode gzip
 
-    # Match any request from *.dansday.com or dansday.com
-    @dansday_origin {
-        header Origin ~^https?://([a-z0-9-]+\.)?dansday\.com$
-    }
-
-    # Match font files from dansday origin
+    # Match font files from dansday origin (using path_regexp instead of path glob)
     @fonts_cors {
-        path *.woff *.woff2 *.ttf *.eot *.otf
+        path_regexp fonts \.(woff2?|ttf|eot|otf)$
         header Origin ~^https?://([a-z0-9-]+\.)?dansday\.com$
     }
 
@@ -85,12 +80,13 @@ RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'EOF'
         Access-Control-Allow-Methods "GET, OPTIONS"
         Access-Control-Allow-Headers "*"
         Vary "Origin"
+        Cache-Control "no-cache"
     }
 
     # Handle OPTIONS preflight for fonts
     @fontsPreflight {
         method OPTIONS
-        path *.woff *.woff2 *.ttf *.eot *.otf
+        path_regexp fonts \.(woff2?|ttf|eot|otf)$
         header Origin ~^https?://([a-z0-9-]+\.)?dansday\.com$
     }
     respond @fontsPreflight 204
