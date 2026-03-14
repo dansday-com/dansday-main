@@ -39,24 +39,6 @@
                                         <div class="form-text d-flex"><span>{{ __('content.analytics_code_desc') }}</span></div>
                                         @error('analytics_code')<div class="invalid-feedback">{{ __('content.text_not_valid') }} {{ __('content.max_characters') }}: 255.</div>@enderror
                                     </div>
-                                    <div class="form-group mb-4">
-                                        <label for="openai_url" class="form-label">Open AI URL</label>
-                                        <input class="form-control @error('openai_url') is-invalid @enderror" type="url" name="openai_url" value="{{ old('openai_url', $general->openai_url ?? '') }}" placeholder="https://..." />
-                                        <div class="form-text">Base URL for the internal OpenAI-compatible API.</div>
-                                        @error('openai_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="openai_key" class="form-label">Open AI Key</label>
-                                        <input class="form-control @error('openai_key') is-invalid @enderror" type="password" name="openai_key" value="" placeholder="{{ ($general->openai_key ?? '') !== '' ? '••••••••' : '' }}" autocomplete="off" />
-                                        <div class="form-text">API key. Leave blank to keep the current key.</div>
-                                        @error('openai_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="form-group mt-4">
-                                        <label for="openai_model" class="form-label">Open AI Model</label>
-                                        <input class="form-control @error('openai_model') is-invalid @enderror" type="text" name="openai_model" value="{{ old('openai_model', $general->openai_model ?? '') }}" placeholder="your-model-alias" />
-                                        <div class="form-text">Model name sent to the internal gateway.</div>
-                                        @error('openai_model')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                    </div>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <div class="form-group mb-5">

@@ -40,9 +40,6 @@ class GeneralController extends Controller
             'title'          => $request->input('title'),
             'description'    => $request->input('description'),
             'analytics_code' => $request->input('analytics_code'),
-            'openai_url'     => $request->input('openai_url'),
-            'openai_key'     => $request->input('openai_key'),
-            'openai_model'   => $request->input('openai_model'),
             'social_links'   => $request->input('social_links'),
             'image_favicon'  => $request->file('image_favicon'),
             'image_favicon_current' => $request->input('image_favicon_current'),
@@ -53,9 +50,6 @@ class GeneralController extends Controller
             'title'          => ['string', 'max:55'],
             'description'    => ['string', 'max:255'],
             'analytics_code' => ['nullable', 'string', 'max:55'],
-            'openai_url'     => ['nullable', 'string', 'max:500'],
-            'openai_key'     => ['nullable', 'string', 'max:500'],
-            'openai_model'   => ['nullable', 'string', 'max:255'],
             'social_links'   => ['string'],
         ]);
         if ($validate->fails()) {
@@ -182,16 +176,55 @@ class GeneralController extends Controller
             'title'          => $data['title'],
             'description'    => $data['description'],
             'analytics_code' => $data['analytics_code'],
-            'openai_url'     => $data['openai_url'] ? trim($data['openai_url']) : null,
-            'openai_model'   => $data['openai_model'] ? trim((string) $data['openai_model']) : null,
             'image_favicon'  => $route_image_favicon,
             'social_links'   => $data['social_links'],
+        ];
+        General::where('id', 1)->update($data_new);
+        return redirect('/admin/general')->with('ok-update', '');
+    }
+
+    public function updateAi(Request $request)
+    {
+        $data = [
+            'openai_url'   => $request->input('openai_url'),
+            'openai_key'   => $request->input('openai_key'),
+            'openai_model' => $request->input('openai_model'),
+        ];
+
+        $validate = Validator::make($data, [
+            'openai_url'   => ['nullable', 'string', 'max:500'],
+            'openai_key'   => ['nullable', 'string', 'max:500'],
+            'openai_model' => ['nullable', 'string', 'max:255'],
+        ]);
+        if ($validate->fails()) {
+            return redirect('/admin/ai')
+                ->with('error-validation', '')
+                ->withErrors($validate)
+                ->withInput();
+        }
+
+        $data_new = [
+            'openai_url'   => $data['openai_url'] ? trim($data['openai_url']) : null,
+            'openai_model' => $data['openai_model'] ? trim((string) $data['openai_model']) : null,
         ];
         $keyInput = $request->input('openai_key');
         if ($keyInput !== null && trim((string) $keyInput) !== '') {
             $data_new['openai_key'] = trim($keyInput);
         }
+        
         General::where('id', 1)->update($data_new);
-        return redirect('/admin/general')->with('ok-update', '');
+        return redirect('/admin/ai')->with('ok-update', '');
+    }
+
+    public function aiIndex()
+    {
+        $general = General::find(1);
+        if (! $general) {
+            abort(500, 'Initial data not found.');
+        }
+        $user = User::find(1);
+        return view('admin.pages.ai')
+            ->with('general', $general)
+            ->with('user', $user);
     }
 }
