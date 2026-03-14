@@ -4,7 +4,6 @@ admin/node_modules/
 admin/vendor/
 
 # Build / output
-main/otel/
 main/.svelte-kit/
 main/.pnpm-store/
 pnpm-lock.yaml
