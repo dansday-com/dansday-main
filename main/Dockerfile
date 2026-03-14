@@ -3,6 +3,8 @@ FROM node:25.8.1-alpine AS builder
 
 WORKDIR /app
 
+ENV NODE_OPTIONS=""
+
 COPY package.json ./
 RUN npm install
 
@@ -20,9 +22,6 @@ COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/otel ./otel
-
-RUN addgroup -S app && adduser -S app -G app
-USER app
 
 EXPOSE 3000
 
