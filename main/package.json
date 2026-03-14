@@ -8,7 +8,7 @@
 		"build": "vite build",
 		"build:format": "prettier --write . && prettier --check .",
 		"build:sync": "svelte-kit sync",
-		"build:otel-logs": "tsc -p tsconfig.otel.json"
+		"build:otel": "tsc -p tsconfig.otel.json"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.5.4",
