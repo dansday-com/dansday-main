@@ -58,7 +58,7 @@ COPY --from=frontend /app/public ./public
 RUN if [ -d assets ]; then cp -r assets/* public/assets/; fi
 
 # Write Caddyfile inline
-RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'EOF'
+RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'CADDYEOF'
 {
     frankenphp
     order php_server before file_server
@@ -68,22 +68,19 @@ RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'EOF'
     root * /app/public
     encode gzip
 
-    # Match font files from dansday origin (using path_regexp instead of path glob)
     @fonts_cors {
         path_regexp fonts \.(woff2?|ttf|eot|otf)$
         header Origin ~^https?://([a-z0-9-]+\.)?dansday\.com$
     }
 
-    # Reflect the Origin back (so it works for any subdomain)
     header @fonts_cors {
-        Access-Control-Allow-Origin "{http.request.header.Origin}"
+        Access-Control-Allow-Origin "{header.Origin}"
         Access-Control-Allow-Methods "GET, OPTIONS"
         Access-Control-Allow-Headers "*"
         Vary "Origin"
         Cache-Control "no-cache"
     }
 
-    # Handle OPTIONS preflight for fonts
     @fontsPreflight {
         method OPTIONS
         path_regexp fonts \.(woff2?|ttf|eot|otf)$
@@ -97,7 +94,7 @@ RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'EOF'
 
     file_server
 }
-EOF
+CADDYEOF
 
 EXPOSE 2222
 
