@@ -5,7 +5,7 @@
 	let { data }: PageProps = $props();
 </script>
 
-<Metadata title={data.meta.title + (data.siteName ? ` | ${data.siteName}` : '')} description={data.meta.description} image={data.defaultOgImage ?? ''} />
+<Metadata title={data.meta.title + (data.siteName ? ` | ${data.siteName}` : '')} description={data.meta.description} />
 
 <article class="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-b-lg">
 	<div

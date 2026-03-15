@@ -51,7 +51,6 @@ export const load: LayoutServerLoad = async () => {
 			if (typeof raw === 'string') socialLinks = JSON.parse(raw) ?? [];
 			else if (Array.isArray(raw)) socialLinks = raw;
 		} catch {}
-		const defaultOgImage = resolveUrl((general.image_favicon as string) ?? null, publicBase);
 		const defaultFavicon = resolveUrl((general.image_favicon as string) ?? null, publicBase);
 
 		let favicons: Array<{ rel: string; href: string; sizes: string }> = [];
@@ -77,7 +76,6 @@ export const load: LayoutServerLoad = async () => {
 		return {
 			siteName,
 			adminBaseUrl: publicBase,
-			defaultOgImage,
 			defaultFavicon,
 			favicons,
 			socialLinks,
@@ -99,7 +97,6 @@ export const load: LayoutServerLoad = async () => {
 		return {
 			siteName: '',
 			adminBaseUrl: publicBase,
-			defaultOgImage: '',
 			defaultFavicon: '',
 			favicons: [],
 			socialLinks: [],

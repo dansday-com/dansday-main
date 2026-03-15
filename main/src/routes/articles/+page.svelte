@@ -5,10 +5,9 @@
 	let { data }: PageProps = $props();
 	const pageTitle = $derived(data.siteName ? `Articles | ${data.siteName}` : 'Articles');
 	const description = $derived((data.articlesListMeta?.description as string) ?? '');
-	const defaultOgImage = $derived(data.defaultOgImage);
 </script>
 
-<Metadata title={pageTitle} {description} image={defaultOgImage} />
+<Metadata title={pageTitle} {description} />
 
 <h1 class="sr-only">{pageTitle}</h1>
 

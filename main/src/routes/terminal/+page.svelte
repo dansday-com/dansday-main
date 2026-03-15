@@ -124,7 +124,7 @@
 	}
 </script>
 
-<Metadata title={metaTitle} description={metaDescription} image={data.defaultOgImage} />
+<Metadata title={metaTitle} description={metaDescription} />
 
 <main class="relative flex min-h-0 flex-1 flex-col font-mono text-sm md:text-base" onclick={focusInput} role="presentation">
 	<div class="absolute inset-0 -z-10 bg-[#080808]/80 backdrop-blur-sm"></div>

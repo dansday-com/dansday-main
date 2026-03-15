@@ -9,7 +9,7 @@
 	const metaDescription = (general.description as string) ?? '';
 </script>
 
-<Metadata title={metaTitle} description={metaDescription} image={data.defaultOgImage} />
+<Metadata title={metaTitle} description={metaDescription} />
 
 <section class="flex grow flex-col items-center justify-center space-y-2.5 md:space-y-5">
 	<div class="flex flex-col items-center justify-center text-center">

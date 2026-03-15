@@ -17,7 +17,7 @@
 	let canonicalUrl = $derived(page.url.origin + page.url.pathname);
 </script>
 
-<Metadata title={pageTitle} {description} image={data.defaultOgImage} canonical={canonicalUrl} />
+<Metadata title={pageTitle} {description} canonical={canonicalUrl} />
 
 <h1 class="sr-only">{pageTitle}</h1>
 
