@@ -115,35 +115,42 @@ class GeneralController extends Controller
             $tempDir = sys_get_temp_dir() . '/favicon_' . uniqid();
             mkdir($tempDir, 0755, true);
             try {
-                $favicon_dimensions = ['96', '57', '72', '76', '114', '120', '144', '152'];
-                foreach ($favicon_dimensions as $dimension) {
-                    $filename = ($dimension == '96')
-                        ? 'favicon.' . $ext
-                        : 'apple-touch-icon-' . $dimension . 'x' . $dimension . '-precomposed.' . $ext;
-                    $destiny = @imagecreatetruecolor((int) $dimension, (int) $dimension);
-                    if ($destiny === false) {
-                        continue;
-                    }
-                    if ($isPng) {
-                        imagealphablending($destiny, false);
-                        imagesavealpha($destiny, true);
-                    }
-                    if (! @imagecopyresampled($destiny, $source, 0, 0, 0, 0, (int) $dimension, (int) $dimension, $width, $height)) {
-                        imagedestroy($destiny);
-                        continue;
-                    }
-                    $tmpPath = $tempDir . '/' . $filename;
-                    if ($isPng) {
-                        @imagepng($destiny, $tmpPath);
-                    } else {
-                        @imagejpeg($destiny, $tmpPath, 90);
-                    }
-                    imagedestroy($destiny);
-                    if (file_exists($tmpPath)) {
-                        $disk->putFileAs($directory, new File($tmpPath), $filename);
-                        @unlink($tmpPath);
+                $faviconPath = $tempDir . '/source_favicon.' . $ext;
+                if ($isPng) {
+                    @imagepng($source, $faviconPath);
+                } else {
+                    @imagejpeg($source, $faviconPath, 90);
+                }
+
+                \Illuminate\Support\Facades\Artisan::call('favicon:generate', [
+                    'source' => $faviconPath,
+                    '--force' => true,
+                    '--silent' => true,
+                ]);
+
+                // Copy all generated favicons from public/favicon to the desired storage location
+                $filesToCopy = [
+                    'favicon.ico',
+                    'favicon-96x96.png',
+                    'favicon.svg',
+                    'apple-touch-icon.png',
+                    'site.webmanifest',
+                    'web-app-manifest-192x192.png',
+                    'web-app-manifest-512x512.png',
+                ];
+                
+                // Keep a copy in `public/favicon` for the admin panel to use `<x-favicon-meta />` directly
+                // And we ALSO put them in the DB-backed uploads disk just in case
+                foreach ($filesToCopy as $file) {
+                    $generatedFile = public_path('favicon/' . $file);
+                    if (file_exists($generatedFile)) {
+                        $disk->putFileAs($directory, new File($generatedFile), $file);
                     }
                 }
+                
+                // For the DB `image_favicon` column, we'll store the ICO path so it's consistent
+                $route_image_favicon = 'uploads/' . $directory . '/favicon.ico';
+                
             } finally {
                 if (isset($source) && $source !== false) {
                     imagedestroy($source);

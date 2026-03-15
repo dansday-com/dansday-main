@@ -53,19 +53,14 @@ export const load: LayoutServerLoad = async () => {
 		} catch {}
 		const defaultFavicon = resolveUrl((general.image_favicon as string) ?? null, publicBase);
 
-		let favicons: Array<{ rel: string; href: string; sizes: string }> = [];
+		let favicons: Array<{ rel: string; href: string; sizes?: string; type?: string }> = [];
 		if (defaultFavicon && general.image_favicon && typeof general.image_favicon === 'string') {
-			const ext = general.image_favicon.split('.').pop() || 'png';
 			const dirUrl = defaultFavicon.substring(0, defaultFavicon.lastIndexOf('/'));
-			favicons.push({ rel: 'icon', href: defaultFavicon, sizes: '96x96' });
-			const dims = ['57', '72', '76', '114', '120', '144', '152'];
-			for (const dim of dims) {
-				favicons.push({
-					rel: 'apple-touch-icon-precomposed',
-					href: `${dirUrl}/apple-touch-icon-${dim}x${dim}-precomposed.${ext}`,
-					sizes: `${dim}x${dim}`
-				});
-			}
+			favicons.push({ rel: 'icon', type: 'image/png', href: `${dirUrl}/favicon-96x96.png`, sizes: '96x96' });
+			favicons.push({ rel: 'icon', type: 'image/svg+xml', href: `${dirUrl}/favicon.svg` });
+			favicons.push({ rel: 'shortcut icon', href: `${dirUrl}/favicon.ico` });
+			favicons.push({ rel: 'apple-touch-icon', sizes: '180x180', href: `${dirUrl}/apple-touch-icon.png` });
+			favicons.push({ rel: 'manifest', href: `${dirUrl}/site.webmanifest` });
 		}
 
 		const projectsListMeta = {

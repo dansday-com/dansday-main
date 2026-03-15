@@ -7,9 +7,8 @@
     <title>{{ __('content.admin_panel') }}</title>
 
     <meta name="csrf-token" content="{{ csrf_token() }}">  
-    <link href="{{ asset('assets/admin/img/favicon.png') }}" sizes="128x128" rel="shortcut icon" type="image/x-icon" />
-    <link href="{{ asset('assets/admin/img/favicon.png') }}" sizes="128x128" rel="shortcut icon" />
-
+    <x-favicon-meta />
+    
     <link href="{{ asset('assets/fonts/fontawesome/css/all.min.css') }}" rel="stylesheet">
     <link href="//fonts.googleapis.com/css?family=Nunito:400,900 rel="stylesheet">
 

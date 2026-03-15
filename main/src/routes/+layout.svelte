@@ -65,7 +65,7 @@
 <svelte:head>
 	{#if data.favicons && data.favicons.length > 0}
 		{#each data.favicons as favicon}
-			<link rel={favicon.rel} href={favicon.href} sizes={favicon.sizes} />
+			<link rel={favicon.rel} type={favicon.type} href={favicon.href} sizes={favicon.sizes} />
 		{/each}
 	{:else if data.defaultFavicon}
 		<link rel="icon" href={data.defaultFavicon} />
