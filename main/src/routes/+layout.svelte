@@ -6,8 +6,6 @@
 	import Navbar from '$lib/components/layout/navbar/navbar.svelte';
 	import GoogleAnalytics from '$lib/components/GoogleAnalytics.svelte';
 
-	import grainUrl from '$lib/assets/grain.webp';
-
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -99,7 +97,6 @@
 </main>
 
 <div class="grid-pattern absolute top-0 left-0 h-full w-full" aria-hidden="true"></div>
-<div class="grain-noise pointer-events-none fixed top-0 size-[300%]" aria-hidden="true" style:--grain-url="url({grainUrl})"></div>
 
 {#await import('$lib/components/layout/particle.svelte') then { default: Particle }}
 	<Particle />
@@ -112,12 +109,6 @@
 		background-size: 5vh 5vh;
 		background-position: center;
 		opacity: 0.2;
-	}
-
-	.grain-noise {
-		background-image: var(--grain-url);
-		animation: animate-grain 8s steps(10) infinite;
-		opacity: 0.05;
 	}
 
 	.container-shadow {
@@ -161,27 +152,6 @@
 				-45px 29px 37px -3px rgba(0, 0, 0, 0.16),
 				-91px 59px 75px -6px rgba(0, 0, 0, 0.24),
 				-182px 118px 150px -12px rgba(0, 0, 0, 0.48);
-		}
-	}
-
-	@keyframes animate-grain {
-		0%,
-		100% {
-			transform: translate(0);
-		}
-		10%,
-		30%,
-		50%,
-		70%,
-		90% {
-			transform: translate(-5%, -10%);
-		}
-		20%,
-		40%,
-		60%,
-		80%,
-		100% {
-			transform: translate(-15%, -20%);
 		}
 	}
 </style>
