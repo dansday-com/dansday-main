@@ -117,9 +117,9 @@ class GeneralController extends Controller
             try {
                 $faviconPath = $tempDir . '/source_favicon.' . $ext;
                 if ($isPng) {
-                    @imagepng($source, $faviconPath);
+                    @imagepng($source, $faviconPath, 0);
                 } else {
-                    @imagejpeg($source, $faviconPath, 90);
+                    @imagejpeg($source, $faviconPath, 100);
                 }
 
                 \Illuminate\Support\Facades\Artisan::call('favicon:generate', [
