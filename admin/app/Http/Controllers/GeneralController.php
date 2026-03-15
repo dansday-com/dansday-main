@@ -99,7 +99,7 @@ class GeneralController extends Controller
                         }
                     }
                 }
-                
+
                 // Clear old generated favicons in public/favicon before making new ones
                 $publicFaviconDir = public_path('favicon');
                 if (is_dir($publicFaviconDir)) {
@@ -158,7 +158,7 @@ class GeneralController extends Controller
                     'web-app-manifest-192x192.png',
                     'web-app-manifest-512x512.png',
                 ];
-                
+
                 // Keep a copy in `public/favicon` for the admin panel to use `<x-favicon-meta />` directly
                 // And we ALSO put them in the DB-backed uploads disk just in case
                 foreach ($filesToCopy as $file) {
@@ -167,10 +167,9 @@ class GeneralController extends Controller
                         $disk->putFileAs($directory, new File($generatedFile), $file);
                     }
                 }
-                
+
                 // For the DB `image_favicon` column, we'll store the ICO path so it's consistent
                 $route_image_favicon = 'uploads/' . $directory . '/favicon.ico';
-                
             } finally {
                 if (isset($source) && $source !== false) {
                     imagedestroy($source);
@@ -194,7 +193,7 @@ class GeneralController extends Controller
                     }
                 }
             }
-            
+
             // Also clean up the generated files in public/favicon
             $publicFaviconDir = public_path('favicon');
             if (is_dir($publicFaviconDir)) {
@@ -214,7 +213,7 @@ class GeneralController extends Controller
                     }
                 }
             }
-            
+
             $route_image_favicon = '';
         }
 
@@ -265,7 +264,7 @@ class GeneralController extends Controller
         if (!empty($data['ai_key'])) {
             $data_new['ai_key'] = trim($data['ai_key']);
         }
-        
+
         General::where('id', 1)->update($data_new);
         return redirect('/admin/ai')->with('ok-update', '');
     }
