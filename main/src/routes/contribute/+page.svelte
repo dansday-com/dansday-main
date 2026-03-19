@@ -26,6 +26,7 @@
 			avatarUrl: string;
 			bio: string;
 			totalRepos: number;
+			organizations: { login: string; name: string; avatarUrl: string; url: string }[];
 		};
 		stats: {
 			week: number;
@@ -154,16 +155,27 @@
 
 		{:else if githubData}
 			<!-- Profile row -->
-			<div class="flex items-center gap-3 mb-5">
-				<img src={githubData.user.avatarUrl} alt={githubData.user.name} class="w-10 h-10 rounded-full border border-[#30363d]" />
-				<div class="min-w-0">
+			<div class="flex items-start gap-3 mb-5">
+				<img src={githubData.user.avatarUrl} alt={githubData.user.name} class="w-10 h-10 rounded-full border border-[#30363d] shrink-0" />
+				<div class="min-w-0 flex-1">
 					<div class="text-white font-bold text-sm leading-tight">{githubData.user.name}</div>
 					<div class="text-[#8b949e] text-xs">@{githubData.username}</div>
 					{#if githubData.user.bio}
 						<div class="text-[#8b949e] text-xs mt-0.5 truncate">{githubData.user.bio}</div>
 					{/if}
+					{#if githubData.user.organizations.length > 0}
+						<div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+							<i class="fas fa-building text-[#8b949e] text-[10px]"></i>
+							{#each githubData.user.organizations as org}
+								<a href={org.url} target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 hover:opacity-80 transition-opacity" title={org.name}>
+									<img src={org.avatarUrl} alt={org.name} class="w-4 h-4 rounded-sm border border-[#30363d]" />
+									<span class="text-[#8b949e] text-[10px] hover:text-white transition-colors">{org.login}</span>
+								</a>
+							{/each}
+						</div>
+					{/if}
 				</div>
-				<div class="ml-auto text-center shrink-0">
+				<div class="text-center shrink-0">
 					<div class="text-white font-bold text-sm">{githubData.user.totalRepos}</div>
 					<div class="text-[#8b949e] text-xs">repos</div>
 				</div>

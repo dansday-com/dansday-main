@@ -27,6 +27,14 @@ async function fetchContributionStats(username: string, token: string) {
 				avatarUrl
 				bio
 				repositories(ownerAffiliations: OWNER) { totalCount }
+				organizations(first: 10) {
+					nodes {
+						login
+						name
+						avatarUrl
+						url
+					}
+				}
 				contributionsCollection(from: $from, to: $to) {
 					totalCommitContributions
 					totalPullRequestContributions
@@ -77,7 +85,13 @@ async function fetchContributionStats(username: string, token: string) {
 			name: user?.name ?? username,
 			avatarUrl: user?.avatarUrl ?? '',
 			bio: user?.bio ?? '',
-			totalRepos: user?.repositories?.totalCount ?? 0
+			totalRepos: user?.repositories?.totalCount ?? 0,
+			organizations: (user?.organizations?.nodes ?? []).map((o: any) => ({
+				login: o.login,
+				name: o.name ?? o.login,
+				avatarUrl: o.avatarUrl,
+				url: o.url
+			}))
 		},
 		stats: {
 			week: weekCommits,
