@@ -143,26 +143,28 @@ async function fetchContributionStats(username: string, token: string) {
 	};
 }
 
-async function fetchRecentActivity(username: string, token: string) {
-	const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+async function fetchRecentActivity(username: string, token: string, before?: string, limit = 10) {
+	// Use `until` to paginate — only fetch commits older than the cursor
+	const untilArg = before ? `, until: "${before}"` : '';
 
 	const query = `
-		query($username: String!, $since: GitTimestamp!) {
+		query($username: String!) {
 			user(login: $username) {
-				repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
 					nodes {
 						name
 						isPrivate
 						defaultBranchRef {
 							target {
 								... on Commit {
-									history(first: 20, since: $since) {
+									history(first: ${limit + 5}${untilArg}) {
 										nodes {
 											message
 											committedDate
 											oid
 											author { user { login } }
 										}
+										pageInfo { hasNextPage }
 									}
 								}
 							}
@@ -176,26 +178,30 @@ async function fetchRecentActivity(username: string, token: string) {
 	const res = await fetch(GITHUB_GRAPHQL, {
 		method: 'POST',
 		headers: getHeaders(token),
-		body: JSON.stringify({ query, variables: { username, since: threeDaysAgo } })
+		body: JSON.stringify({ query, variables: { username } })
 	});
 
-	if (!res.ok) return [];
+	if (!res.ok) return { items: [], hasMore: false };
 	const data = await res.json();
 	if (data.errors) {
 		console.error('[GitHub GraphQL activity]', data.errors);
-		return [];
+		return { items: [], hasMore: false };
 	}
 
 	const repos = data.data?.user?.repositories?.nodes ?? [];
-	const activity: ActivityItem[] = [];
+	const all: ActivityItem[] = [];
+	let anyRepoHasMore = false;
 
 	for (const repo of repos) {
-		const commits = repo.defaultBranchRef?.target?.history?.nodes ?? [];
+		const history = repo.defaultBranchRef?.target?.history;
+		const commits = history?.nodes ?? [];
+		if (history?.pageInfo?.hasNextPage) anyRepoHasMore = true;
+
 		for (const commit of commits) {
 			const authorLogin = commit.author?.user?.login;
 			if (authorLogin && authorLogin.toLowerCase() !== username.toLowerCase()) continue;
 
-			activity.push({
+			all.push({
 				repo: repo.name,
 				title: (commit.message as string)?.split('\n')[0] ?? 'Commit',
 				date: commit.committedDate ?? '',
@@ -204,9 +210,12 @@ async function fetchRecentActivity(username: string, token: string) {
 		}
 	}
 
-	return activity
-		.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-		.slice(0, 30);
+	all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+	const items = all.slice(0, limit);
+	const hasMore = all.length > limit || anyRepoHasMore;
+
+	return { items, hasMore };
 }
 
 type ActivityItem = { repo: string; title: string; date: string; private: boolean };
@@ -249,7 +258,7 @@ async function fetchTopLanguages(username: string, token: string) {
 		.map(([name, count]) => ({ name, count }));
 }
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ url }) => {
 	const token = env.GITHUB_TOKEN;
 	const username = env.GITHUB_USERNAME;
 
@@ -257,10 +266,20 @@ export const GET: RequestHandler = async () => {
 		return json({ error: 'GitHub credentials not configured.' }, { status: 503 });
 	}
 
+	// Paginated activity: /api/github?before=<ISO date>
+	const before = url.searchParams.get('before') ?? undefined;
+
 	try {
+		if (before) {
+			// Only return next page of activity
+			const activity = await fetchRecentActivity(username, token, before, 10);
+			return json(activity);
+		}
+
+		// Initial load: full stats + first 10 activity items
 		const [contributions, activity, languages] = await Promise.all([
 			fetchContributionStats(username, token),
-			fetchRecentActivity(username, token),
+			fetchRecentActivity(username, token, undefined, 10),
 			fetchTopLanguages(username, token)
 		]);
 
