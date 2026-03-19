@@ -15,7 +15,6 @@ class AppServiceProvider extends ServiceProvider
         $publicPath = $this->app->basePath('public');
         $publicHtmlPath = $this->app->basePath('public_html');
 
-        // Use the folder that is actually the document root so uploads go to the right place
         if (! empty($_SERVER['DOCUMENT_ROOT'])) {
             $docRoot = realpath((string) $_SERVER['DOCUMENT_ROOT']);
             $publicReal = is_dir($publicPath) ? realpath($publicPath) : false;
@@ -26,7 +25,6 @@ class AppServiceProvider extends ServiceProvider
                 $this->app->usePublicPath($publicPath);
             }
         } else {
-            // CLI / no document root: use public_html if it exists (e.g. shared hosting deploy)
             if (is_dir($publicHtmlPath)) {
                 $this->app->usePublicPath($publicHtmlPath);
             }
@@ -39,7 +37,6 @@ class AppServiceProvider extends ServiceProvider
 
         Schema::defaultStringLength(191);
 
-        // Use current request URL for asset() so preview (e.g. 20.dansday.com) and production share one codebase
         if ($this->app->runningInConsole() === false && request()->hasHeader('Host')) {
             $rootUrl = request()->getScheme() . '://' . request()->getHttpHost();
             URL::forceRootUrl(rtrim($rootUrl, '/'));
@@ -48,7 +45,6 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        // Force uploads disk to use current public path (works even when config is cached)
         $appUrl = rtrim(config('app.url', env('APP_URL', 'http://localhost')), '/');
         config([
             'filesystems.disks.uploads.root' => public_path('uploads'),

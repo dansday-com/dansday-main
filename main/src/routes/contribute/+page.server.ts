@@ -4,8 +4,8 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ parent }) => {
 	const data = await parent();
 	const section = (data.section ?? {}) as Record<string, unknown>;
-	const terminalEnabled = section.terminal_enable !== 0 && section.terminal_enable !== false;
-	if (!data.aiTerminalConfigured || !terminalEnabled) {
+	const contributeEnabled = section.contribute_enable !== 0 && section.contribute_enable !== false;
+	if (!contributeEnabled) {
 		throw redirect(302, '/');
 	}
 	return {};

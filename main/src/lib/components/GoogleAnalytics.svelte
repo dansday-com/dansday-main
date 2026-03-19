@@ -38,7 +38,6 @@
 		const events = ['scroll', 'mousemove', 'touchstart', 'keydown', 'click'];
 		events.forEach((event) => window.addEventListener(event, handleInteraction, { once: true, passive: true }));
 
-		// Load after a delay even if there's no interaction
 		const timeoutId = setTimeout(handleInteraction, 3500);
 
 		function cleanup() {

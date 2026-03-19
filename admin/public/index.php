@@ -13,7 +13,6 @@ require __DIR__.'/../vendor/autoload.php';
 
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
-// FrankenPHP worker mode
 if (isset($_SERVER['FRANKENPHP_WORKER'])) {
     $handler = $app->make(\Illuminate\Contracts\Http\Kernel::class);
 
@@ -24,6 +23,5 @@ if (isset($_SERVER['FRANKENPHP_WORKER'])) {
         $handler->terminate($request, $response);
     });
 } else {
-    // Normal mode fallback (local dev, artisan serve)
     $app->handleRequest(Request::capture());
 }

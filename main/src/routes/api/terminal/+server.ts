@@ -3,7 +3,7 @@ import { fetchGeneral } from '$lib/server/data';
 import OpenAI from 'openai';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const { messages } = await request.json();
 
@@ -13,21 +13,13 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 
 		const lastMessage = messages[messages.length - 1];
 		if (lastMessage?.role === 'user') {
-			let clientIp = 'unknown';
-			try {
-				clientIp =
-					request.headers.get('cf-connecting-ip') ||
-					request.headers.get('x-real-ip') ||
-					request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-					getClientAddress();
-			} catch (e) {}
-			console.info(`[Terminal Activity] Command executed by IP ${clientIp}: ${lastMessage.content}`);
-		}
+			}
 
 		const generalData = await fetchGeneral();
 		const openaiUrl = generalData.ai_url as string | null;
 		const openaiKey = generalData.ai_key as string | null;
 		const openaiModel = generalData.ai_model as string | null;
+		const terminalPrompt = (generalData.ai_terminal_prompt as string | null)?.trim() ?? '';
 
 		const hasUrl = Boolean(openaiUrl && openaiUrl.trim() !== '');
 		const hasKey = Boolean(openaiKey && openaiKey.trim() !== '');
@@ -50,20 +42,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			apiKey: openaiKey.trim()
 		});
 
-		const systemPrompt = {
-			role: 'system',
-			content: `You are an AI assistant integrated into a web-based Ubuntu terminal emulator. 
-Your username is "dansday@ai" and you operate in a CLI environment. 
-Respond to user input as if you are a terminal command output or a helpful CLI assistant.
-Keep responses concise, formatted as plain text, and visually resembling terminal output where appropriate.
-If the user types a standard Linux command, you can simulate its output or provide helpful information.
-If they ask a general question, answer it concisely in a terminal-friendly format.`
-		};
+		const systemMessages = terminalPrompt
+			? [{ role: 'system' as const, content: terminalPrompt }]
+			: [];
 
 		try {
 			const completion = await openai.chat.completions.create({
 				model: openaiModel.trim(),
-				messages: [systemPrompt, ...messages] as OpenAI.Chat.ChatCompletionMessageParam[]
+				messages: [...systemMessages, ...messages] as OpenAI.Chat.ChatCompletionMessageParam[]
 			});
 
 			const reply = completion.choices?.[0]?.message?.content || 'No response from AI.';

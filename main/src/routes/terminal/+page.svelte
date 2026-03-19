@@ -21,7 +21,7 @@
 	let containerElement: HTMLDivElement;
 	let isProcessing = $state(false);
 
-	const username = 'dansday@ai';
+	const username = (general.terminal_username as string) ?? '';
 	const directory = '~';
 
 	function handleKeydown(event: KeyboardEvent) {

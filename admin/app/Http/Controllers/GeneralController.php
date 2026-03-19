@@ -100,7 +100,6 @@ class GeneralController extends Controller
                     }
                 }
 
-                // Clear old generated favicons in public/favicon before making new ones
                 $publicFaviconDir = public_path('favicon');
                 if (is_dir($publicFaviconDir)) {
                     $filesToDelete = [
@@ -148,7 +147,6 @@ class GeneralController extends Controller
                     '--silent' => true,
                 ]);
 
-                // Copy all generated favicons from public/favicon to the desired storage location
                 $filesToCopy = [
                     'favicon.ico',
                     'favicon-96x96.png',
@@ -159,8 +157,6 @@ class GeneralController extends Controller
                     'web-app-manifest-512x512.png',
                 ];
 
-                // Keep a copy in `public/favicon` for the admin panel to use `<x-favicon-meta />` directly
-                // And we ALSO put them in the DB-backed uploads disk just in case
                 foreach ($filesToCopy as $file) {
                     $generatedFile = public_path('favicon/' . $file);
                     if (file_exists($generatedFile)) {
@@ -168,7 +164,6 @@ class GeneralController extends Controller
                     }
                 }
 
-                // For the DB `image_favicon` column, we'll store the ICO path so it's consistent
                 $route_image_favicon = 'uploads/' . $directory . '/favicon.ico';
             } finally {
                 if (isset($source) && $source !== false) {
@@ -194,7 +189,6 @@ class GeneralController extends Controller
                 }
             }
 
-            // Also clean up the generated files in public/favicon
             $publicFaviconDir = public_path('favicon');
             if (is_dir($publicFaviconDir)) {
                 $filesToDelete = [
@@ -231,24 +225,26 @@ class GeneralController extends Controller
     public function updateAi(Request $request)
     {
         $data = [
-            'ai_url'   => $request->input('ai_url'),
-            'ai_key'   => $request->input('ai_key'),
-            'ai_model' => $request->input('ai_model'),
+            'ai_url'             => $request->input('ai_url'),
+            'ai_key'             => $request->input('ai_key'),
+            'ai_model'           => $request->input('ai_model'),
+            'ai_terminal_prompt' => $request->input('ai_terminal_prompt'),
+            'ai_content_prompt'  => $request->input('ai_content_prompt'),
         ];
 
-        // Find current general config
         $general = General::find(1);
 
-        // If the submitted key matches the exact mask of the current key, it means it wasn't changed
         $currentKeyMask = ($general && !empty($general->ai_key)) ? preg_replace('/./', '*', $general->ai_key) : null;
         if ($currentKeyMask && $data['ai_key'] === $currentKeyMask) {
             $data['ai_key'] = null;
         }
 
         $validate = Validator::make($data, [
-            'ai_url'   => ['nullable', 'string', 'max:500'],
-            'ai_key'   => ['nullable', 'string', 'max:500'],
-            'ai_model' => ['nullable', 'string', 'max:255'],
+            'ai_url'             => ['nullable', 'string', 'max:500'],
+            'ai_key'             => ['nullable', 'string', 'max:500'],
+            'ai_model'           => ['nullable', 'string', 'max:255'],
+            'ai_terminal_prompt' => ['nullable', 'string'],
+            'ai_content_prompt'  => ['nullable', 'string'],
         ]);
         if ($validate->fails()) {
             return redirect('/admin/ai')
@@ -258,8 +254,10 @@ class GeneralController extends Controller
         }
 
         $data_new = [
-            'ai_url'   => $data['ai_url'] ? trim($data['ai_url']) : null,
-            'ai_model' => $data['ai_model'] ? trim((string) $data['ai_model']) : null,
+            'ai_url'             => $data['ai_url'] ? trim($data['ai_url']) : null,
+            'ai_model'           => $data['ai_model'] ? trim((string) $data['ai_model']) : null,
+            'ai_terminal_prompt' => $data['ai_terminal_prompt'] ? trim($data['ai_terminal_prompt']) : null,
+            'ai_content_prompt'  => $data['ai_content_prompt'] ? trim($data['ai_content_prompt']) : null,
         ];
         if (!empty($data['ai_key'])) {
             $data_new['ai_key'] = trim($data['ai_key']);
@@ -279,5 +277,35 @@ class GeneralController extends Controller
         return view('admin.pages.ai')
             ->with('general', $general)
             ->with('user', $user);
+    }
+
+    public function terminalIndex()
+    {
+        $general = General::find(1);
+        if (! $general) {
+            abort(500, 'Initial data not found.');
+        }
+        $user = User::find(1);
+        return view('admin.pages.terminal')
+            ->with('general', $general)
+            ->with('user', $user);
+    }
+
+    public function updateTerminal(Request $request)
+    {
+        $validate = Validator::make($request->all(), [
+            'terminal_username' => ['nullable', 'string', 'max:100'],
+        ]);
+        if ($validate->fails()) {
+            return redirect('/admin/terminal')
+                ->with('error-validation', '')
+                ->withErrors($validate)
+                ->withInput();
+        }
+
+        General::where('id', 1)->update([
+            'terminal_username' => $request->input('terminal_username') ? trim($request->input('terminal_username')) : null,
+        ]);
+        return redirect('/admin/terminal')->with('ok-update', '');
     }
 }

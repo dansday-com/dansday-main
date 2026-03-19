@@ -40,8 +40,10 @@ class SectionController extends Controller
             'skills_enable' => $request->has('skills_enable') ? 1 : 0,
             'testimonial_enable' => $request->has('testimonial_enable') ? 1 : 0,
             'services_enable' => $request->has('services_enable') ? 1 : 0,
-            'projects_enable' => $request->has('projects_enable') ? 1 : 0,
-            'articles_enable' => $request->has('articles_enable') ? 1 : 0,
+            'projects_enable'   => $request->has('projects_enable') ? 1 : 0,
+            'articles_enable'   => $request->has('articles_enable') ? 1 : 0,
+            'terminal_enable'   => $request->has('terminal_enable') ? 1 : 0,
+            'contribute_enable' => $request->has('contribute_enable') ? 1 : 0,
         ]);
         return redirect('/admin/sections')->with('ok-update', '');
     }

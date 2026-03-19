@@ -45,14 +45,16 @@ const preloadHandle: Handle = async ({ event, resolve }) => {
 	const headers = event.request.headers;
 	const ua = headers.get('user-agent') ?? '';
 	const cfIp = headers.get('cf-connecting-ip');
+	const cfPseudoIpv4 = headers.get('cf-pseudo-ipv4');
 	const realIp = headers.get('x-real-ip');
 	const xff = headers.get('x-forwarded-for');
 
 	const ipFromHeader = cfIp || realIp || (xff ? xff.split(',')[0]?.trim() : '');
 	const ip = ipFromHeader || event.getClientAddress();
 
-	console.info('[visit]', {
+	console.info('[request]', {
 		ip,
+		ip_ipv4: cfPseudoIpv4 || undefined,
 		ip_source: cfIp ? 'cf-connecting-ip' : realIp ? 'x-real-ip' : xff ? 'x-forwarded-for' : 'getClientAddress',
 		device: detectDevice(ua),
 		browser: detectBrowser(ua),

@@ -21,6 +21,8 @@ class SectionSeeder extends Seeder
             'services_enable'           => 1,
             'projects_enable'           => 1,
             'articles_enable'           => 1,
+            'terminal_enable'           => 0,
+            'contribute_enable'         => 0,
         ]);
     }
 }
