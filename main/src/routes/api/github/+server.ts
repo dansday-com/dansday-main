@@ -150,6 +150,7 @@ async function fetchRecentActivity(username: string, token: string, orgs: string
 	const viewerQuery = `
 		query {
 			viewer {
+				login
 				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
 					nodes {
 						name
@@ -247,17 +248,22 @@ async function fetchRecentActivity(username: string, token: string, orgs: string
 		if (history?.pageInfo?.hasNextPage) anyRepoHasMore = true;
 
 		const ownerLogin = repo.owner?.login ?? '';
-		const isOrg = ownerLogin.toLowerCase() !== username.toLowerCase();
+		const isOwner = ownerLogin.toLowerCase() === username.toLowerCase();
 
 		for (const commit of commits) {
 			const authorLogin = commit.author?.user?.login;
-			if (authorLogin && authorLogin.toLowerCase() !== username.toLowerCase()) continue;
+			if (!authorLogin || authorLogin.toLowerCase() !== username.toLowerCase()) continue;
+
+			const message = (commit.message as string)?.split('\n')[0] ?? 'Commit';
+			const isPrivate = repo.isPrivate ?? false;
+			const wordCount = message.split(/\s+/).filter(Boolean).length;
+			const maskedTitle = isPrivate ? `${'*'.repeat(6)} (${wordCount} words)` : message;
 
 			all.push({
-				repo: isOrg ? `${ownerLogin}/${repo.name}` : repo.name,
-				title: (commit.message as string)?.split('\n')[0] ?? 'Commit',
+				repo: isOwner ? repo.name : `${ownerLogin}/${repo.name}`,
+				title: maskedTitle,
 				date: commit.committedDate ?? '',
-				private: repo.isPrivate ?? false
+				private: isPrivate
 			});
 		}
 	}
