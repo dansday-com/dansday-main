@@ -148,6 +148,34 @@
                                     </div>
                                 </div>
 
+                                <div class="col-12 mb-2">
+                                    <hr class="mt-4 mb-5 border-0">
+                                    <h4 class="mt-3 mb-2 text-gray-800 fw-bold">Terminal</h4>
+                                </div>
+                                <div class="col-md-12 mb-2">
+                                    <div class="form-group">
+                                        <label for="terminal_enable" class="form-label">{{ __('content.enable_section') }}</label>
+                                        <div class="form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" name="terminal_enable" {{ ($section->terminal_enable == 1) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="terminal_enable">{{ __('content.enable') }}</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12 mb-2">
+                                    <hr class="mt-4 mb-5 border-0">
+                                    <h4 class="mt-3 mb-2 text-gray-800 fw-bold">Contribute</h4>
+                                </div>
+                                <div class="col-md-12 mb-2">
+                                    <div class="form-group">
+                                        <label for="contribute_enable" class="form-label">{{ __('content.enable_section') }}</label>
+                                        <div class="form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" name="contribute_enable" {{ ($section->contribute_enable == 1) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="contribute_enable">{{ __('content.enable') }}</label>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                         <div class="modal-footer">

@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { fetchSection, fetchArticles, fetchProjects, fetchGeneral } from '$lib/server/data';
+import { fetchSection, fetchArticles, fetchProjects } from '$lib/server/data';
 import type { RequestHandler } from './$types';
 
 function escapeXml(unsafe: string): string {
@@ -25,17 +25,11 @@ export const GET: RequestHandler = async () => {
 	}
 
 	let section: Record<string, unknown> = {};
-	let aiTerminalConfigured = false;
 	let articleUrlData: Array<{ loc: string; lastmod?: string; changefreq: string; priority: number }> = [];
 	let projectUrlData: Array<{ loc: string; lastmod?: string; changefreq: string; priority: number }> = [];
 
 	try {
 		section = (await fetchSection()) as Record<string, unknown>;
-		const general = (await fetchGeneral()) as Record<string, unknown>;
-		const hasUrl = Boolean(general.ai_url && typeof general.ai_url === 'string' && general.ai_url.trim() !== '');
-		const hasKey = Boolean(general.ai_key && typeof general.ai_key === 'string' && general.ai_key.trim() !== '');
-		const hasModel = Boolean(general.ai_model && typeof general.ai_model === 'string' && general.ai_model.trim() !== '');
-		aiTerminalConfigured = hasUrl && hasKey && hasModel;
 	} catch {}
 
 	if (notDisabled(section.articles_enable)) {
@@ -95,7 +89,8 @@ export const GET: RequestHandler = async () => {
 		...(notDisabled(section.articles_enable)
 			? [{ loc: `${baseUrl}/articles`, changefreq: 'daily' as const, priority: 1.0, lastmod: new Date().toISOString() }]
 			: []),
-		...(aiTerminalConfigured ? [{ loc: `${baseUrl}/terminal`, changefreq: 'daily' as const, priority: 0.8, lastmod: new Date().toISOString() }] : []),
+		...(notDisabled(section.terminal_enable) ? [{ loc: `${baseUrl}/terminal`, changefreq: 'daily' as const, priority: 0.8, lastmod: new Date().toISOString() }] : []),
+		...(notDisabled(section.contribute_enable) ? [{ loc: `${baseUrl}/contribute`, changefreq: 'daily' as const, priority: 0.8, lastmod: new Date().toISOString() }] : []),
 		...aboutsUrlData,
 		...articleUrlData,
 		...projectUrlData
