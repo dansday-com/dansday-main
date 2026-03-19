@@ -143,16 +143,14 @@ async function fetchContributionStats(username: string, token: string) {
 	};
 }
 
-async function fetchRecentActivity(username: string, token: string, before?: string, limit = 10) {
+async function fetchRecentActivity(username: string, token: string, orgs: string[], before?: string, limit = 10) {
 	const untilArg = before ? `, until: "${before}"` : '';
 	const perRepo = limit + 5;
 
-	// Use `viewer` instead of `user(login:)` to get ALL repos the token can access
-	// This properly includes: private repos, org repos, collaborator repos
-	const query = `
+	const viewerQuery = `
 		query {
 			viewer {
-				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
 					nodes {
 						name
 						owner { login }
@@ -178,24 +176,72 @@ async function fetchRecentActivity(username: string, token: string, before?: str
 		}
 	`;
 
-	const res = await fetch(GITHUB_GRAPHQL, {
-		method: 'POST',
-		headers: getHeaders(token),
-		body: JSON.stringify({ query })
+	const orgQueries = orgs.map((org) => {
+		const orgQuery = `
+			query($org: String!) {
+				organization(login: $org) {
+					repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}) {
+						nodes {
+							name
+							owner { login }
+							isPrivate
+							defaultBranchRef {
+								target {
+									... on Commit {
+										history(first: ${perRepo}${untilArg}) {
+											nodes {
+												message
+												committedDate
+												oid
+												author { user { login } }
+											}
+											pageInfo { hasNextPage }
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		`;
+		return fetch(GITHUB_GRAPHQL, {
+			method: 'POST',
+			headers: getHeaders(token),
+			body: JSON.stringify({ query: orgQuery, variables: { org } })
+		})
+			.then((r) => r.json())
+			.then((d) => d.data?.organization?.repositories?.nodes ?? [])
+			.catch(() => []);
 	});
 
-	if (!res.ok) return { items: [], hasMore: false };
-	const data = await res.json();
-	if (data.errors) {
-		console.error('[GitHub GraphQL activity]', data.errors);
-		return { items: [], hasMore: false };
+	const [viewerRes, ...orgResults] = await Promise.all([
+		fetch(GITHUB_GRAPHQL, {
+			method: 'POST',
+			headers: getHeaders(token),
+			body: JSON.stringify({ query: viewerQuery })
+		}),
+		...orgQueries
+	]);
+
+	const viewerData = viewerRes.ok ? await viewerRes.json() : null;
+
+	const repoMap = new Map<string, any>();
+	for (const repo of viewerData?.data?.viewer?.repositories?.nodes ?? []) {
+		const key = `${repo.owner?.login}/${repo.name}`;
+		repoMap.set(key, repo);
+	}
+	for (const orgRepos of orgResults) {
+		for (const repo of orgRepos) {
+			const key = `${repo.owner?.login}/${repo.name}`;
+			if (!repoMap.has(key)) repoMap.set(key, repo);
+		}
 	}
 
-	const repos = data.data?.viewer?.repositories?.nodes ?? [];
 	const all: ActivityItem[] = [];
 	let anyRepoHasMore = false;
 
-	for (const repo of repos) {
+	for (const repo of repoMap.values()) {
 		const history = repo.defaultBranchRef?.target?.history;
 		const commits = history?.nodes ?? [];
 		if (history?.pageInfo?.hasNextPage) anyRepoHasMore = true;
@@ -226,12 +272,14 @@ async function fetchRecentActivity(username: string, token: string, before?: str
 
 type ActivityItem = { repo: string; title: string; date: string; private: boolean };
 
-async function fetchTopLanguages(token: string) {
+async function fetchTopLanguages(token: string, orgs: string[]) {
 	const langQuery = `
 		query {
 			viewer {
-				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
 					nodes {
+						name
+						owner { login }
 						primaryLanguage { name }
 					}
 				}
@@ -239,17 +287,43 @@ async function fetchTopLanguages(token: string) {
 		}
 	`;
 
-	const res = await fetch(GITHUB_GRAPHQL, {
-		method: 'POST',
-		headers: getHeaders(token),
-		body: JSON.stringify({ query: langQuery })
-	});
+	const orgQueries = orgs.map((org) =>
+		fetch(GITHUB_GRAPHQL, {
+			method: 'POST',
+			headers: getHeaders(token),
+			body: JSON.stringify({
+				query: `query($org: String!) { organization(login: $org) { repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}) { nodes { name owner { login } primaryLanguage { name } } } } }`,
+				variables: { org }
+			})
+		})
+			.then((r) => r.json())
+			.then((d) => d.data?.organization?.repositories?.nodes ?? [])
+			.catch(() => [])
+	);
 
-	if (!res.ok) return [];
-	const data = await res.json();
-	if (data.errors) return [];
+	const [viewerRes, ...orgResults] = await Promise.all([
+		fetch(GITHUB_GRAPHQL, {
+			method: 'POST',
+			headers: getHeaders(token),
+			body: JSON.stringify({ query: langQuery })
+		}),
+		...orgQueries
+	]);
 
-	const repos = data.data?.viewer?.repositories?.nodes ?? [];
+	const viewerData = viewerRes.ok ? await viewerRes.json() : null;
+
+	const repoMap = new Map<string, any>();
+	for (const repo of viewerData?.data?.viewer?.repositories?.nodes ?? []) {
+		repoMap.set(`${repo.owner?.login}/${repo.name}`, repo);
+	}
+	for (const orgRepos of orgResults) {
+		for (const repo of orgRepos) {
+			const key = `${repo.owner?.login}/${repo.name}`;
+			if (!repoMap.has(key)) repoMap.set(key, repo);
+		}
+	}
+
+	const repos = Array.from(repoMap.values());
 	const langMap: Record<string, number> = {};
 	for (const repo of repos) {
 		const lang = repo.primaryLanguage?.name;
@@ -275,15 +349,17 @@ export const GET: RequestHandler = async ({ url }) => {
 	const before = url.searchParams.get('before') ?? undefined;
 
 	try {
+		const contributions = await fetchContributionStats(username, token);
+		const orgs = contributions.user.organizations.map((o) => o.login);
+
 		if (before) {
-			const activity = await fetchRecentActivity(username, token, before, 10);
+			const activity = await fetchRecentActivity(username, token, orgs, before, 10);
 			return json(activity);
 		}
 
-		const [contributions, activity, languages] = await Promise.all([
-			fetchContributionStats(username, token),
-			fetchRecentActivity(username, token, undefined, 10),
-			fetchTopLanguages(token)
+		const [activity, languages] = await Promise.all([
+			fetchRecentActivity(username, token, orgs, undefined, 10),
+			fetchTopLanguages(token, orgs)
 		]);
 
 		return json({ username, ...contributions, activity, languages });
