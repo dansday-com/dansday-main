@@ -252,22 +252,33 @@ async function fetchRecentActivity(username: string, token: string, orgs: string
 type ActivityItem = { repo: string; title: string; date: string; private: boolean };
 
 async function fetchTopLanguages(username: string, token: string, orgs: string[]) {
-	const userQuery = `
-		query($username: String!) {
-			user(login: $username) {
-				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, affiliations: [OWNER, COLLABORATOR]) {
-					nodes {
-						name
-						owner { login }
-						primaryLanguage { name }
+	const langFrag = `
+		name
+		owner { login }
+		primaryLanguage { name }
+		defaultBranchRef {
+			target {
+				... on Commit {
+					history(first: 1) {
+						nodes { author { user { login } } }
 					}
 				}
 			}
 		}
 	`;
 
+	const userQuery = `
+		query($username: String!) {
+			user(login: $username) {
+				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, affiliations: [OWNER, COLLABORATOR]) {
+					nodes { ${langFrag} }
+				}
+			}
+		}
+	`;
+
 	const orgQueries = orgs.map((org) =>
-		graphql(token, `query($org: String!) { organization(login: $org) { repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}) { nodes { name owner { login } primaryLanguage { name } } } } }`, { org })
+		graphql(token, `query($org: String!) { organization(login: $org) { repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}) { nodes { ${langFrag} } } } }`, { org })
 			.then((d) => d.data?.organization?.repositories?.nodes ?? [])
 			.catch(() => [])
 	);
@@ -293,9 +304,14 @@ async function fetchTopLanguages(username: string, token: string, orgs: string[]
 	const langMap: Record<string, number> = {};
 	for (const repo of repoMap.values()) {
 		const lang = repo.primaryLanguage?.name;
-		if (lang) {
-			langMap[lang] = (langMap[lang] ?? 0) + 1;
-		}
+		if (!lang) continue;
+		const commits = repo.defaultBranchRef?.target?.history?.nodes ?? [];
+		const hasMyCommit = commits.some((c: any) => {
+			const login = c.author?.user?.login;
+			return !login || login.toLowerCase() === username.toLowerCase();
+		});
+		if (!hasMyCommit) continue;
+		langMap[lang] = (langMap[lang] ?? 0) + 1;
 	}
 
 	return Object.entries(langMap)
