@@ -9,15 +9,23 @@
 	const metaTitle = ((general.title as string) ?? data.siteName ?? '') + ' | Contribute';
 	const metaDescription = 'GitHub contribution stats and activity.';
 
+	interface ActivityItem {
+		type: 'commit' | 'pr';
+		repo: string;
+		repoUrl: string;
+		title: string;
+		url: string;
+		date: string;
+		private: boolean;
+	}
+
 	interface GithubData {
 		username: string;
 		user: {
 			name: string;
 			avatarUrl: string;
 			bio: string;
-			followers: number;
-			following: number;
-			publicRepos: number;
+			totalRepos: number;
 		};
 		stats: {
 			week: number;
@@ -28,15 +36,7 @@
 			totalIssues: number;
 		};
 		calendar: { date: string; count: number }[];
-		repos: {
-			name: string;
-			description: string;
-			url: string;
-			stars: number;
-			forks: number;
-			language: string | null;
-			updatedAt: string;
-		}[];
+		activity: ActivityItem[];
 		languages: { name: string; count: number }[];
 	}
 
@@ -69,13 +69,17 @@
 
 	function timeAgo(iso: string): string {
 		const diff = Date.now() - new Date(iso).getTime();
-		const d = Math.floor(diff / 86400000);
-		if (d === 0) return 'today';
-		if (d === 1) return 'yesterday';
+		const s = Math.floor(diff / 1000);
+		if (s < 60) return `${s}s ago`;
+		const m = Math.floor(s / 60);
+		if (m < 60) return `${m}m ago`;
+		const h = Math.floor(m / 60);
+		if (h < 24) return `${h}h ago`;
+		const d = Math.floor(h / 24);
 		if (d < 30) return `${d}d ago`;
-		const m = Math.floor(d / 30);
-		if (m < 12) return `${m}mo ago`;
-		return `${Math.floor(m / 12)}y ago`;
+		const mo = Math.floor(d / 30);
+		if (mo < 12) return `${mo}mo ago`;
+		return `${Math.floor(mo / 12)}y ago`;
 	}
 
 	function cellColor(count: number): string {
@@ -86,25 +90,22 @@
 		return 'bg-[#39d353]';
 	}
 
-	// group calendar days into weeks for display
 	function buildWeeks(days: { date: string; count: number }[]) {
 		const weeks: { date: string; count: number }[][] = [];
 		let week: { date: string; count: number }[] = [];
-
-		// pad start so first day aligns to correct weekday
 		if (days.length > 0) {
-			const firstDay = new Date(days[0].date).getDay(); // 0=Sun
+			const firstDay = new Date(days[0].date).getDay();
 			for (let i = 0; i < firstDay; i++) week.push({ date: '', count: -1 });
 		}
-
 		for (const day of days) {
 			week.push(day);
-			if (week.length === 7) {
-				weeks.push(week);
-				week = [];
-			}
+			if (week.length === 7) { weeks.push(week); week = []; }
 		}
-		if (week.length > 0) weeks.push(week);
+		// pad end of last week to Saturday
+		if (week.length > 0) {
+			while (week.length < 7) week.push({ date: '', count: -1 });
+			weeks.push(week);
+		}
 		return weeks;
 	}
 
@@ -132,77 +133,62 @@
 
 <Metadata title={metaTitle} description={metaDescription} />
 
-<main class="min-h-screen bg-[#0d1117] text-[#c9d1d9] font-mono">
-	<div class="max-w-5xl mx-auto px-4 py-10 sm:px-6">
+<main class="relative flex min-h-0 flex-1 flex-col font-mono text-sm md:text-base">
+	<div class="absolute inset-0 -z-10 bg-[#080808]/80 backdrop-blur-sm"></div>
+	<div class="text-ash-100 z-10 flex-1 overflow-y-auto p-4 pb-12 sm:p-6">
 
 		<!-- Header -->
-		<div class="mb-8">
-			<h1 class="text-2xl font-bold text-white tracking-tight">~/contribute</h1>
-			<p class="text-[#8b949e] text-sm mt-1">Live GitHub contribution stats</p>
+		<div class="mb-6">
+			<div class="text-white font-bold text-base">~/contribute</div>
+			<div class="text-[#8b949e] text-xs mt-0.5">Live GitHub contribution stats</div>
 		</div>
 
 		{#if loading}
-			<div class="flex items-center gap-3 text-[#8b949e] py-20 justify-center">
-				<span class="inline-block w-4 h-4 border-2 border-[#238636] border-t-transparent rounded-full animate-spin"></span>
-				<span>Fetching GitHub data...</span>
+			<div class="flex items-center gap-2 text-[#8b949e] py-10 justify-center">
+				<span class="inline-block w-3 h-3 border-2 border-[#238636] border-t-transparent rounded-full animate-spin"></span>
+				<span class="text-xs">Fetching GitHub data...</span>
 			</div>
 
 		{:else if error}
-			<div class="border border-[#f85149]/40 bg-[#161b22] rounded-lg p-6 text-[#f85149]">
-				<span class="font-bold">Error:</span> {error}
-			</div>
+			<div class="text-red-400 text-xs">{error}</div>
 
 		{:else if githubData}
 			<!-- Profile row -->
-			<div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8 border border-[#30363d] rounded-lg p-5 bg-[#161b22]">
-				<img
-					src={githubData.user.avatarUrl}
-					alt={githubData.user.name}
-					class="w-16 h-16 rounded-full border-2 border-[#30363d]"
-				/>
-				<div class="flex-1 min-w-0">
-					<div class="text-white font-bold text-lg leading-tight">{githubData.user.name}</div>
-					<div class="text-[#8b949e] text-sm">@{githubData.username}</div>
+			<div class="flex items-center gap-3 mb-5">
+				<img src={githubData.user.avatarUrl} alt={githubData.user.name} class="w-10 h-10 rounded-full border border-[#30363d]" />
+				<div class="min-w-0">
+					<div class="text-white font-bold text-sm leading-tight">{githubData.user.name}</div>
+					<div class="text-[#8b949e] text-xs">@{githubData.username}</div>
 					{#if githubData.user.bio}
-						<div class="text-[#c9d1d9] text-sm mt-1 truncate">{githubData.user.bio}</div>
+						<div class="text-[#8b949e] text-xs mt-0.5 truncate">{githubData.user.bio}</div>
 					{/if}
 				</div>
-				<div class="flex gap-5 text-sm text-[#8b949e] shrink-0">
-					<div class="text-center">
-						<div class="text-white font-bold text-base">{githubData.user.publicRepos}</div>
-						<div>repos</div>
-					</div>
-					<div class="text-center">
-						<div class="text-white font-bold text-base">{githubData.user.followers}</div>
-						<div>followers</div>
-					</div>
-					<div class="text-center">
-						<div class="text-white font-bold text-base">{githubData.user.following}</div>
-						<div>following</div>
-					</div>
+				<div class="ml-auto text-center shrink-0">
+					<div class="text-white font-bold text-sm">{githubData.user.totalRepos}</div>
+					<div class="text-[#8b949e] text-xs">repos</div>
 				</div>
 			</div>
 
-			<!-- Commit stats cards -->
-			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+			<!-- Stat cards -->
+			<div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-5">
 				{#each [
-					{ label: 'This week', value: githubData.stats.week, color: 'text-[#39d353]' },
-					{ label: 'This month', value: githubData.stats.month, color: 'text-[#26a641]' },
-					{ label: 'This year', value: githubData.stats.year, color: 'text-[#238636]' },
-					{ label: 'Commits', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]' },
-					{ label: 'Pull Reqs', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]' },
-					{ label: 'Issues', value: githubData.stats.totalIssues, color: 'text-[#f78166]' }
+					{ label: 'week', value: githubData.stats.week, color: 'text-[#39d353]' },
+					{ label: 'month', value: githubData.stats.month, color: 'text-[#26a641]' },
+					{ label: 'year', value: githubData.stats.year, color: 'text-[#238636]' },
+					{ label: 'commits', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]' },
+					{ label: 'PRs', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]' },
+					{ label: 'issues', value: githubData.stats.totalIssues, color: 'text-[#f78166]' }
 				] as card}
-					<div class="border border-[#30363d] bg-[#161b22] rounded-lg p-4 text-center">
-						<div class="text-2xl font-bold {card.color}">{card.value.toLocaleString()}</div>
-						<div class="text-[#8b949e] text-xs mt-1">{card.label}</div>
+					<div class="border border-[#30363d] bg-[#161b22]/60 rounded p-2 text-center">
+						<div class="text-lg font-bold {card.color}">{card.value.toLocaleString()}</div>
+						<div class="text-[#8b949e] text-xs">{card.label}</div>
 					</div>
 				{/each}
 			</div>
 
 			<!-- Contribution calendar -->
-			<div class="border border-[#30363d] bg-[#161b22] rounded-lg p-5 mb-8 overflow-x-auto">
-				<div class="text-sm text-[#8b949e] mb-3">
+			<div class="border border-[#30363d] bg-[#161b22]/60 rounded p-3 mb-5 overflow-x-auto">
+				<div class="text-xs text-[#8b949e] mb-2">
 					<span class="text-white font-semibold">{githubData.stats.year.toLocaleString()}</span> contributions this year
 				</div>
 				<div class="flex gap-[3px]">
@@ -210,100 +196,71 @@
 						<div class="flex flex-col gap-[3px]">
 							{#each week as day}
 								{#if day.count === -1}
-									<div class="w-[10px] h-[10px]"></div>
+									<div class="w-[9px] h-[9px]"></div>
 								{:else}
-									<div
-										class="w-[10px] h-[10px] rounded-sm {cellColor(day.count)}"
-										title="{day.count} contributions on {day.date}"
-									></div>
+									<div class="w-[9px] h-[9px] rounded-sm {cellColor(day.count)}" title="{day.count} on {day.date}"></div>
 								{/if}
 							{/each}
 						</div>
 					{/each}
 				</div>
-				<div class="flex items-center gap-2 mt-3 text-xs text-[#8b949e]">
+				<div class="flex items-center gap-1.5 mt-2 text-xs text-[#8b949e]">
 					<span>Less</span>
-					<div class="w-[10px] h-[10px] rounded-sm bg-[#161b22] border border-[#30363d]"></div>
-					<div class="w-[10px] h-[10px] rounded-sm bg-[#0e4429]"></div>
-					<div class="w-[10px] h-[10px] rounded-sm bg-[#006d32]"></div>
-					<div class="w-[10px] h-[10px] rounded-sm bg-[#26a641]"></div>
-					<div class="w-[10px] h-[10px] rounded-sm bg-[#39d353]"></div>
+					<div class="w-[9px] h-[9px] rounded-sm bg-[#161b22] border border-[#30363d]"></div>
+					<div class="w-[9px] h-[9px] rounded-sm bg-[#0e4429]"></div>
+					<div class="w-[9px] h-[9px] rounded-sm bg-[#006d32]"></div>
+					<div class="w-[9px] h-[9px] rounded-sm bg-[#26a641]"></div>
+					<div class="w-[9px] h-[9px] rounded-sm bg-[#39d353]"></div>
 					<span>More</span>
 				</div>
 			</div>
 
-			<!-- Bottom two columns: repos + languages -->
-			<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			<!-- Bottom: activity feed + languages -->
+			<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-				<!-- Recent repos -->
+				<!-- Live activity feed -->
 				<div class="lg:col-span-2">
-					<h2 class="text-sm font-semibold text-[#8b949e] uppercase tracking-wider mb-3">Recent repos</h2>
-					<div class="flex flex-col gap-3">
-						{#each githubData.repos as repo}
-							<a
-								href={repo.url}
-								target="_blank"
-								rel="noopener noreferrer"
-								class="border border-[#30363d] bg-[#161b22] rounded-lg p-4 hover:border-[#58a6ff]/50 transition-colors group block"
-							>
-								<div class="flex items-start justify-between gap-2">
-									<div class="min-w-0">
-										<div class="text-[#58a6ff] font-semibold text-sm group-hover:underline truncate">{repo.name}</div>
-										{#if repo.description}
-											<div class="text-[#8b949e] text-xs mt-1 line-clamp-2">{repo.description}</div>
+					<div class="text-xs text-[#8b949e] uppercase tracking-wider mb-2">Live activity</div>
+					<div class="flex flex-col gap-1">
+						{#each githubData.activity as item}
+							<div class="flex items-start gap-2 border border-[#30363d] bg-[#161b22]/60 rounded px-3 py-2">
+								{#if item.type === 'commit'}
+									<i class="fas fa-code-commit mt-0.5 shrink-0 text-[#8b949e] text-xs"></i>
+								{:else}
+									<i class="fas fa-code-pull-request mt-0.5 shrink-0 text-[#bc8cff] text-xs"></i>
+								{/if}
+								<div class="min-w-0 flex-1">
+									<div class="flex items-center gap-1.5 flex-wrap">
+										<span class="text-[#58a6ff] text-xs font-medium shrink-0">{item.repo}</span>
+										{#if item.private}
+											<span class="text-[#8b949e] text-[10px] border border-[#30363d] rounded px-1">private</span>
 										{/if}
 									</div>
-									<div class="text-[#8b949e] text-xs shrink-0">{timeAgo(repo.updatedAt)}</div>
+									<a href={item.url} target="_blank" rel="noopener noreferrer" class="text-[#c9d1d9] text-xs hover:text-white hover:underline line-clamp-1 block mt-0.5">
+										{item.title}
+									</a>
 								</div>
-								<div class="flex items-center gap-4 mt-3 text-xs text-[#8b949e]">
-									{#if repo.language}
-										<div class="flex items-center gap-1">
-											<span
-												class="inline-block w-3 h-3 rounded-full"
-												style="background:{langColor(repo.language)}"
-											></span>
-											{repo.language}
-										</div>
-									{/if}
-									{#if repo.stars > 0}
-										<div class="flex items-center gap-1">
-											<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/></svg>
-											{repo.stars}
-										</div>
-									{/if}
-									{#if repo.forks > 0}
-										<div class="flex items-center gap-1">
-											<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg>
-											{repo.forks}
-										</div>
-									{/if}
-								</div>
-							</a>
+								<div class="text-[#8b949e] text-[10px] shrink-0 mt-0.5">{timeAgo(item.date)}</div>
+							</div>
 						{/each}
 					</div>
 				</div>
 
 				<!-- Top languages -->
 				<div>
-					<h2 class="text-sm font-semibold text-[#8b949e] uppercase tracking-wider mb-3">Top languages</h2>
-					<div class="border border-[#30363d] bg-[#161b22] rounded-lg p-5 flex flex-col gap-4">
+					<div class="text-xs text-[#8b949e] uppercase tracking-wider mb-2">Top languages</div>
+					<div class="border border-[#30363d] bg-[#161b22]/60 rounded p-3 flex flex-col gap-3">
 						{#each githubData.languages as lang}
 							<div>
 								<div class="flex justify-between text-xs mb-1">
 									<div class="flex items-center gap-1.5">
-										<span
-											class="inline-block w-2.5 h-2.5 rounded-full"
-											style="background:{langColor(lang.name)}"
-										></span>
+										<span class="inline-block w-2 h-2 rounded-full" style="background:{langColor(lang.name)}"></span>
 										<span class="text-[#c9d1d9]">{lang.name}</span>
 									</div>
-									<span class="text-[#8b949e]">{lang.count} repo{lang.count !== 1 ? 's' : ''}</span>
+									<span class="text-[#8b949e]">{lang.count}</span>
 								</div>
-								<div class="h-1.5 bg-[#21262d] rounded-full overflow-hidden">
-									<div
-										class="h-full rounded-full transition-all duration-500"
-										style="width:{(lang.count / maxLangCount) * 100}%; background:{langColor(lang.name)}"
-									></div>
+								<div class="h-1 bg-[#21262d] rounded-full overflow-hidden">
+									<div class="h-full rounded-full" style="width:{(lang.count / maxLangCount) * 100}%; background:{langColor(lang.name)}"></div>
 								</div>
 							</div>
 						{/each}

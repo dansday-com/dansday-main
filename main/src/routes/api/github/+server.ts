@@ -2,8 +2,8 @@ import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
-const GITHUB_API = 'https://api.github.com';
 const GITHUB_GRAPHQL = 'https://api.github.com/graphql';
+const GITHUB_API = 'https://api.github.com';
 
 function getHeaders(token: string) {
 	return {
@@ -26,14 +26,11 @@ async function fetchContributionStats(username: string, token: string) {
 				name
 				avatarUrl
 				bio
-				followers { totalCount }
-				following { totalCount }
-				repositories(ownerAffiliations: OWNER, privacy: PUBLIC) { totalCount }
+				repositories(ownerAffiliations: OWNER) { totalCount }
 				contributionsCollection(from: $from, to: $to) {
 					totalCommitContributions
 					totalPullRequestContributions
 					totalIssueContributions
-					totalRepositoryContributions
 					contributionCalendar {
 						totalContributions
 						weeks {
@@ -51,10 +48,7 @@ async function fetchContributionStats(username: string, token: string) {
 	const res = await fetch(GITHUB_GRAPHQL, {
 		method: 'POST',
 		headers: getHeaders(token),
-		body: JSON.stringify({
-			query,
-			variables: { username, from: yearStart, to: now.toISOString() }
-		})
+		body: JSON.stringify({ query, variables: { username, from: yearStart, to: now.toISOString() } })
 	});
 
 	if (!res.ok) throw new Error(`GitHub GraphQL error: ${res.status}`);
@@ -83,9 +77,7 @@ async function fetchContributionStats(username: string, token: string) {
 			name: user?.name ?? username,
 			avatarUrl: user?.avatarUrl ?? '',
 			bio: user?.bio ?? '',
-			followers: user?.followers?.totalCount ?? 0,
-			following: user?.following?.totalCount ?? 0,
-			publicRepos: user?.repositories?.totalCount ?? 0
+			totalRepos: user?.repositories?.totalCount ?? 0
 		},
 		stats: {
 			week: weekCommits,
@@ -99,27 +91,85 @@ async function fetchContributionStats(username: string, token: string) {
 	};
 }
 
-async function fetchRecentRepos(username: string, token: string) {
-	const res = await fetch(
-		`${GITHUB_API}/users/${username}/repos?sort=pushed&per_page=6&type=owner`,
+async function fetchRecentActivity(username: string, token: string) {
+	const reposRes = await fetch(
+		`${GITHUB_API}/user/repos?sort=pushed&per_page=50&type=all&affiliation=owner`,
 		{ headers: getHeaders(token) }
 	);
-	if (!res.ok) return [];
-	const repos = await res.json();
-	return repos.map((r: any) => ({
-		name: r.name,
-		description: r.description ?? '',
-		url: r.html_url,
-		stars: r.stargazers_count,
-		forks: r.forks_count,
-		language: r.language ?? null,
-		updatedAt: r.pushed_at
-	}));
+	if (!reposRes.ok) return [];
+
+	const repos = await reposRes.json();
+	const activity: {
+		type: 'commit' | 'pr';
+		repo: string;
+		repoUrl: string;
+		title: string;
+		url: string;
+		date: string;
+		private: boolean;
+	}[] = [];
+
+	await Promise.allSettled(
+		repos.slice(0, 15).map(async (repo: any) => {
+			const repoName = repo.full_name as string;
+			const isPrivate = repo.private as boolean;
+			const repoUrl = repo.html_url as string;
+
+			const commitsRes = await fetch(
+				`${GITHUB_API}/repos/${repoName}/commits?author=${username}&per_page=5`,
+				{ headers: getHeaders(token) }
+			);
+			if (commitsRes.ok) {
+				const commits = await commitsRes.json();
+				if (Array.isArray(commits)) {
+					for (const c of commits) {
+						activity.push({
+							type: 'commit',
+							repo: repo.name,
+							repoUrl,
+							title: c.commit?.message?.split('\n')[0] ?? 'Commit',
+							url: c.html_url,
+							date: c.commit?.author?.date ?? c.commit?.committer?.date ?? '',
+							private: isPrivate
+						});
+					}
+				}
+			}
+
+			const prsRes = await fetch(
+				`${GITHUB_API}/repos/${repoName}/pulls?state=all&per_page=3&sort=updated`,
+				{ headers: getHeaders(token) }
+			);
+			if (prsRes.ok) {
+				const prs = await prsRes.json();
+				if (Array.isArray(prs)) {
+					for (const pr of prs) {
+						if (pr.user?.login === username) {
+							activity.push({
+								type: 'pr',
+								repo: repo.name,
+								repoUrl,
+								title: pr.title ?? 'Pull Request',
+								url: pr.html_url,
+								date: pr.updated_at ?? pr.created_at ?? '',
+								private: isPrivate
+							});
+						}
+					}
+				}
+			}
+		})
+	);
+
+	return activity
+		.filter((a) => a.date)
+		.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+		.slice(0, 30);
 }
 
 async function fetchTopLanguages(username: string, token: string) {
 	const res = await fetch(
-		`${GITHUB_API}/users/${username}/repos?per_page=100&type=owner`,
+		`${GITHUB_API}/user/repos?per_page=100&type=all&affiliation=owner`,
 		{ headers: getHeaders(token) }
 	);
 	if (!res.ok) return [];
@@ -147,13 +197,13 @@ export const GET: RequestHandler = async () => {
 	}
 
 	try {
-		const [contributions, repos, languages] = await Promise.all([
+		const [contributions, activity, languages] = await Promise.all([
 			fetchContributionStats(username, token),
-			fetchRecentRepos(username, token),
+			fetchRecentActivity(username, token),
 			fetchTopLanguages(username, token)
 		]);
 
-		return json({ username, ...contributions, repos, languages });
+		return json({ username, ...contributions, activity, languages });
 	} catch (err: any) {
 		console.error('[GitHub API]', err);
 		return json({ error: err.message ?? 'Failed to fetch GitHub data.' }, { status: 500 });
