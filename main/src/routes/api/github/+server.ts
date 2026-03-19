@@ -3,7 +3,6 @@ import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
 const GITHUB_GRAPHQL = 'https://api.github.com/graphql';
-const GITHUB_API = 'https://api.github.com';
 
 function getHeaders(token: string) {
 	return {
@@ -145,24 +144,55 @@ async function fetchContributionStats(username: string, token: string) {
 }
 
 async function fetchRecentActivity(username: string, token: string) {
-	let res = await fetch(
-		`${GITHUB_API}/user/events?per_page=100`,
-		{ headers: getHeaders(token) }
-	);
-	if (!res.ok) {
-		res = await fetch(
-			`${GITHUB_API}/users/${username}/events?per_page=100`,
-			{ headers: getHeaders(token) }
-		);
-	}
-	if (!res.ok) {
-		console.error('[GitHub activity] status:', res.status, await res.text());
+	// Use GraphQL to get recent commits across all repos (public, private, org)
+	const now = new Date();
+	const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+	// Step 1: Get repos the user has pushed to recently (owned + org + collaborator)
+	const repoQuery = `
+		query($username: String!) {
+			user(login: $username) {
+				repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+					nodes {
+						name
+						nameWithOwner
+						isPrivate
+						defaultBranchRef {
+							name
+							target {
+								... on Commit {
+									history(first: 5, since: "${weekAgo}") {
+										nodes {
+											message
+											committedDate
+											author {
+												user { login }
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	`;
+
+	const res = await fetch(GITHUB_GRAPHQL, {
+		method: 'POST',
+		headers: getHeaders(token),
+		body: JSON.stringify({ query: repoQuery, variables: { username } })
+	});
+
+	if (!res.ok) return [];
+	const data = await res.json();
+	if (data.errors) {
+		console.error('[GitHub GraphQL activity]', data.errors);
 		return [];
 	}
 
-	const events = await res.json();
-	if (!Array.isArray(events)) return [];
-
+	const repos = data.data?.user?.repositories?.nodes ?? [];
 	const activity: {
 		repo: string;
 		title: string;
@@ -170,24 +200,23 @@ async function fetchRecentActivity(username: string, token: string) {
 		private: boolean;
 	}[] = [];
 
-	for (const event of events) {
-		if (event.type !== 'PushEvent') continue;
+	for (const repo of repos) {
+		const commits = repo.defaultBranchRef?.target?.history?.nodes ?? [];
+		const repoShort = repo.name;
+		const isPrivate = repo.isPrivate ?? false;
 
-		const repoName = (event.repo?.name as string) ?? '';
-		const repoShort = repoName.split('/')[1] ?? repoName;
-		const isPrivate = event.public === false;
-		const commits: any[] = event.payload?.commits ?? [];
+		for (const commit of commits) {
+			// Only include commits authored by this user
+			const authorLogin = commit.author?.user?.login;
+			if (authorLogin && authorLogin.toLowerCase() !== username.toLowerCase()) continue;
 
-		for (const c of commits.slice(0, 3)) {
 			activity.push({
 				repo: repoShort,
-				title: (c.message as string)?.split('\n')[0] ?? 'Commit',
-				date: event.created_at ?? '',
+				title: (commit.message as string)?.split('\n')[0] ?? 'Commit',
+				date: commit.committedDate ?? '',
 				private: isPrivate
 			});
 		}
-
-		if (activity.length >= 30) break;
 	}
 
 	return activity
@@ -196,24 +225,35 @@ async function fetchRecentActivity(username: string, token: string) {
 }
 
 async function fetchTopLanguages(username: string, token: string) {
-	let res = await fetch(
-		`${GITHUB_API}/user/repos?per_page=100&type=all&affiliation=owner`,
-		{ headers: getHeaders(token) }
-	);
-	if (!res.ok) {
-		res = await fetch(
-			`${GITHUB_API}/users/${username}/repos?per_page=100&type=owner`,
-			{ headers: getHeaders(token) }
-		);
-	}
-	if (!res.ok) return [];
-	const repos = await res.json();
-	if (!Array.isArray(repos)) return [];
+	// Use GraphQL to get languages from all repos (owned, org, collaborator, private)
+	const langQuery = `
+		query($username: String!) {
+			user(login: $username) {
+				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+					nodes {
+						primaryLanguage { name }
+					}
+				}
+			}
+		}
+	`;
 
+	const res = await fetch(GITHUB_GRAPHQL, {
+		method: 'POST',
+		headers: getHeaders(token),
+		body: JSON.stringify({ query: langQuery, variables: { username } })
+	});
+
+	if (!res.ok) return [];
+	const data = await res.json();
+	if (data.errors) return [];
+
+	const repos = data.data?.user?.repositories?.nodes ?? [];
 	const langMap: Record<string, number> = {};
 	for (const repo of repos) {
-		if (repo.language) {
-			langMap[repo.language] = (langMap[repo.language] ?? 0) + 1;
+		const lang = repo.primaryLanguage?.name;
+		if (lang) {
+			langMap[lang] = (langMap[lang] ?? 0) + 1;
 		}
 	}
 
