@@ -108,6 +108,13 @@
         </a>
     </li>
 
+    <li class="nav-item {{ request()->is('admin/terminal*') ? 'active' : '' }}">
+        <a class="nav-link css3animate padding-sm" href="{{ url('admin/terminal') }}">
+            <i class="fas fa-terminal css3animate"></i>
+            <span>Terminal</span>
+        </a>
+    </li>
+
     <li class="nav-item {{ request()->is('admin/sections*') ? 'active' : '' }}">
         <a class="nav-link css3animate padding-sm" href="{{ url('admin/sections') }}">
             <i class="fas fa-puzzle-piece css3animate"></i>

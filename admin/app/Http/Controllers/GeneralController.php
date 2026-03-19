@@ -231,9 +231,11 @@ class GeneralController extends Controller
     public function updateAi(Request $request)
     {
         $data = [
-            'ai_url'   => $request->input('ai_url'),
-            'ai_key'   => $request->input('ai_key'),
-            'ai_model' => $request->input('ai_model'),
+            'ai_url'             => $request->input('ai_url'),
+            'ai_key'             => $request->input('ai_key'),
+            'ai_model'           => $request->input('ai_model'),
+            'ai_terminal_prompt' => $request->input('ai_terminal_prompt'),
+            'ai_content_prompt'  => $request->input('ai_content_prompt'),
         ];
 
         // Find current general config
@@ -246,9 +248,11 @@ class GeneralController extends Controller
         }
 
         $validate = Validator::make($data, [
-            'ai_url'   => ['nullable', 'string', 'max:500'],
-            'ai_key'   => ['nullable', 'string', 'max:500'],
-            'ai_model' => ['nullable', 'string', 'max:255'],
+            'ai_url'             => ['nullable', 'string', 'max:500'],
+            'ai_key'             => ['nullable', 'string', 'max:500'],
+            'ai_model'           => ['nullable', 'string', 'max:255'],
+            'ai_terminal_prompt' => ['nullable', 'string'],
+            'ai_content_prompt'  => ['nullable', 'string'],
         ]);
         if ($validate->fails()) {
             return redirect('/admin/ai')
@@ -258,8 +262,10 @@ class GeneralController extends Controller
         }
 
         $data_new = [
-            'ai_url'   => $data['ai_url'] ? trim($data['ai_url']) : null,
-            'ai_model' => $data['ai_model'] ? trim((string) $data['ai_model']) : null,
+            'ai_url'             => $data['ai_url'] ? trim($data['ai_url']) : null,
+            'ai_model'           => $data['ai_model'] ? trim((string) $data['ai_model']) : null,
+            'ai_terminal_prompt' => $data['ai_terminal_prompt'] ? trim($data['ai_terminal_prompt']) : null,
+            'ai_content_prompt'  => $data['ai_content_prompt'] ? trim($data['ai_content_prompt']) : null,
         ];
         if (!empty($data['ai_key'])) {
             $data_new['ai_key'] = trim($data['ai_key']);
@@ -279,5 +285,35 @@ class GeneralController extends Controller
         return view('admin.pages.ai')
             ->with('general', $general)
             ->with('user', $user);
+    }
+
+    public function terminalIndex()
+    {
+        $general = General::find(1);
+        if (! $general) {
+            abort(500, 'Initial data not found.');
+        }
+        $user = User::find(1);
+        return view('admin.pages.terminal')
+            ->with('general', $general)
+            ->with('user', $user);
+    }
+
+    public function updateTerminal(Request $request)
+    {
+        $validate = Validator::make($request->all(), [
+            'terminal_username' => ['nullable', 'string', 'max:100'],
+        ]);
+        if ($validate->fails()) {
+            return redirect('/admin/terminal')
+                ->with('error-validation', '')
+                ->withErrors($validate)
+                ->withInput();
+        }
+
+        General::where('id', 1)->update([
+            'terminal_username' => $request->input('terminal_username') ? trim($request->input('terminal_username')) : null,
+        ]);
+        return redirect('/admin/terminal')->with('ok-update', '');
     }
 }

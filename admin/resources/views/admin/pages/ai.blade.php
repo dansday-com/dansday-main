@@ -41,6 +41,20 @@
                                     @error('ai_model')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-4">
+                                    <label for="ai_terminal_prompt" class="form-label">{{ __('content.ai_terminal_prompt') ?? 'Terminal System Prompt' }}</label>
+                                    <textarea class="form-control @error('ai_terminal_prompt') is-invalid @enderror" name="ai_terminal_prompt" id="ai_terminal_prompt" rows="7">{{ old('ai_terminal_prompt', $general->ai_terminal_prompt ?? '') }}</textarea>
+                                    <div class="form-text">{{ __('content.ai_terminal_prompt_desc') ?? 'System prompt for the AI terminal. Leave blank to use the default.' }}</div>
+                                    @error('ai_terminal_prompt')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="form-group">
+                                    <label for="ai_content_prompt" class="form-label">{{ __('content.ai_content_prompt') ?? 'Content Generation System Prompt' }}</label>
+                                    <textarea class="form-control @error('ai_content_prompt') is-invalid @enderror" name="ai_content_prompt" id="ai_content_prompt" rows="7">{{ old('ai_content_prompt', $general->ai_content_prompt ?? '') }}</textarea>
+                                    <div class="form-text">{{ __('content.ai_content_prompt_desc') ?? 'System prompt for content generation. Leave blank to use the default.' }}</div>
+                                    @error('ai_content_prompt')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                            </div>
                         </div>
                         <div class="mt-3">
                             <button type="submit" class="btn btn-primary">{{ __('content.update') }}</button>
@@ -50,6 +64,7 @@
             </div>
         </div>
     </div>
+
 </div>
 
 @endsection
