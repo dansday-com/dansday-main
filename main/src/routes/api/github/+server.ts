@@ -144,30 +144,24 @@ async function fetchContributionStats(username: string, token: string) {
 }
 
 async function fetchRecentActivity(username: string, token: string) {
-	// Use GraphQL to get recent commits across all repos (public, private, org)
-	const now = new Date();
-	const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+	const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
 
-	// Step 1: Get repos the user has pushed to recently (owned + org + collaborator)
-	const repoQuery = `
-		query($username: String!) {
+	const query = `
+		query($username: String!, $since: GitTimestamp!) {
 			user(login: $username) {
 				repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}, ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
 					nodes {
 						name
-						nameWithOwner
 						isPrivate
 						defaultBranchRef {
-							name
 							target {
 								... on Commit {
-									history(first: 5, since: "${weekAgo}") {
+									history(first: 20, since: $since) {
 										nodes {
 											message
 											committedDate
-											author {
-												user { login }
-											}
+											oid
+											author { user { login } }
 										}
 									}
 								}
@@ -182,7 +176,7 @@ async function fetchRecentActivity(username: string, token: string) {
 	const res = await fetch(GITHUB_GRAPHQL, {
 		method: 'POST',
 		headers: getHeaders(token),
-		body: JSON.stringify({ query: repoQuery, variables: { username } })
+		body: JSON.stringify({ query, variables: { username, since: threeDaysAgo } })
 	});
 
 	if (!res.ok) return [];
@@ -193,28 +187,19 @@ async function fetchRecentActivity(username: string, token: string) {
 	}
 
 	const repos = data.data?.user?.repositories?.nodes ?? [];
-	const activity: {
-		repo: string;
-		title: string;
-		date: string;
-		private: boolean;
-	}[] = [];
+	const activity: ActivityItem[] = [];
 
 	for (const repo of repos) {
 		const commits = repo.defaultBranchRef?.target?.history?.nodes ?? [];
-		const repoShort = repo.name;
-		const isPrivate = repo.isPrivate ?? false;
-
 		for (const commit of commits) {
-			// Only include commits authored by this user
 			const authorLogin = commit.author?.user?.login;
 			if (authorLogin && authorLogin.toLowerCase() !== username.toLowerCase()) continue;
 
 			activity.push({
-				repo: repoShort,
+				repo: repo.name,
 				title: (commit.message as string)?.split('\n')[0] ?? 'Commit',
 				date: commit.committedDate ?? '',
-				private: isPrivate
+				private: repo.isPrivate ?? false
 			});
 		}
 	}
@@ -224,8 +209,9 @@ async function fetchRecentActivity(username: string, token: string) {
 		.slice(0, 30);
 }
 
+type ActivityItem = { repo: string; title: string; date: string; private: boolean };
+
 async function fetchTopLanguages(username: string, token: string) {
-	// Use GraphQL to get languages from all repos (owned, org, collaborator, private)
 	const langQuery = `
 		query($username: String!) {
 			user(login: $username) {
