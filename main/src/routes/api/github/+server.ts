@@ -1,8 +1,10 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
+import { query, queryOne } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 const GITHUB_GRAPHQL = 'https://api.github.com/graphql';
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 function getHeaders(token: string) {
 	return {
@@ -12,14 +14,35 @@ function getHeaders(token: string) {
 	};
 }
 
-async function graphql(token: string, query: string, variables?: Record<string, any>) {
+async function graphql(token: string, q: string, variables?: Record<string, any>) {
 	const res = await fetch(GITHUB_GRAPHQL, {
 		method: 'POST',
 		headers: getHeaders(token),
-		body: JSON.stringify({ query, variables })
+		body: JSON.stringify({ query: q, variables })
 	});
 	if (!res.ok) throw new Error(`GitHub GraphQL error: ${res.status}`);
 	return res.json();
+}
+
+async function getCache(key: string): Promise<{ data: any; updatedAt: Date } | null> {
+	const row = await queryOne<{ data: string; updated_at: string }>(
+		'SELECT data, updated_at FROM github_cache WHERE cache_key = ?',
+		[key]
+	);
+	if (!row) return null;
+	return { data: JSON.parse(row.data), updatedAt: new Date(row.updated_at) };
+}
+
+async function setCache(key: string, data: any): Promise<void> {
+	const jsonData = JSON.stringify(data);
+	await query(
+		'INSERT INTO github_cache (cache_key, data, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = NOW()',
+		[key, jsonData]
+	);
+}
+
+function isCacheStale(updatedAt: Date): boolean {
+	return Date.now() - updatedAt.getTime() > CACHE_TTL_MS;
 }
 
 async function fetchContributionStats(username: string, token: string) {
@@ -189,7 +212,7 @@ async function fetchRecentActivity(username: string, token: string, repos: any[]
 		repos.map((repo) => {
 			const owner = repo.owner?.login;
 			const name = repo.name;
-			const query = `
+			const q = `
 				query($owner: String!, $name: String!) {
 					repository(owner: $owner, name: $name) {
 						defaultBranchRef {
@@ -210,7 +233,7 @@ async function fetchRecentActivity(username: string, token: string, repos: any[]
 					}
 				}
 			`;
-			return graphql(token, query, { owner, name })
+			return graphql(token, q, { owner, name })
 				.then((d) => ({ repo, history: d.data?.repository?.defaultBranchRef?.target?.history }))
 				.catch(() => ({ repo, history: null }));
 		})
@@ -282,6 +305,20 @@ async function fetchTopLanguages(username: string, token: string, repos: any[]) 
 		.map(([name, count]) => ({ name, count }));
 }
 
+async function fetchFreshData(username: string, token: string) {
+	const contributions = await fetchContributionStats(username, token);
+	const orgs = contributions.user.organizations.map((o) => o.login);
+	const repos = await fetchMyRepos(username, token, orgs);
+
+	const [activity, languages] = await Promise.all([
+		fetchRecentActivity(username, token, repos, undefined, 10),
+		fetchTopLanguages(username, token, repos)
+	]);
+
+	const response = { username, ...contributions, activity, languages };
+	return { response, repos };
+}
+
 export const GET: RequestHandler = async ({ url }) => {
 	const token = env.GITHUB_TOKEN;
 	const username = env.GITHUB_USERNAME;
@@ -292,22 +329,44 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const before = url.searchParams.get('before') ?? undefined;
 
-	try {
-		const contributions = await fetchContributionStats(username, token);
-		const orgs = contributions.user.organizations.map((o) => o.login);
-		const repos = await fetchMyRepos(username, token, orgs);
-
-		if (before) {
-			const activity = await fetchRecentActivity(username, token, repos, before, 10);
+	if (before) {
+		try {
+			const cached = await getCache('github_main');
+			const repos = cached?.data?.repos;
+			if (repos?.length) {
+				const activity = await fetchRecentActivity(username, token, repos, before, 10);
+				return json(activity);
+			}
+			const contributions = await fetchContributionStats(username, token);
+			const orgs = contributions.user.organizations.map((o) => o.login);
+			const freshRepos = await fetchMyRepos(username, token, orgs);
+			const activity = await fetchRecentActivity(username, token, freshRepos, before, 10);
 			return json(activity);
+		} catch (err: any) {
+			console.error('[GitHub API]', err);
+			return json({ error: err.message ?? 'Failed to fetch GitHub data.' }, { status: 500 });
+		}
+	}
+
+	try {
+		const cached = await getCache('github_main');
+
+		if (cached && !isCacheStale(cached.updatedAt)) {
+			return json(cached.data.response);
 		}
 
-		const [activity, languages] = await Promise.all([
-			fetchRecentActivity(username, token, repos, undefined, 10),
-			fetchTopLanguages(username, token, repos)
-		]);
+		if (cached) {
+			fetchFreshData(username, token).then(async ({ response, repos }) => {
+				await setCache('github_main', { response, repos });
+			}).catch((err) => console.error('[GitHub sync]', err));
 
-		return json({ username, ...contributions, activity, languages });
+			return json(cached.data.response);
+		}
+
+		const { response, repos } = await fetchFreshData(username, token);
+		await setCache('github_main', { response, repos });
+
+		return json(response);
 	} catch (err: any) {
 		console.error('[GitHub API]', err);
 		return json({ error: err.message ?? 'Failed to fetch GitHub data.' }, { status: 500 });
