@@ -16,6 +16,8 @@
 		testimonial_enable?: number | boolean;
 		projects_enable?: number | boolean;
 		articles_enable?: number | boolean;
+		terminal_enable?: number | boolean;
+		contribute_enable?: number | boolean;
 	}
 
 	interface $$Props {
@@ -41,7 +43,8 @@
 			if (item.href === '/abouts') return notDisabled((section as SectionFlags).about_enable) && hasAboutsChildren;
 			if (item.href === '/projects') return notDisabled((section as SectionFlags).projects_enable);
 			if (item.href === '/articles') return notDisabled((section as SectionFlags).articles_enable);
-			if (item.href === '/terminal') return aiTerminalConfigured;
+			if (item.href === '/terminal') return aiTerminalConfigured && notDisabled((section as SectionFlags).terminal_enable);
+			if (item.href === '/contribute') return notDisabled((section as SectionFlags).contribute_enable);
 			return true;
 		})
 	);

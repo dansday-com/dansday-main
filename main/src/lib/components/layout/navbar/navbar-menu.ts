@@ -23,5 +23,10 @@ export const navbarMenu = [
 		title: 'terminal',
 		href: '/terminal',
 		key: 't'
+	},
+	{
+		title: 'contribute',
+		href: '/contribute',
+		key: 'c'
 	}
 ] as const;
