@@ -12,6 +12,16 @@ function getHeaders(token: string) {
 	};
 }
 
+async function graphql(token: string, query: string, variables?: Record<string, any>) {
+	const res = await fetch(GITHUB_GRAPHQL, {
+		method: 'POST',
+		headers: getHeaders(token),
+		body: JSON.stringify({ query, variables })
+	});
+	if (!res.ok) throw new Error(`GitHub GraphQL error: ${res.status}`);
+	return res.json();
+}
+
 async function fetchContributionStats(username: string, token: string) {
 	const now = new Date();
 	const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
@@ -44,14 +54,7 @@ async function fetchContributionStats(username: string, token: string) {
 		}
 	`;
 
-	const res = await fetch(GITHUB_GRAPHQL, {
-		method: 'POST',
-		headers: getHeaders(token),
-		body: JSON.stringify({ query: yearQuery, variables: { username, from: yearStart, to: now.toISOString() } })
-	});
-
-	if (!res.ok) throw new Error(`GitHub GraphQL error: ${res.status}`);
-	const data = await res.json();
+	const data = await graphql(token, yearQuery, { username, from: yearStart, to: now.toISOString() });
 	if (data.errors) throw new Error(data.errors[0]?.message ?? 'GraphQL error');
 
 	const user = data.data?.user;
@@ -97,12 +100,7 @@ async function fetchContributionStats(username: string, token: string) {
 
 	const yearResults = await Promise.all(
 		yearRanges.map(({ from, to }) =>
-			fetch(GITHUB_GRAPHQL, {
-				method: 'POST',
-				headers: getHeaders(token),
-				body: JSON.stringify({ query: perYearQuery, variables: { username, from, to } })
-			})
-				.then((r) => r.json())
+			graphql(token, perYearQuery, { username, from, to })
 				.then((d) => d.data?.user?.contributionsCollection ?? null)
 		)
 	);
@@ -143,94 +141,70 @@ async function fetchContributionStats(username: string, token: string) {
 	};
 }
 
-async function fetchRecentActivity(username: string, token: string, orgs: string[], before?: string, limit = 10) {
-	const untilArg = before ? `, until: "${before}"` : '';
-	const perRepo = limit + 5;
-
-	const viewerQuery = `
-		query {
-			viewer {
-				login
-				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
-					nodes {
-						name
-						owner { login }
-						isPrivate
-						defaultBranchRef {
-							target {
-								... on Commit {
-									history(first: ${perRepo}${untilArg}) {
-										nodes {
-											message
-											committedDate
-											oid
-											author { user { login } }
-										}
-										pageInfo { hasNextPage }
-									}
-								}
-							}
+function repoHistoryFragment(perRepo: number, untilArg: string) {
+	return `
+		name
+		owner { login }
+		isPrivate
+		defaultBranchRef {
+			target {
+				... on Commit {
+					history(first: ${perRepo}${untilArg}) {
+						nodes {
+							message
+							committedDate
+							oid
+							author { user { login } }
 						}
+						pageInfo { hasNextPage }
 					}
 				}
 			}
 		}
 	`;
+}
 
-	const orgQueries = orgs.map((org) => {
-		const orgQuery = `
-			query($org: String!) {
-				organization(login: $org) {
-					repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}) {
-						nodes {
-							name
-							owner { login }
-							isPrivate
-							defaultBranchRef {
-								target {
-									... on Commit {
-										history(first: ${perRepo}${untilArg}) {
-											nodes {
-												message
-												committedDate
-												oid
-												author { user { login } }
-											}
-											pageInfo { hasNextPage }
-										}
-									}
-								}
-							}
-						}
-					}
+async function fetchRecentActivity(username: string, token: string, orgs: string[], before?: string, limit = 10) {
+	const untilArg = before ? `, until: "${before}"` : '';
+	const perRepo = limit + 5;
+	const frag = repoHistoryFragment(perRepo, untilArg);
+
+	const userQuery = `
+		query($username: String!) {
+			user(login: $username) {
+				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, affiliations: [OWNER, COLLABORATOR]) {
+					nodes { ${frag} }
 				}
 			}
-		`;
-		return fetch(GITHUB_GRAPHQL, {
-			method: 'POST',
-			headers: getHeaders(token),
-			body: JSON.stringify({ query: orgQuery, variables: { org } })
-		})
-			.then((r) => r.json())
-			.then((d) => d.data?.organization?.repositories?.nodes ?? [])
-			.catch(() => []);
-	});
+		}
+	`;
 
-	const [viewerRes, ...orgResults] = await Promise.all([
-		fetch(GITHUB_GRAPHQL, {
-			method: 'POST',
-			headers: getHeaders(token),
-			body: JSON.stringify({ query: viewerQuery })
-		}),
+	const orgQueryTemplate = `
+		query($org: String!) {
+			organization(login: $org) {
+				repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}) {
+					nodes { ${frag} }
+				}
+			}
+		}
+	`;
+
+	const orgQueries = orgs.map((org) =>
+		graphql(token, orgQueryTemplate, { org })
+			.then((d) => d.data?.organization?.repositories?.nodes ?? [])
+			.catch(() => [])
+	);
+
+	const [userData, ...orgResults] = await Promise.all([
+		graphql(token, userQuery, { username })
+			.then((d) => d.data?.user?.repositories?.nodes ?? [])
+			.catch(() => []),
 		...orgQueries
 	]);
 
-	const viewerData = viewerRes.ok ? await viewerRes.json() : null;
-
 	const repoMap = new Map<string, any>();
-	for (const repo of viewerData?.data?.viewer?.repositories?.nodes ?? []) {
-		const key = `${repo.owner?.login}/${repo.name}`;
-		repoMap.set(key, repo);
+	for (const repo of userData) {
+		repoMap.set(`${repo.owner?.login}/${repo.name}`, repo);
 	}
 	for (const orgRepos of orgResults) {
 		for (const repo of orgRepos) {
@@ -252,16 +226,15 @@ async function fetchRecentActivity(username: string, token: string, orgs: string
 
 		for (const commit of commits) {
 			const authorLogin = commit.author?.user?.login;
-			if (!authorLogin || authorLogin.toLowerCase() !== username.toLowerCase()) continue;
+			if (authorLogin && authorLogin.toLowerCase() !== username.toLowerCase()) continue;
 
 			const message = (commit.message as string)?.split('\n')[0] ?? 'Commit';
 			const isPrivate = repo.isPrivate ?? false;
 			const wordCount = message.split(/\s+/).filter(Boolean).length;
-			const maskedTitle = isPrivate ? `${'*'.repeat(6)} (${wordCount} words)` : message;
 
 			all.push({
 				repo: isOwner ? repo.name : `${ownerLogin}/${repo.name}`,
-				title: maskedTitle,
+				title: isPrivate ? '*'.repeat(wordCount) : message,
 				date: commit.committedDate ?? '',
 				private: isPrivate
 			});
@@ -278,11 +251,11 @@ async function fetchRecentActivity(username: string, token: string, orgs: string
 
 type ActivityItem = { repo: string; title: string; date: string; private: boolean };
 
-async function fetchTopLanguages(token: string, orgs: string[]) {
-	const langQuery = `
-		query {
-			viewer {
-				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+async function fetchTopLanguages(username: string, token: string, orgs: string[]) {
+	const userQuery = `
+		query($username: String!) {
+			user(login: $username) {
+				repositories(first: 100, orderBy: {field: PUSHED_AT, direction: DESC}, affiliations: [OWNER, COLLABORATOR]) {
 					nodes {
 						name
 						owner { login }
@@ -294,32 +267,20 @@ async function fetchTopLanguages(token: string, orgs: string[]) {
 	`;
 
 	const orgQueries = orgs.map((org) =>
-		fetch(GITHUB_GRAPHQL, {
-			method: 'POST',
-			headers: getHeaders(token),
-			body: JSON.stringify({
-				query: `query($org: String!) { organization(login: $org) { repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}) { nodes { name owner { login } primaryLanguage { name } } } } }`,
-				variables: { org }
-			})
-		})
-			.then((r) => r.json())
+		graphql(token, `query($org: String!) { organization(login: $org) { repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}) { nodes { name owner { login } primaryLanguage { name } } } } }`, { org })
 			.then((d) => d.data?.organization?.repositories?.nodes ?? [])
 			.catch(() => [])
 	);
 
-	const [viewerRes, ...orgResults] = await Promise.all([
-		fetch(GITHUB_GRAPHQL, {
-			method: 'POST',
-			headers: getHeaders(token),
-			body: JSON.stringify({ query: langQuery })
-		}),
+	const [userData, ...orgResults] = await Promise.all([
+		graphql(token, userQuery, { username })
+			.then((d) => d.data?.user?.repositories?.nodes ?? [])
+			.catch(() => []),
 		...orgQueries
 	]);
 
-	const viewerData = viewerRes.ok ? await viewerRes.json() : null;
-
 	const repoMap = new Map<string, any>();
-	for (const repo of viewerData?.data?.viewer?.repositories?.nodes ?? []) {
+	for (const repo of userData) {
 		repoMap.set(`${repo.owner?.login}/${repo.name}`, repo);
 	}
 	for (const orgRepos of orgResults) {
@@ -329,9 +290,8 @@ async function fetchTopLanguages(token: string, orgs: string[]) {
 		}
 	}
 
-	const repos = Array.from(repoMap.values());
 	const langMap: Record<string, number> = {};
-	for (const repo of repos) {
+	for (const repo of repoMap.values()) {
 		const lang = repo.primaryLanguage?.name;
 		if (lang) {
 			langMap[lang] = (langMap[lang] ?? 0) + 1;
@@ -365,7 +325,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		const [activity, languages] = await Promise.all([
 			fetchRecentActivity(username, token, orgs, undefined, 10),
-			fetchTopLanguages(token, orgs)
+			fetchTopLanguages(username, token, orgs)
 		]);
 
 		return json({ username, ...contributions, activity, languages });
