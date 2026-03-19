@@ -20,20 +20,15 @@ async function fetchContributionStats(username: string, token: string) {
 	const weekStart = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
 	weekStart.setHours(0, 0, 0, 0);
 
+	// Two contributionsCollections: scoped to this year + all-time (no date args)
 	const query = `
 		query($username: String!, $from: DateTime!, $to: DateTime!) {
 			user(login: $username) {
 				name
 				avatarUrl
 				bio
-				repositories(ownerAffiliations: OWNER) { totalCount }
 				organizations(first: 10) {
-					nodes {
-						login
-						name
-						avatarUrl
-						url
-					}
+					nodes { login name avatarUrl url }
 				}
 				contributionsCollection(from: $from, to: $to) {
 					totalCommitContributions
@@ -42,12 +37,12 @@ async function fetchContributionStats(username: string, token: string) {
 					contributionCalendar {
 						totalContributions
 						weeks {
-							contributionDays {
-								contributionCount
-								date
-							}
+							contributionDays { contributionCount date }
 						}
 					}
+				}
+				allTimeContributions: contributionsCollection {
+					contributionCalendar { totalContributions }
 				}
 			}
 		}
@@ -79,6 +74,7 @@ async function fetchContributionStats(username: string, token: string) {
 	const weekCommits = allDays.filter((d) => d.date >= weekStartStr).reduce((s, d) => s + d.count, 0);
 	const monthCommits = allDays.filter((d) => d.date >= monthStartStr).reduce((s, d) => s + d.count, 0);
 	const yearCommits = calendar?.totalContributions ?? 0;
+	const allTimeCommits = user?.allTimeContributions?.contributionCalendar?.totalContributions ?? 0;
 
 	return {
 		user: {
@@ -97,6 +93,7 @@ async function fetchContributionStats(username: string, token: string) {
 			week: weekCommits,
 			month: monthCommits,
 			year: yearCommits,
+			allTime: allTimeCommits,
 			totalCommits: user?.contributionsCollection?.totalCommitContributions ?? 0,
 			totalPRs: user?.contributionsCollection?.totalPullRequestContributions ?? 0,
 			totalIssues: user?.contributionsCollection?.totalIssueContributions ?? 0
@@ -106,13 +103,16 @@ async function fetchContributionStats(username: string, token: string) {
 }
 
 async function fetchRecentActivity(username: string, token: string) {
-	const reposRes = await fetch(
-		`${GITHUB_API}/user/repos?sort=pushed&per_page=50&type=all&affiliation=owner`,
+	// Events API — single call, includes private events, push + PR events
+	const res = await fetch(
+		`${GITHUB_API}/users/${username}/events?per_page=100`,
 		{ headers: getHeaders(token) }
 	);
-	if (!reposRes.ok) return [];
+	if (!res.ok) return [];
 
-	const repos = await reposRes.json();
+	const events = await res.json();
+	if (!Array.isArray(events)) return [];
+
 	const activity: {
 		type: 'commit' | 'pr';
 		repo: string;
@@ -123,71 +123,56 @@ async function fetchRecentActivity(username: string, token: string) {
 		private: boolean;
 	}[] = [];
 
-	await Promise.allSettled(
-		repos.slice(0, 15).map(async (repo: any) => {
-			const repoName = repo.full_name as string;
-			const isPrivate = repo.private as boolean;
-			const repoUrl = repo.html_url as string;
+	for (const event of events) {
+		const repoName = (event.repo?.name as string) ?? '';
+		const repoShort = repoName.split('/')[1] ?? repoName;
+		const isPrivate = event.public === false;
+		const repoUrl = `https://github.com/${repoName}`;
 
-			const commitsRes = await fetch(
-				`${GITHUB_API}/repos/${repoName}/commits?author=${username}&per_page=5`,
-				{ headers: getHeaders(token) }
-			);
-			if (commitsRes.ok) {
-				const commits = await commitsRes.json();
-				if (Array.isArray(commits)) {
-					for (const c of commits) {
-						activity.push({
-							type: 'commit',
-							repo: repo.name,
-							repoUrl,
-							title: c.commit?.message?.split('\n')[0] ?? 'Commit',
-							url: c.html_url,
-							date: c.commit?.author?.date ?? c.commit?.committer?.date ?? '',
-							private: isPrivate
-						});
-					}
-				}
+		if (event.type === 'PushEvent') {
+			const commits: any[] = event.payload?.commits ?? [];
+			for (const c of commits.slice(0, 3)) {
+				activity.push({
+					type: 'commit',
+					repo: repoShort,
+					repoUrl,
+					title: (c.message as string)?.split('\n')[0] ?? 'Commit',
+					url: `https://github.com/${repoName}/commit/${c.sha}`,
+					date: event.created_at ?? '',
+					private: isPrivate
+				});
 			}
+		} else if (event.type === 'PullRequestEvent') {
+			const pr = event.payload?.pull_request;
+			if (pr) {
+				activity.push({
+					type: 'pr',
+					repo: repoShort,
+					repoUrl,
+					title: pr.title ?? 'Pull Request',
+					url: pr.html_url ?? repoUrl,
+					date: event.created_at ?? '',
+					private: isPrivate
+				});
+			}
+		}
 
-			const prsRes = await fetch(
-				`${GITHUB_API}/repos/${repoName}/pulls?state=all&per_page=3&sort=updated`,
-				{ headers: getHeaders(token) }
-			);
-			if (prsRes.ok) {
-				const prs = await prsRes.json();
-				if (Array.isArray(prs)) {
-					for (const pr of prs) {
-						if (pr.user?.login === username) {
-							activity.push({
-								type: 'pr',
-								repo: repo.name,
-								repoUrl,
-								title: pr.title ?? 'Pull Request',
-								url: pr.html_url,
-								date: pr.updated_at ?? pr.created_at ?? '',
-								private: isPrivate
-							});
-						}
-					}
-				}
-			}
-		})
-	);
+		if (activity.length >= 30) break;
+	}
 
 	return activity
-		.filter((a) => a.date)
 		.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 		.slice(0, 30);
 }
 
-async function fetchTopLanguages(username: string, token: string) {
+async function fetchTopLanguages(token: string) {
 	const res = await fetch(
 		`${GITHUB_API}/user/repos?per_page=100&type=all&affiliation=owner`,
 		{ headers: getHeaders(token) }
 	);
 	if (!res.ok) return [];
 	const repos = await res.json();
+	if (!Array.isArray(repos)) return [];
 
 	const langMap: Record<string, number> = {};
 	for (const repo of repos) {
@@ -214,7 +199,7 @@ export const GET: RequestHandler = async () => {
 		const [contributions, activity, languages] = await Promise.all([
 			fetchContributionStats(username, token),
 			fetchRecentActivity(username, token),
-			fetchTopLanguages(username, token)
+			fetchTopLanguages(token)
 		]);
 
 		return json({ username, ...contributions, activity, languages });

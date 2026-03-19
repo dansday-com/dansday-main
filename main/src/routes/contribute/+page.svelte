@@ -25,13 +25,13 @@
 			name: string;
 			avatarUrl: string;
 			bio: string;
-			totalRepos: number;
 			organizations: { login: string; name: string; avatarUrl: string; url: string }[];
 		};
 		stats: {
 			week: number;
 			month: number;
 			year: number;
+			allTime: number;
 			totalCommits: number;
 			totalPRs: number;
 			totalIssues: number;
@@ -84,7 +84,7 @@
 	}
 
 	function cellColor(count: number): string {
-		if (count === 0) return 'bg-[#161b22]';
+		if (count === 0) return 'bg-white/15';
 		if (count <= 2) return 'bg-[#0e4429]';
 		if (count <= 5) return 'bg-[#006d32]';
 		if (count <= 9) return 'bg-[#26a641]';
@@ -175,18 +175,15 @@
 						</div>
 					{/if}
 				</div>
-				<div class="text-center shrink-0">
-					<div class="text-white font-bold text-sm">{githubData.user.totalRepos}</div>
-					<div class="text-[#8b949e] text-xs">repos</div>
 				</div>
-			</div>
 
 			<!-- Stat cards -->
-			<div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-5">
+			<div class="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-5">
 				{#each [
 					{ label: 'week', value: githubData.stats.week, color: 'text-[#39d353]' },
 					{ label: 'month', value: githubData.stats.month, color: 'text-[#26a641]' },
 					{ label: 'year', value: githubData.stats.year, color: 'text-[#238636]' },
+					{ label: 'all time', value: githubData.stats.allTime, color: 'text-[#3fb950]' },
 					{ label: 'commits', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]' },
 					{ label: 'PRs', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]' },
 					{ label: 'issues', value: githubData.stats.totalIssues, color: 'text-[#f78166]' }
@@ -218,7 +215,7 @@
 				</div>
 				<div class="flex items-center gap-1.5 mt-2 text-xs text-[#8b949e]">
 					<span>Less</span>
-					<div class="w-[9px] h-[9px] rounded-sm bg-[#161b22] border border-[#30363d]"></div>
+					<div class="w-[9px] h-[9px] rounded-sm bg-white/15"></div>
 					<div class="w-[9px] h-[9px] rounded-sm bg-[#0e4429]"></div>
 					<div class="w-[9px] h-[9px] rounded-sm bg-[#006d32]"></div>
 					<div class="w-[9px] h-[9px] rounded-sm bg-[#26a641]"></div>
