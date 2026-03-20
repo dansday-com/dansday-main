@@ -4,6 +4,8 @@ import { query, queryOne } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 const GITHUB_GRAPHQL = 'https://api.github.com/graphql';
+const SYNC_INTERVAL_MS = 5 * 60 * 1000;
+let lastSyncTime = 0;
 
 function getHeaders(token: string) {
 	return {
@@ -31,10 +33,9 @@ async function getActivityFromDb(offset: number, limit: number) {
 	const hasMore = rows.length > limit;
 	const items = rows.slice(0, limit).map((r) => {
 		const isPrivate = !!r.is_private;
-		const wordCount = r.title.split(/\s+/).filter(Boolean).length;
 		return {
 			repo: r.repo,
-			title: isPrivate ? '*'.repeat(wordCount) : r.title,
+			title: isPrivate ? '*'.repeat(r.title.length) : r.title,
 			date: r.committed_at,
 			private: isPrivate
 		};
@@ -221,37 +222,54 @@ async function fetchMyRepos(username: string, token: string, orgs: string[]) {
 
 type RawActivity = { repo: string; title: string; date: string; oid: string; private: boolean };
 
-async function fetchAllActivity(username: string, token: string, repos: any[]) {
-	const perRepo = 100;
+async function fetchRepoCommits(token: string, owner: string, name: string): Promise<any[]> {
+	const allCommits: any[] = [];
+	let cursor: string | null = null;
 
-	const results = await Promise.all(
-		repos.map((repo) => {
-			const owner = repo.owner?.login;
-			const name = repo.name;
-			const q = `
-				query($owner: String!, $name: String!) {
-					repository(owner: $owner, name: $name) {
-						defaultBranchRef {
-							target {
-								... on Commit {
-									history(first: ${perRepo}) {
-										nodes {
-											message
-											committedDate
-											oid
-											author { user { login } }
-										}
+	while (true) {
+		const afterClause = cursor ? `, after: "${cursor}"` : '';
+		const q = `
+			query($owner: String!, $name: String!) {
+				repository(owner: $owner, name: $name) {
+					defaultBranchRef {
+						target {
+							... on Commit {
+								history(first: 100${afterClause}) {
+									nodes {
+										message
+										committedDate
+										oid
+										author { user { login } }
 									}
+									pageInfo { hasNextPage endCursor }
 								}
 							}
 						}
 					}
 				}
-			`;
-			return graphql(token, q, { owner, name })
-				.then((d) => ({ repo, commits: d.data?.repository?.defaultBranchRef?.target?.history?.nodes ?? [] }))
-				.catch(() => ({ repo, commits: [] as any[] }));
-		})
+			}
+		`;
+
+		const d = await graphql(token, q, { owner, name });
+		const history = d.data?.repository?.defaultBranchRef?.target?.history;
+		if (!history) break;
+
+		allCommits.push(...(history.nodes ?? []));
+
+		if (!history.pageInfo?.hasNextPage) break;
+		cursor = history.pageInfo.endCursor;
+	}
+
+	return allCommits;
+}
+
+async function fetchAllActivity(username: string, token: string, repos: any[]) {
+	const results = await Promise.all(
+		repos.map((repo) =>
+			fetchRepoCommits(token, repo.owner?.login, repo.name)
+				.then((commits) => ({ repo, commits }))
+				.catch(() => ({ repo, commits: [] as any[] }))
+		)
 	);
 
 	const all: RawActivity[] = [];
@@ -345,7 +363,9 @@ export const GET: RequestHandler = async ({ url }) => {
 		if (activityCount === 0) {
 			const rawActivity = await fetchAllActivity(username, token, repos);
 			await saveActivityToDb(rawActivity);
-		} else {
+			lastSyncTime = Date.now();
+		} else if (Date.now() - lastSyncTime > SYNC_INTERVAL_MS) {
+			lastSyncTime = Date.now();
 			syncActivity(username, token, orgs).catch((err) => console.error('[GitHub sync]', err));
 		}
 
