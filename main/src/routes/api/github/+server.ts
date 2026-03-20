@@ -27,10 +27,18 @@ async function graphql(token: string, q: string, variables?: Record<string, any>
 }
 
 async function getActivityFromDb(offset: number, limit: number) {
-	const rows = await query<{ repo: string; title: string; type: string; committed_at: string; is_private: number; additions: number | null; deletions: number | null }>(
-		'SELECT repo, title, type, committed_at, is_private, additions, deletions FROM github_activity ORDER BY committed_at DESC LIMIT ? OFFSET ?',
-		[limit + 1, offset]
-	);
+	const rows = await query<{
+		repo: string;
+		title: string;
+		type: string;
+		committed_at: string;
+		is_private: number;
+		additions: number | null;
+		deletions: number | null;
+	}>('SELECT repo, title, type, committed_at, is_private, additions, deletions FROM github_activity ORDER BY committed_at DESC LIMIT ? OFFSET ?', [
+		limit + 1,
+		offset
+	]);
 	const hasMore = rows.length > limit;
 	const items = rows.slice(0, limit).map((r) => {
 		const isPrivate = !!r.is_private;
@@ -47,17 +55,16 @@ async function getActivityFromDb(offset: number, limit: number) {
 	return { items, hasMore };
 }
 
-async function saveActivityToDb(items: { repo: string; title: string; type: string; date: string; oid: string; private: boolean; additions?: number; deletions?: number }[]) {
+async function saveActivityToDb(
+	items: { repo: string; title: string; type: string; date: string; oid: string; private: boolean; additions?: number; deletions?: number }[]
+) {
 	if (!items.length) return;
 	const values = items.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
 	const params: (string | number | null)[] = [];
 	for (const item of items) {
 		params.push(item.repo, item.title, item.type, item.date, item.oid, item.private ? 1 : 0, item.additions ?? null, item.deletions ?? null);
 	}
-	await query(
-		`INSERT IGNORE INTO github_activity (repo, title, type, committed_at, oid, is_private, additions, deletions) VALUES ${values}`,
-		params
-	);
+	await query(`INSERT IGNORE INTO github_activity (repo, title, type, committed_at, oid, is_private, additions, deletions) VALUES ${values}`, params);
 }
 
 async function getLastSyncTime(): Promise<number> {
@@ -155,10 +162,7 @@ async function fetchContributionStats(username: string, token: string) {
 	}
 
 	const yearResults = await Promise.all(
-		yearRanges.map(({ from, to }) =>
-			graphql(token, perYearQuery, { username, from, to })
-				.then((d) => d.data?.user?.contributionsCollection ?? null)
-		)
+		yearRanges.map(({ from, to }) => graphql(token, perYearQuery, { username, from, to }).then((d) => d.data?.user?.contributionsCollection ?? null))
 	);
 
 	let allTime = 0;
@@ -209,7 +213,26 @@ async function fetchMyRepos(username: string, token: string, orgs: string[]) {
 	`;
 
 	const orgQueries = orgs.map((org) =>
-		graphql(token, `query($org: String!) { organization(login: $org) { repositories(first: 50, orderBy: {field: PUSHED_AT, direction: DESC}) { nodes { name owner { login } isPrivate pushedAt } } } }`, { org })
+		graphql(
+			token,
+			`
+				query ($org: String!) {
+					organization(login: $org) {
+						repositories(first: 50, orderBy: { field: PUSHED_AT, direction: DESC }) {
+							nodes {
+								name
+								owner {
+									login
+								}
+								isPrivate
+								pushedAt
+							}
+						}
+					}
+				}
+			`,
+			{ org }
+		)
 			.then((d) => d.data?.organization?.repositories?.nodes ?? [])
 			.catch(() => [])
 	);
@@ -373,14 +396,7 @@ async function syncRepoPRs(username: string, token: string, repo: any) {
 }
 
 async function syncAllActivity(username: string, token: string, repos: any[]) {
-	await Promise.all(
-		repos.map((repo) =>
-			Promise.all([
-				syncRepoCommits(username, token, repo),
-				syncRepoPRs(username, token, repo)
-			]).catch(() => {})
-		)
-	);
+	await Promise.all(repos.map((repo) => Promise.all([syncRepoCommits(username, token, repo), syncRepoPRs(username, token, repo)]).catch(() => {})));
 	await setLastSyncTime();
 }
 

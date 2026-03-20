@@ -54,8 +54,18 @@ const allTools: Record<string, { tool: OpenAI.Chat.ChatCompletionTool; section?:
 			type: 'function',
 			function: {
 				name: 'get_activity',
-				description: 'Get GitHub commit activity with real commit titles. Filter by date range and/or repo/org name. Repo names are stored as "orgName/repoName" for org repos or just "repoName" for personal repos. Each commit includes a "private" flag. Use the titles to summarize what work was done — never show raw commit titles from private repos to the user, instead summarize the work topics.',
-				parameters: { type: 'object', properties: { since: { type: 'string', description: 'Start date (YYYY-MM-DD)' }, until: { type: 'string', description: 'End date (YYYY-MM-DD)' }, repo: { type: 'string', description: 'Filter by repo or org name (partial match)' }, limit: { type: 'number', description: 'Max results (default 50)' } }, required: [] }
+				description:
+					'Get GitHub commit activity with real commit titles. Filter by date range and/or repo/org name. Repo names are stored as "orgName/repoName" for org repos or just "repoName" for personal repos. Each commit includes a "private" flag. Use the titles to summarize what work was done — never show raw commit titles from private repos to the user, instead summarize the work topics.',
+				parameters: {
+					type: 'object',
+					properties: {
+						since: { type: 'string', description: 'Start date (YYYY-MM-DD)' },
+						until: { type: 'string', description: 'End date (YYYY-MM-DD)' },
+						repo: { type: 'string', description: 'Filter by repo or org name (partial match)' },
+						limit: { type: 'number', description: 'Max results (default 50)' }
+					},
+					required: []
+				}
 			}
 		}
 	},
@@ -65,8 +75,18 @@ const allTools: Record<string, { tool: OpenAI.Chat.ChatCompletionTool; section?:
 			type: 'function',
 			function: {
 				name: 'get_prs',
-				description: 'Get merged pull requests with line change stats (additions/deletions). Filter by date range and/or repo/org name. Each PR includes repo, title, additions, deletions, merged_at, and a "private" flag. For private repos, summarize the work topics without showing raw PR titles.',
-				parameters: { type: 'object', properties: { since: { type: 'string', description: 'Start date (YYYY-MM-DD)' }, until: { type: 'string', description: 'End date (YYYY-MM-DD)' }, repo: { type: 'string', description: 'Filter by repo or org name (partial match)' }, limit: { type: 'number', description: 'Max results (default 50)' } }, required: [] }
+				description:
+					'Get merged pull requests with line change stats (additions/deletions). Filter by date range and/or repo/org name. Each PR includes repo, title, additions, deletions, merged_at, and a "private" flag. For private repos, summarize the work topics without showing raw PR titles.',
+				parameters: {
+					type: 'object',
+					properties: {
+						since: { type: 'string', description: 'Start date (YYYY-MM-DD)' },
+						until: { type: 'string', description: 'End date (YYYY-MM-DD)' },
+						repo: { type: 'string', description: 'Filter by repo or org name (partial match)' },
+						limit: { type: 'number', description: 'Max results (default 50)' }
+					},
+					required: []
+				}
 			}
 		}
 	}
@@ -103,49 +123,73 @@ async function executeTool(name: string, args?: Record<string, any>): Promise<st
 		case 'get_projects': {
 			const { projects, projects_categories } = await fetchProjects();
 			const catMap = new Map(projects_categories.map((c) => [c.id, c.name]));
-			return JSON.stringify(projects.map((p) => ({ title: p.title, description: p.short_desc, category: catMap.get(p.category_id), created_at: p.created_at })));
+			return JSON.stringify(
+				projects.map((p) => ({ title: p.title, description: p.short_desc, category: catMap.get(p.category_id), created_at: p.created_at }))
+			);
 		}
 		case 'get_activity': {
 			const since = args?.since;
 			const until = args?.until;
 			const conditions: string[] = ['type = "commit"'];
 			const params: (string | number)[] = [];
-			if (since) { conditions.push('committed_at >= ?'); params.push(since); }
-			if (until) { conditions.push('committed_at <= ?'); params.push(until + ' 23:59:59'); }
-			if (args?.repo) { conditions.push('repo LIKE ?'); params.push(`%${args.repo}%`); }
+			if (since) {
+				conditions.push('committed_at >= ?');
+				params.push(since);
+			}
+			if (until) {
+				conditions.push('committed_at <= ?');
+				params.push(until + ' 23:59:59');
+			}
+			if (args?.repo) {
+				conditions.push('repo LIKE ?');
+				params.push(`%${args.repo}%`);
+			}
 			const where = ' WHERE ' + conditions.join(' AND ');
 			const limit = Math.min(args?.limit ?? 50, 200);
 			const sql = `SELECT repo, title, committed_at, is_private FROM github_activity${where} ORDER BY committed_at DESC LIMIT ?`;
 			params.push(limit);
 			const rows = await query<{ repo: string; title: string; committed_at: string; is_private: number }>(sql, params);
-			return JSON.stringify(rows.map((r) => ({
-				repo: r.repo,
-				title: r.title,
-				date: r.committed_at,
-				private: !!r.is_private
-			})));
+			return JSON.stringify(
+				rows.map((r) => ({
+					repo: r.repo,
+					title: r.title,
+					date: r.committed_at,
+					private: !!r.is_private
+				}))
+			);
 		}
 		case 'get_prs': {
 			const since = args?.since;
 			const until = args?.until;
 			const conditions: string[] = ['type = "pr"'];
 			const params: (string | number)[] = [];
-			if (since) { conditions.push('committed_at >= ?'); params.push(since); }
-			if (until) { conditions.push('committed_at <= ?'); params.push(until + ' 23:59:59'); }
-			if (args?.repo) { conditions.push('repo LIKE ?'); params.push(`%${args.repo}%`); }
+			if (since) {
+				conditions.push('committed_at >= ?');
+				params.push(since);
+			}
+			if (until) {
+				conditions.push('committed_at <= ?');
+				params.push(until + ' 23:59:59');
+			}
+			if (args?.repo) {
+				conditions.push('repo LIKE ?');
+				params.push(`%${args.repo}%`);
+			}
 			const where = ' WHERE ' + conditions.join(' AND ');
 			const limit = Math.min(args?.limit ?? 50, 200);
 			const sql = `SELECT repo, title, additions, deletions, committed_at, is_private FROM github_activity${where} ORDER BY committed_at DESC LIMIT ?`;
 			params.push(limit);
 			const rows = await query<{ repo: string; title: string; additions: number; deletions: number; committed_at: string; is_private: number }>(sql, params);
-			return JSON.stringify(rows.map((r) => ({
-				repo: r.repo,
-				title: r.title,
-				additions: r.additions,
-				deletions: r.deletions,
-				mergedAt: r.committed_at,
-				private: !!r.is_private
-			})));
+			return JSON.stringify(
+				rows.map((r) => ({
+					repo: r.repo,
+					title: r.title,
+					additions: r.additions,
+					deletions: r.deletions,
+					mergedAt: r.committed_at,
+					private: !!r.is_private
+				}))
+			);
 		}
 		default:
 			return '{}';
