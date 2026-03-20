@@ -54,8 +54,8 @@ const allTools: Record<string, { tool: OpenAI.Chat.ChatCompletionTool; section?:
 			type: 'function',
 			function: {
 				name: 'get_activity',
-				description: 'Get GitHub commit activity. Filter by date range and/or repo/org name. Repo names are stored as "orgName/repoName" for org repos or just "repoName" for personal repos. Use summary=true to get repo-level overview instead of individual commits.',
-				parameters: { type: 'object', properties: { since: { type: 'string', description: 'Start date (YYYY-MM-DD)' }, until: { type: 'string', description: 'End date (YYYY-MM-DD)' }, repo: { type: 'string', description: 'Filter by repo or org name (partial match)' }, limit: { type: 'number', description: 'Max results (default 50)' }, summary: { type: 'boolean', description: 'If true, return repo-level summary (repo name, commit count, date range, is_private) instead of individual commits' } }, required: [] }
+				description: 'Get GitHub commit activity with real commit titles. Filter by date range and/or repo/org name. Repo names are stored as "orgName/repoName" for org repos or just "repoName" for personal repos. Each commit includes a "private" flag. Use the titles to summarize what work was done — never show raw commit titles from private repos to the user, instead summarize the work topics.',
+				parameters: { type: 'object', properties: { since: { type: 'string', description: 'Start date (YYYY-MM-DD)' }, until: { type: 'string', description: 'End date (YYYY-MM-DD)' }, repo: { type: 'string', description: 'Filter by repo or org name (partial match)' }, limit: { type: 'number', description: 'Max results (default 50)' } }, required: [] }
 			}
 		}
 	}
@@ -103,29 +103,15 @@ async function executeTool(name: string, args?: Record<string, any>): Promise<st
 			if (until) { conditions.push('committed_at <= ?'); params.push(until + ' 23:59:59'); }
 			if (args?.repo) { conditions.push('repo LIKE ?'); params.push(`%${args.repo}%`); }
 			const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
-
-			if (args?.summary) {
-				const rows = await query<{ repo: string; commits: number; first_commit: string; last_commit: string; is_private: number }>(
-					`SELECT repo, COUNT(*) as commits, MIN(committed_at) as first_commit, MAX(committed_at) as last_commit, MAX(is_private) as is_private FROM github_activity${where} GROUP BY repo ORDER BY commits DESC`,
-					params
-				);
-				return JSON.stringify(rows.map((r) => ({
-					repo: r.repo,
-					commits: r.commits,
-					first_commit: r.first_commit,
-					last_commit: r.last_commit,
-					private: !!r.is_private
-				})));
-			}
-
 			const limit = Math.min(args?.limit ?? 50, 200);
 			const sql = `SELECT repo, title, committed_at, is_private FROM github_activity${where} ORDER BY committed_at DESC LIMIT ?`;
 			params.push(limit);
 			const rows = await query<{ repo: string; title: string; committed_at: string; is_private: number }>(sql, params);
 			return JSON.stringify(rows.map((r) => ({
 				repo: r.repo,
-				title: r.is_private ? '*'.repeat(r.title.length) : r.title,
-				date: r.committed_at
+				title: r.title,
+				date: r.committed_at,
+				private: !!r.is_private
 			})));
 		}
 		default:
