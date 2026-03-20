@@ -62,7 +62,6 @@ const allTools: Record<string, { tool: OpenAI.Chat.ChatCompletionTool; section?:
 						since: { type: 'string', description: 'Start date (YYYY-MM-DD)' },
 						until: { type: 'string', description: 'End date (YYYY-MM-DD)' },
 						repo: { type: 'string', description: 'Filter by repo or org name (partial match)' },
-						limit: { type: 'number', description: 'Max results (default 50)' },
 						order: { type: 'string', enum: ['desc', 'asc'], description: 'Sort order by date (default desc). Use asc for oldest first.' }
 					},
 					required: []
@@ -84,7 +83,6 @@ const allTools: Record<string, { tool: OpenAI.Chat.ChatCompletionTool; section?:
 						since: { type: 'string', description: 'Start date (YYYY-MM-DD)' },
 						until: { type: 'string', description: 'End date (YYYY-MM-DD)' },
 						repo: { type: 'string', description: 'Filter by repo or org name (partial match)' },
-						limit: { type: 'number', description: 'Max results (default 50)' },
 						order: { type: 'string', enum: ['desc', 'asc'], description: 'Sort order by date (default desc). Use asc for oldest first.' }
 					},
 					required: []
@@ -147,22 +145,16 @@ async function executeTool(name: string, args?: Record<string, any>): Promise<st
 				params.push(`%${args.repo}%`);
 			}
 			const where = ' WHERE ' + conditions.join(' AND ');
-			const limit = Math.min(args?.limit ?? 50, 200);
 			const order = args?.order === 'asc' ? 'ASC' : 'DESC';
-			const countParams = [...params];
-			const countRows = await query<{ total: number }>(`SELECT COUNT(*) as total FROM github_activity${where}`, countParams);
-			const totalCount = countRows[0]?.total ?? 0;
-			const sql = `SELECT repo, title, committed_at FROM github_activity${where} ORDER BY committed_at ${order} LIMIT ?`;
-			params.push(limit);
+			const sql = `SELECT repo, title, committed_at FROM github_activity${where} ORDER BY committed_at ${order}`;
 			const rows = await query<{ repo: string; title: string; committed_at: string }>(sql, params);
-			return JSON.stringify({
-				totalCount,
-				items: rows.map((r) => ({
+			return JSON.stringify(
+				rows.map((r) => ({
 					repo: r.repo,
 					title: r.title,
 					date: r.committed_at
 				}))
-			});
+			);
 		}
 		case 'get_prs': {
 			const since = args?.since;
@@ -182,24 +174,18 @@ async function executeTool(name: string, args?: Record<string, any>): Promise<st
 				params.push(`%${args.repo}%`);
 			}
 			const where = ' WHERE ' + conditions.join(' AND ');
-			const limit = Math.min(args?.limit ?? 50, 200);
 			const order = args?.order === 'asc' ? 'ASC' : 'DESC';
-			const countParams = [...params];
-			const countRows = await query<{ total: number }>(`SELECT COUNT(*) as total FROM github_activity${where}`, countParams);
-			const totalCount = countRows[0]?.total ?? 0;
-			const sql = `SELECT repo, title, additions, deletions, committed_at FROM github_activity${where} ORDER BY committed_at ${order} LIMIT ?`;
-			params.push(limit);
+			const sql = `SELECT repo, title, additions, deletions, committed_at FROM github_activity${where} ORDER BY committed_at ${order}`;
 			const rows = await query<{ repo: string; title: string; additions: number; deletions: number; committed_at: string }>(sql, params);
-			return JSON.stringify({
-				totalCount,
-				items: rows.map((r) => ({
+			return JSON.stringify(
+				rows.map((r) => ({
 					repo: r.repo,
 					title: r.title,
 					additions: r.additions,
 					deletions: r.deletions,
 					mergedAt: r.committed_at
 				}))
-			});
+			);
 		}
 		default:
 			return '{}';
