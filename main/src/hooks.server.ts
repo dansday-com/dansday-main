@@ -69,6 +69,12 @@ const preloadHandle: Handle = async ({ event, resolve }) => {
 		duration_ms: Date.now() - start
 	});
 
+	const contentType = response.headers.get('content-type') ?? '';
+	if (contentType.includes('text/html') || contentType.includes('application/json')) {
+		response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+		response.headers.set('CDN-Cache-Control', 'no-store');
+	}
+
 	return response;
 };
 
