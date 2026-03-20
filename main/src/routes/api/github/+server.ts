@@ -45,7 +45,7 @@ async function getActivityFromDb(offset: number, limit: number) {
 		const isPrivate = !!r.is_private;
 		return {
 			repo: r.repo,
-			title: isPrivate ? '*'.repeat(r.title.length) : r.title,
+			title: r.title,
 			type: r.type,
 			date: r.committed_at,
 			private: isPrivate,
