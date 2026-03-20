@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { fetchGeneral, fetchHome, fetchArticles, fetchProjects, fetchAbouts, fetchSection } from '$lib/server/data';
 import { query } from '$lib/server/db';
+import { encode as toToon } from '@toon-format/toon';
 import OpenAI from 'openai';
 import type { RequestHandler } from './$types';
 
@@ -21,16 +22,16 @@ async function getEnabledToolNames(): Promise<string[]> {
 		.map(([name]) => name);
 }
 
-async function executeTool(name: string, args?: Record<string, any>): Promise<string> {
+async function executeTool(name: string): Promise<string> {
 	switch (name) {
 		case 'get_home': {
 			const [home, general] = await Promise.all([fetchHome(), fetchGeneral()]);
 			const siteUrl = (env.BASE_URL ?? '').replace(/\/+$/, '');
-			return JSON.stringify({ title: home.title, description: home.description, site_url: siteUrl, social_links: general.social_links });
+			return toToon({ title: home.title, description: home.description, site_url: siteUrl, social_links: general.social_links });
 		}
 		case 'get_about': {
 			const about = await fetchAbouts();
-			return JSON.stringify({
+			return toToon({
 				design_skills: about.design_skills.map((s) => s.title),
 				dev_skills: about.dev_skills.map((s) => s.title),
 				education: about.edu_experiences.map((e) => ({ title: e.title, period: e.period, description: e.description })),
@@ -41,75 +42,29 @@ async function executeTool(name: string, args?: Record<string, any>): Promise<st
 		}
 		case 'get_articles': {
 			const articles = await fetchArticles();
-			return JSON.stringify(articles.map((a) => ({ title: a.title, description: a.short_desc, slug: a.slug, created_at: a.created_at })));
+			return toToon(articles.map((a) => ({ title: a.title, description: a.short_desc, slug: a.slug, created_at: a.created_at })));
 		}
 		case 'get_projects': {
 			const { projects, projects_categories } = await fetchProjects();
 			const catMap = new Map(projects_categories.map((c) => [c.id, c.name]));
-			return JSON.stringify(
-				projects.map((p) => ({ title: p.title, description: p.short_desc, category: catMap.get(p.category_id), created_at: p.created_at }))
-			);
+			return toToon(projects.map((p) => ({ title: p.title, description: p.short_desc, category: catMap.get(p.category_id), created_at: p.created_at })));
 		}
 		case 'get_activity': {
-			const since = args?.since;
-			const until = args?.until;
-			const conditions: string[] = ['type = "commit"'];
-			const params: (string | number)[] = [];
-			if (since) {
-				conditions.push('committed_at >= ?');
-				params.push(since);
-			}
-			if (until) {
-				conditions.push('committed_at <= ?');
-				params.push(until + ' 23:59:59');
-			}
-			if (args?.repo) {
-				conditions.push('repo LIKE ?');
-				params.push(`%${args.repo}%`);
-			}
-			const where = ' WHERE ' + conditions.join(' AND ');
-			const order = args?.order === 'asc' ? 'ASC' : 'DESC';
-			const sql = `SELECT repo, title, committed_at FROM github_activity${where} ORDER BY committed_at ${order}`;
-			const rows = await query<{ repo: string; title: string; committed_at: string }>(sql, params);
-			return JSON.stringify({
+			const rows = await query<{ repo: string; title: string; committed_at: string }>(
+				'SELECT repo, title, committed_at FROM github_activity WHERE type = "commit" ORDER BY committed_at DESC'
+			);
+			return toToon({
 				totalCount: rows.length,
-				items: rows.map((r) => ({
-					repo: r.repo,
-					title: r.title,
-					date: r.committed_at
-				}))
+				items: rows.map((r) => ({ repo: r.repo, title: r.title, date: r.committed_at }))
 			});
 		}
 		case 'get_prs': {
-			const since = args?.since;
-			const until = args?.until;
-			const conditions: string[] = ['type = "pr"'];
-			const params: (string | number)[] = [];
-			if (since) {
-				conditions.push('committed_at >= ?');
-				params.push(since);
-			}
-			if (until) {
-				conditions.push('committed_at <= ?');
-				params.push(until + ' 23:59:59');
-			}
-			if (args?.repo) {
-				conditions.push('repo LIKE ?');
-				params.push(`%${args.repo}%`);
-			}
-			const where = ' WHERE ' + conditions.join(' AND ');
-			const order = args?.order === 'asc' ? 'ASC' : 'DESC';
-			const sql = `SELECT repo, title, additions, deletions, committed_at FROM github_activity${where} ORDER BY committed_at ${order}`;
-			const rows = await query<{ repo: string; title: string; additions: number; deletions: number; committed_at: string }>(sql, params);
-			return JSON.stringify({
+			const rows = await query<{ repo: string; title: string; additions: number; deletions: number; committed_at: string }>(
+				'SELECT repo, title, additions, deletions, committed_at FROM github_activity WHERE type = "pr" ORDER BY committed_at DESC'
+			);
+			return toToon({
 				totalCount: rows.length,
-				items: rows.map((r) => ({
-					repo: r.repo,
-					title: r.title,
-					additions: r.additions,
-					deletions: r.deletions,
-					mergedAt: r.committed_at
-				}))
+				items: rows.map((r) => ({ repo: r.repo, title: r.title, additions: r.additions, deletions: r.deletions, mergedAt: r.committed_at }))
 			});
 		}
 		default:
@@ -153,7 +108,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 
 		const today = new Date().toISOString().slice(0, 10);
-		const systemContent = `Today's date is ${today}.\n\n${terminalPrompt}`;
+		const systemContent = terminalPrompt.replaceAll('{{today}}', today);
 		const systemMessages = [{ role: 'system' as const, content: systemContent }];
 
 		const enabledToolNames = await getEnabledToolNames();
