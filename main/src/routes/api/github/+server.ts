@@ -222,80 +222,86 @@ async function fetchMyRepos(username: string, token: string, orgs: string[]) {
 
 type RawActivity = { repo: string; title: string; date: string; oid: string; private: boolean };
 
-async function fetchRepoCommits(token: string, owner: string, name: string): Promise<any[]> {
-	const allCommits: any[] = [];
-	let cursor: string | null = null;
-
-	while (true) {
-		const afterClause = cursor ? `, after: "${cursor}"` : '';
-		const q = `
-			query($owner: String!, $name: String!) {
-				repository(owner: $owner, name: $name) {
-					defaultBranchRef {
-						target {
-							... on Commit {
-								history(first: 100${afterClause}) {
-									nodes {
-										message
-										committedDate
-										oid
-										author { user { login } }
-									}
-									pageInfo { hasNextPage endCursor }
+function commitQuery(owner: string, name: string, cursor: string | null) {
+	const afterClause = cursor ? `, after: "${cursor}"` : '';
+	return `
+		query($owner: String!, $name: String!) {
+			repository(owner: $owner, name: $name) {
+				defaultBranchRef {
+					target {
+						... on Commit {
+							history(first: 100${afterClause}) {
+								nodes {
+									message
+									committedDate
+									oid
+									author { user { login } }
 								}
+								pageInfo { hasNextPage endCursor }
 							}
 						}
 					}
 				}
 			}
-		`;
-
-		const d = await graphql(token, q, { owner, name });
-		const history = d.data?.repository?.defaultBranchRef?.target?.history;
-		if (!history) break;
-
-		allCommits.push(...(history.nodes ?? []));
-
-		if (!history.pageInfo?.hasNextPage) break;
-		cursor = history.pageInfo.endCursor;
-	}
-
-	return allCommits;
+		}
+	`;
 }
 
-async function fetchAllActivity(username: string, token: string, repos: any[]) {
-	const results = await Promise.all(
-		repos.map((repo) =>
-			fetchRepoCommits(token, repo.owner?.login, repo.name)
-				.then((commits) => ({ repo, commits }))
-				.catch(() => ({ repo, commits: [] as any[] }))
-		)
-	);
+function extractActivity(username: string, repo: any, commits: any[]): RawActivity[] {
+	const ownerLogin = repo.owner?.login ?? '';
+	const isOwner = ownerLogin.toLowerCase() === username.toLowerCase();
+	const items: RawActivity[] = [];
 
-	const all: RawActivity[] = [];
+	for (const commit of commits) {
+		const authorLogin = commit.author?.user?.login;
+		if (!authorLogin || authorLogin.toLowerCase() !== username.toLowerCase()) continue;
 
-	for (const { repo, commits } of results) {
-		const ownerLogin = repo.owner?.login ?? '';
-		const isOwner = ownerLogin.toLowerCase() === username.toLowerCase();
+		const message = (commit.message as string)?.split('\n')[0] ?? 'Commit';
+		const isPrivate = repo.isPrivate ?? false;
 
-		for (const commit of commits) {
-			const authorLogin = commit.author?.user?.login;
-			if (!authorLogin || authorLogin.toLowerCase() !== username.toLowerCase()) continue;
-
-			const message = (commit.message as string)?.split('\n')[0] ?? 'Commit';
-			const isPrivate = repo.isPrivate ?? false;
-
-			all.push({
-				repo: isOwner ? repo.name : `${ownerLogin}/${repo.name}`,
-				title: message,
-				date: commit.committedDate ?? '',
-				oid: commit.oid,
-				private: isPrivate
-			});
-		}
+		items.push({
+			repo: isOwner ? repo.name : `${ownerLogin}/${repo.name}`,
+			title: message,
+			date: commit.committedDate ?? '',
+			oid: commit.oid,
+			private: isPrivate
+		});
 	}
 
-	return all;
+	return items;
+}
+
+async function syncRepoActivity(username: string, token: string, repo: any) {
+	const owner = repo.owner?.login;
+	const name = repo.name;
+
+	const d = await graphql(token, commitQuery(owner, name, null), { owner, name });
+	const history = d.data?.repository?.defaultBranchRef?.target?.history;
+	if (!history) return;
+
+	const items = extractActivity(username, repo, history.nodes ?? []);
+	await saveActivityToDb(items);
+
+	let cursor = history.pageInfo?.endCursor;
+	let hasNext = history.pageInfo?.hasNextPage;
+
+	while (hasNext) {
+		const next = await graphql(token, commitQuery(owner, name, cursor), { owner, name });
+		const h = next.data?.repository?.defaultBranchRef?.target?.history;
+		if (!h) break;
+
+		const batch = extractActivity(username, repo, h.nodes ?? []);
+		await saveActivityToDb(batch);
+
+		hasNext = h.pageInfo?.hasNextPage;
+		cursor = h.pageInfo?.endCursor;
+	}
+}
+
+async function syncAllActivity(username: string, token: string, repos: any[]) {
+	await Promise.all(
+		repos.map((repo) => syncRepoActivity(username, token, repo).catch(() => {}))
+	);
 }
 
 async function fetchTopLanguages(username: string, token: string, repos: any[]) {
@@ -329,8 +335,7 @@ async function fetchTopLanguages(username: string, token: string, repos: any[]) 
 
 async function syncActivity(username: string, token: string, orgs: string[]) {
 	const repos = await fetchMyRepos(username, token, orgs);
-	const rawActivity = await fetchAllActivity(username, token, repos);
-	await saveActivityToDb(rawActivity);
+	await syncAllActivity(username, token, repos);
 }
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -360,13 +365,9 @@ export const GET: RequestHandler = async ({ url }) => {
 		const repos = await fetchMyRepos(username, token, orgs);
 		const languages = await fetchTopLanguages(username, token, repos);
 
-		if (activityCount === 0) {
-			const rawActivity = await fetchAllActivity(username, token, repos);
-			await saveActivityToDb(rawActivity);
+		if (Date.now() - lastSyncTime > SYNC_INTERVAL_MS) {
 			lastSyncTime = Date.now();
-		} else if (Date.now() - lastSyncTime > SYNC_INTERVAL_MS) {
-			lastSyncTime = Date.now();
-			syncActivity(username, token, orgs).catch((err) => console.error('[GitHub sync]', err));
+			syncAllActivity(username, token, repos).catch((err) => console.error('[GitHub sync]', err));
 		}
 
 		const activity = await getActivityFromDb(offset, limit);
