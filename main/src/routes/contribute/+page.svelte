@@ -302,16 +302,17 @@
 				{#if githubData.topRepos.length > 0}
 					<div>
 						<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top repositories</div>
-						<div class="flex flex-col gap-3 rounded border border-[#30363d] bg-[#161b22]/60 p-3">
+						<div class="flex flex-col gap-1">
 							{#each githubData.topRepos as repo}
-								<div>
-									<div class="mb-1 flex justify-between text-xs">
-										<span class="text-[#c9d1d9]">{repo.repo}</span>
-										<span class="text-[#8b949e]">{repo.commits} commits</span>
+								<div class="flex items-center gap-3 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
+									<i class="fas fa-code-branch shrink-0 text-xs text-[#8b949e]"></i>
+									<div class="min-w-0 flex-1">
+										<span class="text-xs font-medium text-[#58a6ff]">{repo.repo}</span>
+										<div class="mt-1 h-1 overflow-hidden rounded-full bg-[#21262d]">
+											<div class="h-full rounded-full bg-[#238636]" style="width:{(repo.commits / maxRepoCount) * 100}%"></div>
+										</div>
 									</div>
-									<div class="h-1 overflow-hidden rounded-full bg-[#21262d]">
-										<div class="h-full rounded-full bg-[#238636]" style="width:{(repo.commits / maxRepoCount) * 100}%"></div>
-									</div>
+									<span class="shrink-0 text-xs text-[#8b949e]">{repo.commits}</span>
 								</div>
 							{/each}
 						</div>
