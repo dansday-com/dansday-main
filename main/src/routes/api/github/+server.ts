@@ -1,11 +1,12 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { query, queryOne } from '$lib/server/db';
+import { redisGet, redisSet } from '$lib/server/redis';
 import type { RequestHandler } from './$types';
 
 const GITHUB_GRAPHQL = 'https://api.github.com/graphql';
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;
-let lastSyncTime = 0;
+const STATS_TTL = 300;
 
 function getHeaders(token: string) {
 	return {
@@ -43,11 +44,6 @@ async function getActivityFromDb(offset: number, limit: number) {
 	return { items, hasMore };
 }
 
-async function getActivityCount(): Promise<number> {
-	const row = await queryOne<{ cnt: number }>('SELECT COUNT(*) as cnt FROM github_activity');
-	return row?.cnt ?? 0;
-}
-
 async function saveActivityToDb(items: { repo: string; title: string; date: string; oid: string; private: boolean }[]) {
 	if (!items.length) return;
 	const values = items.map(() => '(?, ?, ?, ?, ?)').join(', ');
@@ -59,6 +55,24 @@ async function saveActivityToDb(items: { repo: string; title: string; date: stri
 		`INSERT IGNORE INTO github_activity (repo, title, committed_at, oid, is_private) VALUES ${values}`,
 		params
 	);
+}
+
+async function getLastSyncTime(): Promise<number> {
+	const val = await redisGet('github:last_sync');
+	return val ? parseInt(val, 10) : 0;
+}
+
+async function setLastSyncTime(): Promise<void> {
+	await redisSet('github:last_sync', Date.now().toString());
+}
+
+async function getCachedStats(): Promise<any | null> {
+	const val = await redisGet('github:stats');
+	return val ? JSON.parse(val) : null;
+}
+
+async function setCachedStats(data: any): Promise<void> {
+	await redisSet('github:stats', JSON.stringify(data), STATS_TTL);
 }
 
 async function fetchContributionStats(username: string, token: string) {
@@ -302,6 +316,7 @@ async function syncAllActivity(username: string, token: string, repos: any[]) {
 	await Promise.all(
 		repos.map((repo) => syncRepoActivity(username, token, repo).catch(() => {}))
 	);
+	await setLastSyncTime();
 }
 
 async function fetchTopLanguages(username: string, token: string, repos: any[]) {
@@ -333,9 +348,14 @@ async function fetchTopLanguages(username: string, token: string, repos: any[]) 
 		.map(([name, count]) => ({ name, count }));
 }
 
-async function syncActivity(username: string, token: string, orgs: string[]) {
+async function fetchAndCacheStats(username: string, token: string) {
+	const stats = await fetchContributionStats(username, token);
+	const orgs = stats.user.organizations.map((o) => o.login);
 	const repos = await fetchMyRepos(username, token, orgs);
-	await syncAllActivity(username, token, repos);
+	const languages = await fetchTopLanguages(username, token, repos);
+	const data = { username, ...stats, languages };
+	await setCachedStats(data);
+	return { data, repos };
 }
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -356,23 +376,31 @@ export const GET: RequestHandler = async ({ url }) => {
 			return json(activity);
 		}
 
-		const [stats, activityCount] = await Promise.all([
-			fetchContributionStats(username, token),
-			getActivityCount()
-		]);
+		const cached = await getCachedStats();
 
-		const orgs = stats.user.organizations.map((o) => o.login);
-		const repos = await fetchMyRepos(username, token, orgs);
-		const languages = await fetchTopLanguages(username, token, repos);
+		let statsData: any;
+		let repos: any[] | null = null;
 
-		if (Date.now() - lastSyncTime > SYNC_INTERVAL_MS) {
-			lastSyncTime = Date.now();
+		if (cached) {
+			statsData = cached;
+		} else {
+			const result = await fetchAndCacheStats(username, token);
+			statsData = result.data;
+			repos = result.repos;
+		}
+
+		const lastSync = await getLastSyncTime();
+		if (Date.now() - lastSync > SYNC_INTERVAL_MS) {
+			if (!repos) {
+				const orgs = statsData.user.organizations.map((o: any) => o.login);
+				repos = await fetchMyRepos(username, token, orgs);
+			}
 			syncAllActivity(username, token, repos).catch((err) => console.error('[GitHub sync]', err));
 		}
 
 		const activity = await getActivityFromDb(offset, limit);
 
-		return json({ username, ...stats, languages, activity });
+		return json({ ...statsData, activity });
 	} catch (err: any) {
 		console.error('[GitHub API]', err);
 		return json({ error: err.message ?? 'Failed to fetch GitHub data.' }, { status: 500 });
