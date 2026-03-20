@@ -35,7 +35,7 @@
 		};
 		calendar: { date: string; count: number }[];
 		activity: { items: ActivityItem[]; hasMore: boolean };
-		languages: { name: string; count: number }[];
+		topRepos: { repo: string; commits: number }[];
 	}
 
 	let githubData = $state<GithubData | null>(null);
@@ -44,30 +44,7 @@
 	let visibleCount = $state(0);
 	let currentPage = $state(1);
 
-	const LANG_COLORS: Record<string, string> = {
-		TypeScript: '#3178c6',
-		JavaScript: '#f1e05a',
-		PHP: '#777bb4',
-		Python: '#3572A5',
-		Vue: '#41b883',
-		Svelte: '#ff3e00',
-		CSS: '#563d7c',
-		HTML: '#e34c26',
-		Go: '#00ADD8',
-		Rust: '#dea584',
-		Java: '#b07219',
-		'C#': '#178600',
-		'C++': '#f34b7d',
-		Shell: '#89e051',
-		Ruby: '#701516',
-		Dart: '#00B4AB'
-	};
-
-	function langColor(lang: string): string {
-		return LANG_COLORS[lang] ?? '#8b949e';
-	}
-
-	function timeAgo(iso: string): string {
+function timeAgo(iso: string): string {
 		const diff = Date.now() - new Date(iso).getTime();
 		const s = Math.floor(diff / 1000);
 		if (s < 60) return `${s}s ago`;
@@ -113,7 +90,7 @@
 	}
 
 	const weeks = $derived(githubData ? buildWeeks(githubData.calendar) : []);
-	const maxLangCount = $derived(githubData?.languages.length ? Math.max(...githubData.languages.map((l) => l.count)) : 1);
+	const maxRepoCount = $derived(githubData?.topRepos.length ? Math.max(...githubData.topRepos.map((r) => r.commits)) : 1);
 
 	onMount(async () => {
 		try {
@@ -286,21 +263,18 @@
 					</div>
 				</div>
 
-				<!-- Top languages -->
+				<!-- Top repos -->
 				<div>
-					<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top languages</div>
+					<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top repositories</div>
 					<div class="flex flex-col gap-3 rounded border border-[#30363d] bg-[#161b22]/60 p-3">
-						{#each githubData.languages as lang}
+						{#each githubData.topRepos as repo}
 							<div>
 								<div class="mb-1 flex justify-between text-xs">
-									<div class="flex items-center gap-1.5">
-										<span class="inline-block h-2 w-2 rounded-full" style="background:{langColor(lang.name)}"></span>
-										<span class="text-[#c9d1d9]">{lang.name}</span>
-									</div>
-									<span class="text-[#8b949e]">{lang.count}</span>
+									<span class="text-[#c9d1d9]">{repo.repo}</span>
+									<span class="text-[#8b949e]">{repo.commits} commits</span>
 								</div>
 								<div class="h-1 overflow-hidden rounded-full bg-[#21262d]">
-									<div class="h-full rounded-full" style="width:{(lang.count / maxLangCount) * 100}%; background:{langColor(lang.name)}"></div>
+									<div class="h-full rounded-full bg-[#238636]" style="width:{(repo.commits / maxRepoCount) * 100}%"></div>
 								</div>
 							</div>
 						{/each}

@@ -319,41 +319,18 @@ async function syncAllActivity(username: string, token: string, repos: any[]) {
 	await setLastSyncTime();
 }
 
-async function fetchTopLanguages(username: string, token: string, repos: any[]) {
-	const results = await Promise.all(
-		repos.map((repo) =>
-			graphql(token, `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { primaryLanguage { name } defaultBranchRef { target { ... on Commit { history(first: 10) { nodes { author { user { login } } } } } } } } }`, { owner: repo.owner?.login, name: repo.name })
-				.then((d) => d.data?.repository)
-				.catch(() => null)
-		)
+async function getTopRepos() {
+	return query<{ repo: string; commits: number }>(
+		'SELECT repo, COUNT(*) as commits FROM github_activity GROUP BY repo ORDER BY commits DESC LIMIT 5'
 	);
-
-	const langMap: Record<string, number> = {};
-	for (const r of results) {
-		if (!r) continue;
-		const lang = r.primaryLanguage?.name;
-		if (!lang) continue;
-		const commits = r.defaultBranchRef?.target?.history?.nodes ?? [];
-		const hasMyCommit = commits.some((c: any) => {
-			const login = c.author?.user?.login;
-			return !login || login.toLowerCase() === username.toLowerCase();
-		});
-		if (!hasMyCommit) continue;
-		langMap[lang] = (langMap[lang] ?? 0) + 1;
-	}
-
-	return Object.entries(langMap)
-		.sort((a, b) => b[1] - a[1])
-		.slice(0, 8)
-		.map(([name, count]) => ({ name, count }));
 }
 
 async function fetchAndCacheStats(username: string, token: string) {
 	const stats = await fetchContributionStats(username, token);
 	const orgs = stats.user.organizations.map((o) => o.login);
 	const repos = await fetchMyRepos(username, token, orgs);
-	const languages = await fetchTopLanguages(username, token, repos);
-	const data = { username, ...stats, languages };
+	const topRepos = await getTopRepos();
+	const data = { username, ...stats, topRepos };
 	await setCachedStats(data);
 	return { data, repos };
 }
@@ -412,7 +389,7 @@ export const GET: RequestHandler = async ({ url }) => {
 				user: { name: username, avatarUrl: '', bio: '', organizations: [] },
 				stats: { week: 0, month: 0, year: 0, allTime: 0, totalCommits: 0, totalPRs: 0, totalIssues: 0 },
 				calendar: [],
-				languages: [],
+				topRepos: [],
 				activity
 			});
 		}
