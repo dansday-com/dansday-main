@@ -36,6 +36,7 @@
 		calendar: { date: string; count: number }[];
 		activity: { items: ActivityItem[]; hasMore: boolean };
 		topRepos: { repo: string; commits: number }[];
+		topPRs: { repo: string; prNumber: number; title: string; additions: number; deletions: number; mergedAt: string; private: boolean }[];
 	}
 
 	let githubData = $state<GithubData | null>(null);
@@ -228,7 +229,34 @@ function timeAgo(iso: string): string {
 				</div>
 			</div>
 
-			<!-- Bottom: activity feed + languages -->
+			<!-- Top PRs -->
+			{#if githubData.topPRs.length > 0}
+				<div class="mb-5">
+					<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top pull requests</div>
+					<div class="flex flex-col gap-1">
+						{#each githubData.topPRs as pr}
+							<div class="flex items-center gap-3 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
+								<i class="fas fa-code-pull-request shrink-0 text-xs text-[#bc8cff]"></i>
+								<div class="min-w-0 flex-1">
+									<div class="flex flex-wrap items-center gap-1.5">
+										<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{pr.repo}</span>
+										{#if pr.private}
+											<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
+										{/if}
+									</div>
+									<span class="mt-0.5 line-clamp-1 block text-xs text-[#c9d1d9]">{pr.title}</span>
+								</div>
+								<div class="flex shrink-0 items-center gap-2 text-xs">
+									<span class="text-[#3fb950]">+{pr.additions.toLocaleString()}</span>
+									<span class="text-[#f85149]">-{pr.deletions.toLocaleString()}</span>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Bottom: activity feed + repos -->
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
 				<!-- Live activity feed -->
 				<div class="lg:col-span-2">
