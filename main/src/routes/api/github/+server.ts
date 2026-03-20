@@ -29,12 +29,16 @@ async function getActivityFromDb(offset: number, limit: number) {
 		[limit + 1, offset]
 	);
 	const hasMore = rows.length > limit;
-	const items = rows.slice(0, limit).map((r) => ({
-		repo: r.repo,
-		title: r.title,
-		date: r.committed_at,
-		private: !!r.is_private
-	}));
+	const items = rows.slice(0, limit).map((r) => {
+		const isPrivate = !!r.is_private;
+		const wordCount = r.title.split(/\s+/).filter(Boolean).length;
+		return {
+			repo: r.repo,
+			title: isPrivate ? '*'.repeat(wordCount) : r.title,
+			date: r.committed_at,
+			private: isPrivate
+		};
+	});
 	return { items, hasMore };
 }
 
@@ -262,11 +266,10 @@ async function fetchAllActivity(username: string, token: string, repos: any[]) {
 
 			const message = (commit.message as string)?.split('\n')[0] ?? 'Commit';
 			const isPrivate = repo.isPrivate ?? false;
-			const wordCount = message.split(/\s+/).filter(Boolean).length;
 
 			all.push({
 				repo: isOwner ? repo.name : `${ownerLogin}/${repo.name}`,
-				title: isPrivate ? '*'.repeat(wordCount) : message,
+				title: message,
 				date: commit.committedDate ?? '',
 				oid: commit.oid,
 				private: isPrivate
