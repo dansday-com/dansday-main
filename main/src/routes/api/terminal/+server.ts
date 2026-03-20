@@ -10,7 +10,7 @@ const allTools: Record<string, { tool: OpenAI.Chat.ChatCompletionTool; section?:
 			type: 'function',
 			function: {
 				name: 'get_home',
-				description: 'Get the homepage title and description',
+				description: 'Get the homepage title, description, and social/contact links',
 				parameters: { type: 'object', properties: {}, required: [] }
 			}
 		}
@@ -71,8 +71,8 @@ async function getEnabledTools(): Promise<OpenAI.Chat.ChatCompletionTool[]> {
 async function executeTool(name: string): Promise<string> {
 	switch (name) {
 		case 'get_home': {
-			const home = await fetchHome();
-			return JSON.stringify({ title: home.title, description: home.description });
+			const [home, general] = await Promise.all([fetchHome(), fetchGeneral()]);
+			return JSON.stringify({ title: home.title, description: home.description, social_links: general.social_links });
 		}
 		case 'get_about': {
 			const about = await fetchAbouts();
