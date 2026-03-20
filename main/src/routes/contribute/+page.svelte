@@ -12,8 +12,11 @@
 	interface ActivityItem {
 		repo: string;
 		title: string;
+		type: string;
 		date: string;
 		private: boolean;
+		additions: number | null;
+		deletions: number | null;
 	}
 
 	interface GithubData {
@@ -229,67 +232,71 @@ function timeAgo(iso: string): string {
 				</div>
 			</div>
 
-			<!-- Top PRs -->
-			{#if githubData.topPRs.length > 0}
-				<div class="mb-5">
-					<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top pull requests</div>
-					<div class="flex flex-col gap-1">
-						{#each githubData.topPRs as pr}
-							<div class="flex items-center gap-3 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
-								<i class="fas fa-code-pull-request shrink-0 text-xs text-[#bc8cff]"></i>
-								<div class="min-w-0 flex-1">
-									<div class="flex flex-wrap items-center gap-1.5">
-										<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{pr.repo}</span>
-										{#if pr.private}
-											<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
-										{/if}
-									</div>
-									<span class="mt-0.5 line-clamp-1 block text-xs text-[#c9d1d9]">{pr.title}</span>
-								</div>
-								<div class="flex shrink-0 items-center gap-2 text-xs">
-									<span class="text-[#3fb950]">+{pr.additions.toLocaleString()}</span>
-									<span class="text-[#f85149]">-{pr.deletions.toLocaleString()}</span>
-								</div>
-							</div>
-						{/each}
-					</div>
+			<!-- Live activity feed -->
+			<div class="mb-5">
+				<div class="mb-2 flex items-center gap-2 text-xs tracking-wider text-[#8b949e] uppercase">
+					Live activity
+					<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#39d353]"></span>
 				</div>
-			{/if}
+				<div class="flex flex-col gap-1">
+					{#each githubData.activity.items.slice(0, visibleCount) as item}
+						<div class="activity-item flex items-start gap-2 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
+							<i class="fas {item.type === 'pr' ? 'fa-code-pull-request text-[#bc8cff]' : 'fa-code-commit text-[#8b949e]'} mt-0.5 shrink-0 text-xs"></i>
+							<div class="min-w-0 flex-1">
+								<div class="flex flex-wrap items-center gap-1.5">
+									<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{item.repo}</span>
+									{#if item.private}
+										<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
+									{/if}
+									{#if item.type === 'pr' && item.additions != null}
+										<span class="text-[10px] text-[#3fb950]">+{item.additions}</span>
+										<span class="text-[10px] text-[#f85149]">-{item.deletions}</span>
+									{/if}
+								</div>
+								<span class="mt-0.5 line-clamp-1 block text-xs text-[#c9d1d9]">{item.title}</span>
+							</div>
+							<div class="mt-0.5 shrink-0 text-[10px] text-[#8b949e]">{timeAgo(item.date)}</div>
+						</div>
+					{/each}
+					{#if githubData.activity.hasMore}
+						<button
+							onclick={loadMore}
+							class="mt-1 cursor-pointer rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2 text-xs text-[#58a6ff] transition-colors hover:text-white"
+						>
+							Load more
+						</button>
+					{/if}
+				</div>
+			</div>
 
-			<!-- Bottom: activity feed + repos -->
-			<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-				<!-- Live activity feed -->
-				<div class="lg:col-span-2">
-					<div class="mb-2 flex items-center gap-2 text-xs tracking-wider text-[#8b949e] uppercase">
-						Live activity
-						<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#39d353]"></span>
-					</div>
-					<div class="flex flex-col gap-1">
-						{#each githubData.activity.items.slice(0, visibleCount) as item}
-							<div class="activity-item flex items-start gap-2 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
-								<i class="fas fa-code-commit mt-0.5 shrink-0 text-xs text-[#8b949e]"></i>
-								<div class="min-w-0 flex-1">
-									<div class="flex flex-wrap items-center gap-1.5">
-										<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{item.repo}</span>
-										{#if item.private}
-											<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
-										{/if}
+			<!-- Top PRs + Top repos -->
+			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+				<!-- Top PRs -->
+				{#if githubData.topPRs.length > 0}
+					<div>
+						<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top pull requests</div>
+						<div class="flex flex-col gap-1">
+							{#each githubData.topPRs as pr}
+								<div class="flex items-center gap-3 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
+									<i class="fas fa-code-pull-request shrink-0 text-xs text-[#bc8cff]"></i>
+									<div class="min-w-0 flex-1">
+										<div class="flex flex-wrap items-center gap-1.5">
+											<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{pr.repo}</span>
+											{#if pr.private}
+												<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
+											{/if}
+										</div>
+										<span class="mt-0.5 line-clamp-1 block text-xs text-[#c9d1d9]">{pr.title}</span>
 									</div>
-									<span class="mt-0.5 line-clamp-1 block text-xs text-[#c9d1d9]">{item.title}</span>
+									<div class="flex shrink-0 items-center gap-2 text-xs">
+										<span class="text-[#3fb950]">+{pr.additions.toLocaleString()}</span>
+										<span class="text-[#f85149]">-{pr.deletions.toLocaleString()}</span>
+									</div>
 								</div>
-								<div class="mt-0.5 shrink-0 text-[10px] text-[#8b949e]">{timeAgo(item.date)}</div>
-							</div>
-						{/each}
-						{#if githubData.activity.hasMore}
-							<button
-								onclick={loadMore}
-								class="mt-1 cursor-pointer rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2 text-xs text-[#58a6ff] transition-colors hover:text-white"
-							>
-								Load more
-							</button>
-						{/if}
+							{/each}
+						</div>
 					</div>
-				</div>
+				{/if}
 
 				<!-- Top repos -->
 				<div>

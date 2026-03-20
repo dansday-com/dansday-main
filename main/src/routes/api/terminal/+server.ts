@@ -58,6 +58,17 @@ const allTools: Record<string, { tool: OpenAI.Chat.ChatCompletionTool; section?:
 				parameters: { type: 'object', properties: { since: { type: 'string', description: 'Start date (YYYY-MM-DD)' }, until: { type: 'string', description: 'End date (YYYY-MM-DD)' }, repo: { type: 'string', description: 'Filter by repo or org name (partial match)' }, limit: { type: 'number', description: 'Max results (default 50)' } }, required: [] }
 			}
 		}
+	},
+	get_prs: {
+		section: 'contribute_enable',
+		tool: {
+			type: 'function',
+			function: {
+				name: 'get_prs',
+				description: 'Get merged pull requests with line change stats (additions/deletions). Filter by date range and/or repo/org name. Each PR includes repo, title, additions, deletions, merged_at, and a "private" flag. For private repos, summarize the work topics without showing raw PR titles.',
+				parameters: { type: 'object', properties: { since: { type: 'string', description: 'Start date (YYYY-MM-DD)' }, until: { type: 'string', description: 'End date (YYYY-MM-DD)' }, repo: { type: 'string', description: 'Filter by repo or org name (partial match)' }, limit: { type: 'number', description: 'Max results (default 50)' } }, required: [] }
+			}
+		}
 	}
 };
 
@@ -97,12 +108,12 @@ async function executeTool(name: string, args?: Record<string, any>): Promise<st
 		case 'get_activity': {
 			const since = args?.since;
 			const until = args?.until;
-			const conditions: string[] = [];
+			const conditions: string[] = ['type = "commit"'];
 			const params: (string | number)[] = [];
 			if (since) { conditions.push('committed_at >= ?'); params.push(since); }
 			if (until) { conditions.push('committed_at <= ?'); params.push(until + ' 23:59:59'); }
 			if (args?.repo) { conditions.push('repo LIKE ?'); params.push(`%${args.repo}%`); }
-			const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
+			const where = ' WHERE ' + conditions.join(' AND ');
 			const limit = Math.min(args?.limit ?? 50, 200);
 			const sql = `SELECT repo, title, committed_at, is_private FROM github_activity${where} ORDER BY committed_at DESC LIMIT ?`;
 			params.push(limit);
@@ -111,6 +122,28 @@ async function executeTool(name: string, args?: Record<string, any>): Promise<st
 				repo: r.repo,
 				title: r.title,
 				date: r.committed_at,
+				private: !!r.is_private
+			})));
+		}
+		case 'get_prs': {
+			const since = args?.since;
+			const until = args?.until;
+			const conditions: string[] = ['type = "pr"'];
+			const params: (string | number)[] = [];
+			if (since) { conditions.push('committed_at >= ?'); params.push(since); }
+			if (until) { conditions.push('committed_at <= ?'); params.push(until + ' 23:59:59'); }
+			if (args?.repo) { conditions.push('repo LIKE ?'); params.push(`%${args.repo}%`); }
+			const where = ' WHERE ' + conditions.join(' AND ');
+			const limit = Math.min(args?.limit ?? 50, 200);
+			const sql = `SELECT repo, title, additions, deletions, committed_at, is_private FROM github_activity${where} ORDER BY committed_at DESC LIMIT ?`;
+			params.push(limit);
+			const rows = await query<{ repo: string; title: string; additions: number; deletions: number; committed_at: string; is_private: number }>(sql, params);
+			return JSON.stringify(rows.map((r) => ({
+				repo: r.repo,
+				title: r.title,
+				additions: r.additions,
+				deletions: r.deletions,
+				mergedAt: r.committed_at,
 				private: !!r.is_private
 			})));
 		}

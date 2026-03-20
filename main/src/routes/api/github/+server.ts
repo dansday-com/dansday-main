@@ -27,8 +27,8 @@ async function graphql(token: string, q: string, variables?: Record<string, any>
 }
 
 async function getActivityFromDb(offset: number, limit: number) {
-	const rows = await query<{ repo: string; title: string; committed_at: string; is_private: number }>(
-		'SELECT repo, title, committed_at, is_private FROM github_activity ORDER BY committed_at DESC LIMIT ? OFFSET ?',
+	const rows = await query<{ repo: string; title: string; type: string; committed_at: string; is_private: number; additions: number | null; deletions: number | null }>(
+		'SELECT repo, title, type, committed_at, is_private, additions, deletions FROM github_activity ORDER BY committed_at DESC LIMIT ? OFFSET ?',
 		[limit + 1, offset]
 	);
 	const hasMore = rows.length > limit;
@@ -37,22 +37,25 @@ async function getActivityFromDb(offset: number, limit: number) {
 		return {
 			repo: r.repo,
 			title: isPrivate ? '*'.repeat(r.title.length) : r.title,
+			type: r.type,
 			date: r.committed_at,
-			private: isPrivate
+			private: isPrivate,
+			additions: r.additions,
+			deletions: r.deletions
 		};
 	});
 	return { items, hasMore };
 }
 
-async function saveActivityToDb(items: { repo: string; title: string; date: string; oid: string; private: boolean }[]) {
+async function saveActivityToDb(items: { repo: string; title: string; type: string; date: string; oid: string; private: boolean; additions?: number; deletions?: number }[]) {
 	if (!items.length) return;
-	const values = items.map(() => '(?, ?, ?, ?, ?)').join(', ');
-	const params: (string | number)[] = [];
+	const values = items.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+	const params: (string | number | null)[] = [];
 	for (const item of items) {
-		params.push(item.repo, item.title, item.date, item.oid, item.private ? 1 : 0);
+		params.push(item.repo, item.title, item.type, item.date, item.oid, item.private ? 1 : 0, item.additions ?? null, item.deletions ?? null);
 	}
 	await query(
-		`INSERT IGNORE INTO github_activity (repo, title, committed_at, oid, is_private) VALUES ${values}`,
+		`INSERT IGNORE INTO github_activity (repo, title, type, committed_at, oid, is_private, additions, deletions) VALUES ${values}`,
 		params
 	);
 }
@@ -234,9 +237,6 @@ async function fetchMyRepos(username: string, token: string, orgs: string[]) {
 		.sort((a, b) => new Date(b.pushedAt).getTime() - new Date(a.pushedAt).getTime());
 }
 
-type RawActivity = { repo: string; title: string; date: string; oid: string; private: boolean };
-type RawPR = { repo: string; prNumber: number; title: string; additions: number; deletions: number; mergedAt: string; private: boolean };
-
 function commitQuery(owner: string, name: string, cursor: string | null) {
 	const afterClause = cursor ? `, after: "${cursor}"` : '';
 	return `
@@ -262,43 +262,6 @@ function commitQuery(owner: string, name: string, cursor: string | null) {
 	`;
 }
 
-function extractActivity(username: string, repo: any, commits: any[]): RawActivity[] {
-	const ownerLogin = repo.owner?.login ?? '';
-	const isOwner = ownerLogin.toLowerCase() === username.toLowerCase();
-	const items: RawActivity[] = [];
-
-	for (const commit of commits) {
-		const authorLogin = commit.author?.user?.login;
-		if (!authorLogin || authorLogin.toLowerCase() !== username.toLowerCase()) continue;
-
-		const message = (commit.message as string)?.split('\n')[0] ?? 'Commit';
-		const isPrivate = repo.isPrivate ?? false;
-
-		items.push({
-			repo: isOwner ? repo.name : `${ownerLogin}/${repo.name}`,
-			title: message,
-			date: commit.committedDate ?? '',
-			oid: commit.oid,
-			private: isPrivate
-		});
-	}
-
-	return items;
-}
-
-async function savePrsToDb(items: RawPR[]) {
-	if (!items.length) return;
-	const values = items.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ');
-	const params: (string | number)[] = [];
-	for (const item of items) {
-		params.push(item.repo, item.prNumber, item.title, item.additions, item.deletions, item.mergedAt, item.private ? 1 : 0);
-	}
-	await query(
-		`INSERT IGNORE INTO github_prs (repo, pr_number, title, additions, deletions, merged_at, is_private) VALUES ${values}`,
-		params
-	);
-}
-
 function prQuery(owner: string, name: string, cursor: string | null) {
 	const afterClause = cursor ? `, after: "${cursor}"` : '';
 	return `
@@ -320,25 +283,69 @@ function prQuery(owner: string, name: string, cursor: string | null) {
 	`;
 }
 
-function extractPRs(username: string, repo: any, prs: any[]): RawPR[] {
+function repoName(username: string, repo: any): string {
 	const ownerLogin = repo.owner?.login ?? '';
 	const isOwner = ownerLogin.toLowerCase() === username.toLowerCase();
-	const items: RawPR[] = [];
+	return isOwner ? repo.name : `${ownerLogin}/${repo.name}`;
+}
 
-	for (const pr of prs) {
-		if (!pr.author?.login || pr.author.login.toLowerCase() !== username.toLowerCase()) continue;
+function extractCommits(username: string, repo: any, commits: any[]) {
+	const items: { repo: string; title: string; type: string; date: string; oid: string; private: boolean }[] = [];
+	for (const commit of commits) {
+		const authorLogin = commit.author?.user?.login;
+		if (!authorLogin || authorLogin.toLowerCase() !== username.toLowerCase()) continue;
 		items.push({
-			repo: isOwner ? repo.name : `${ownerLogin}/${repo.name}`,
-			prNumber: pr.number,
-			title: pr.title ?? '',
-			additions: pr.additions ?? 0,
-			deletions: pr.deletions ?? 0,
-			mergedAt: pr.mergedAt ?? '',
+			repo: repoName(username, repo),
+			title: (commit.message as string)?.split('\n')[0] ?? 'Commit',
+			type: 'commit',
+			date: commit.committedDate ?? '',
+			oid: commit.oid,
 			private: repo.isPrivate ?? false
 		});
 	}
-
 	return items;
+}
+
+function extractPRs(username: string, repo: any, prs: any[]) {
+	const items: { repo: string; title: string; type: string; date: string; oid: string; private: boolean; additions: number; deletions: number }[] = [];
+	for (const pr of prs) {
+		if (!pr.author?.login || pr.author.login.toLowerCase() !== username.toLowerCase()) continue;
+		items.push({
+			repo: repoName(username, repo),
+			title: pr.title ?? '',
+			type: 'pr',
+			date: pr.mergedAt ?? '',
+			oid: `pr:${repo.owner?.login}/${repo.name}#${pr.number}`,
+			private: repo.isPrivate ?? false,
+			additions: pr.additions ?? 0,
+			deletions: pr.deletions ?? 0
+		});
+	}
+	return items;
+}
+
+async function syncRepoCommits(username: string, token: string, repo: any) {
+	const owner = repo.owner?.login;
+	const name = repo.name;
+
+	const d = await graphql(token, commitQuery(owner, name, null), { owner, name });
+	const history = d.data?.repository?.defaultBranchRef?.target?.history;
+	if (!history) return;
+
+	await saveActivityToDb(extractCommits(username, repo, history.nodes ?? []));
+
+	let cursor = history.pageInfo?.endCursor;
+	let hasNext = history.pageInfo?.hasNextPage;
+
+	while (hasNext) {
+		const next = await graphql(token, commitQuery(owner, name, cursor), { owner, name });
+		const h = next.data?.repository?.defaultBranchRef?.target?.history;
+		if (!h) break;
+
+		await saveActivityToDb(extractCommits(username, repo, h.nodes ?? []));
+		hasNext = h.pageInfo?.hasNextPage;
+		cursor = h.pageInfo?.endCursor;
+	}
 }
 
 async function syncRepoPRs(username: string, token: string, repo: any) {
@@ -349,8 +356,7 @@ async function syncRepoPRs(username: string, token: string, repo: any) {
 	const prs = d.data?.repository?.pullRequests;
 	if (!prs) return;
 
-	const items = extractPRs(username, repo, prs.nodes ?? []);
-	await savePrsToDb(items);
+	await saveActivityToDb(extractPRs(username, repo, prs.nodes ?? []));
 
 	let cursor = prs.pageInfo?.endCursor;
 	let hasNext = prs.pageInfo?.hasNextPage;
@@ -360,38 +366,9 @@ async function syncRepoPRs(username: string, token: string, repo: any) {
 		const p = next.data?.repository?.pullRequests;
 		if (!p) break;
 
-		const batch = extractPRs(username, repo, p.nodes ?? []);
-		await savePrsToDb(batch);
-
+		await saveActivityToDb(extractPRs(username, repo, p.nodes ?? []));
 		hasNext = p.pageInfo?.hasNextPage;
 		cursor = p.pageInfo?.endCursor;
-	}
-}
-
-async function syncRepoActivity(username: string, token: string, repo: any) {
-	const owner = repo.owner?.login;
-	const name = repo.name;
-
-	const d = await graphql(token, commitQuery(owner, name, null), { owner, name });
-	const history = d.data?.repository?.defaultBranchRef?.target?.history;
-	if (!history) return;
-
-	const items = extractActivity(username, repo, history.nodes ?? []);
-	await saveActivityToDb(items);
-
-	let cursor = history.pageInfo?.endCursor;
-	let hasNext = history.pageInfo?.hasNextPage;
-
-	while (hasNext) {
-		const next = await graphql(token, commitQuery(owner, name, cursor), { owner, name });
-		const h = next.data?.repository?.defaultBranchRef?.target?.history;
-		if (!h) break;
-
-		const batch = extractActivity(username, repo, h.nodes ?? []);
-		await saveActivityToDb(batch);
-
-		hasNext = h.pageInfo?.hasNextPage;
-		cursor = h.pageInfo?.endCursor;
 	}
 }
 
@@ -399,7 +376,7 @@ async function syncAllActivity(username: string, token: string, repos: any[]) {
 	await Promise.all(
 		repos.map((repo) =>
 			Promise.all([
-				syncRepoActivity(username, token, repo),
+				syncRepoCommits(username, token, repo),
 				syncRepoPRs(username, token, repo)
 			]).catch(() => {})
 		)
@@ -409,13 +386,13 @@ async function syncAllActivity(username: string, token: string, repos: any[]) {
 
 async function getTopRepos() {
 	return query<{ repo: string; commits: number }>(
-		'SELECT repo, COUNT(*) as commits FROM github_activity GROUP BY repo ORDER BY commits DESC LIMIT 5'
+		'SELECT repo, COUNT(*) as commits FROM github_activity WHERE type = "commit" GROUP BY repo ORDER BY commits DESC LIMIT 10'
 	);
 }
 
 async function getTopPRs() {
-	return query<{ repo: string; pr_number: number; title: string; additions: number; deletions: number; merged_at: string; is_private: number }>(
-		'SELECT repo, pr_number, title, additions, deletions, merged_at, is_private FROM github_prs ORDER BY (additions + deletions) DESC LIMIT 10'
+	return query<{ repo: string; title: string; additions: number; deletions: number; committed_at: string; is_private: number }>(
+		'SELECT repo, title, additions, deletions, committed_at, is_private FROM github_activity WHERE type = "pr" ORDER BY (additions + deletions) DESC LIMIT 10'
 	);
 }
 
@@ -426,11 +403,10 @@ async function fetchAndCacheStats(username: string, token: string) {
 	const [topRepos, topPRsRaw] = await Promise.all([getTopRepos(), getTopPRs()]);
 	const topPRs = topPRsRaw.map((r) => ({
 		repo: r.repo,
-		prNumber: r.pr_number,
 		title: r.title,
 		additions: r.additions,
 		deletions: r.deletions,
-		mergedAt: r.merged_at,
+		mergedAt: r.committed_at,
 		private: !!r.is_private
 	}));
 	const data = { username, ...stats, topRepos, topPRs };
