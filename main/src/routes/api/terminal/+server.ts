@@ -177,8 +177,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const completion = await openai.chat.completions.create({
 				model: openaiModel.trim(),
 				messages: allMessages,
-				temperature: 0,
-				max_tokens: 2048
+				temperature: 0
 			});
 
 			const reply = completion.choices?.[0]?.message?.content || 'No response from AI.';
