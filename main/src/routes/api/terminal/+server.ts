@@ -5,100 +5,20 @@ import { query } from '$lib/server/db';
 import OpenAI from 'openai';
 import type { RequestHandler } from './$types';
 
-const allTools: Record<string, { tool: OpenAI.Chat.ChatCompletionTool; section?: string }> = {
-	get_home: {
-		tool: {
-			type: 'function',
-			function: {
-				name: 'get_home',
-				description:
-					'Get the homepage title, description, site URL, and social/contact links. Always use site_url from this response — never guess or make up URLs.',
-				parameters: { type: 'object', properties: {}, required: [] }
-			}
-		}
-	},
-	get_about: {
-		section: 'about_enable',
-		tool: {
-			type: 'function',
-			function: {
-				name: 'get_about',
-				description: 'Get about info: skills, experience, education, services, testimonials',
-				parameters: { type: 'object', properties: {}, required: [] }
-			}
-		}
-	},
-	get_articles: {
-		section: 'articles_enable',
-		tool: {
-			type: 'function',
-			function: {
-				name: 'get_articles',
-				description: 'Get published articles/blog posts',
-				parameters: { type: 'object', properties: {}, required: [] }
-			}
-		}
-	},
-	get_projects: {
-		section: 'projects_enable',
-		tool: {
-			type: 'function',
-			function: {
-				name: 'get_projects',
-				description: 'Get portfolio projects',
-				parameters: { type: 'object', properties: {}, required: [] }
-			}
-		}
-	},
-	get_activity: {
-		section: 'contribute_enable',
-		tool: {
-			type: 'function',
-			function: {
-				name: 'get_activity',
-				description:
-					'Get GitHub commit activity with real commit titles. Returns { totalCount, items }. totalCount is the exact total matching the filters — always use this number, never count items manually. IMPORTANT: Always use since/until filters when the user asks about a specific year or date range. Filter by date range and/or repo/org name. Repo names are stored as "orgName/repoName" for org repos or just "repoName" for personal repos. You may show individual commit titles from any repo.',
-				parameters: {
-					type: 'object',
-					properties: {
-						since: { type: 'string', description: 'Start date (YYYY-MM-DD)' },
-						until: { type: 'string', description: 'End date (YYYY-MM-DD)' },
-						repo: { type: 'string', description: 'Filter by repo or org name (partial match)' },
-						order: { type: 'string', enum: ['desc', 'asc'], description: 'Sort order by date (default desc). Use asc for oldest first.' }
-					},
-					required: []
-				}
-			}
-		}
-	},
-	get_prs: {
-		section: 'contribute_enable',
-		tool: {
-			type: 'function',
-			function: {
-				name: 'get_prs',
-				description:
-					'Get merged pull requests with line change stats (additions/deletions). Returns { totalCount, items }. totalCount is the exact total matching the filters — always use this number, never count items manually. IMPORTANT: Always use since/until filters when the user asks about a specific year or date range. Filter by date range and/or repo/org name. Each PR includes repo, title, additions, deletions, and merged_at. You may show individual PR titles from any repo.',
-				parameters: {
-					type: 'object',
-					properties: {
-						since: { type: 'string', description: 'Start date (YYYY-MM-DD)' },
-						until: { type: 'string', description: 'End date (YYYY-MM-DD)' },
-						repo: { type: 'string', description: 'Filter by repo or org name (partial match)' },
-						order: { type: 'string', enum: ['desc', 'asc'], description: 'Sort order by date (default desc). Use asc for oldest first.' }
-					},
-					required: []
-				}
-			}
-		}
-	}
+const toolSections: Record<string, string | undefined> = {
+	get_home: undefined,
+	get_about: 'about_enable',
+	get_articles: 'articles_enable',
+	get_projects: 'projects_enable',
+	get_activity: 'contribute_enable',
+	get_prs: 'contribute_enable'
 };
 
-async function getEnabledTools(): Promise<OpenAI.Chat.ChatCompletionTool[]> {
+async function getEnabledToolNames(): Promise<string[]> {
 	const section = await fetchSection();
-	return Object.values(allTools)
-		.filter((t) => !t.section || section[t.section])
-		.map((t) => t.tool);
+	return Object.entries(toolSections)
+		.filter(([, s]) => !s || section[s])
+		.map(([name]) => name);
 }
 
 async function executeTool(name: string, args?: Record<string, any>): Promise<string> {
@@ -151,13 +71,14 @@ async function executeTool(name: string, args?: Record<string, any>): Promise<st
 			const order = args?.order === 'asc' ? 'ASC' : 'DESC';
 			const sql = `SELECT repo, title, committed_at FROM github_activity${where} ORDER BY committed_at ${order}`;
 			const rows = await query<{ repo: string; title: string; committed_at: string }>(sql, params);
-			return JSON.stringify(
-				rows.map((r) => ({
+			return JSON.stringify({
+				totalCount: rows.length,
+				items: rows.map((r) => ({
 					repo: r.repo,
 					title: r.title,
 					date: r.committed_at
 				}))
-			);
+			});
 		}
 		case 'get_prs': {
 			const since = args?.since;
@@ -180,15 +101,16 @@ async function executeTool(name: string, args?: Record<string, any>): Promise<st
 			const order = args?.order === 'asc' ? 'ASC' : 'DESC';
 			const sql = `SELECT repo, title, additions, deletions, committed_at FROM github_activity${where} ORDER BY committed_at ${order}`;
 			const rows = await query<{ repo: string; title: string; additions: number; deletions: number; committed_at: string }>(sql, params);
-			return JSON.stringify(
-				rows.map((r) => ({
+			return JSON.stringify({
+				totalCount: rows.length,
+				items: rows.map((r) => ({
 					repo: r.repo,
 					title: r.title,
 					additions: r.additions,
 					deletions: r.deletions,
 					mergedAt: r.committed_at
 				}))
-			);
+			});
 		}
 		default:
 			return '{}';
@@ -234,44 +156,29 @@ export const POST: RequestHandler = async ({ request }) => {
 		const systemContent = `Today's date is ${today}.\n\n${terminalPrompt}`;
 		const systemMessages = [{ role: 'system' as const, content: systemContent }];
 
-		const allMessages = [...systemMessages, ...messages] as OpenAI.Chat.ChatCompletionMessageParam[];
-		const enabledTools = await getEnabledTools();
+		const enabledToolNames = await getEnabledToolNames();
+
+		const toolResults = await Promise.all(
+			enabledToolNames.map(async (name: string) => {
+				const result = await executeTool(name);
+				return `[${name}]\n${result}`;
+			})
+		);
+
+		const contextMessage = {
+			role: 'system' as const,
+			content: `Here is all available data. Use ONLY this data to answer.\n\n${toolResults.join('\n\n')}`
+		};
+
+		const allMessages = [...systemMessages, contextMessage, ...messages] as OpenAI.Chat.ChatCompletionMessageParam[];
 
 		try {
-			let completion = await openai.chat.completions.create({
+			const completion = await openai.chat.completions.create({
 				model: openaiModel.trim(),
-				messages: allMessages,
-				tools: enabledTools,
-				tool_choice: 'auto'
+				messages: allMessages
 			});
 
-			let message = completion.choices?.[0]?.message;
-
-			while (message?.tool_calls && message.tool_calls.length > 0) {
-				allMessages.push(message);
-
-				for (const call of message.tool_calls) {
-					const fn = (call as any).function;
-					const toolArgs = fn?.arguments ? JSON.parse(fn.arguments) : {};
-					const result = await executeTool(fn?.name, toolArgs);
-					allMessages.push({
-						role: 'tool',
-						tool_call_id: call.id,
-						content: result
-					});
-				}
-
-				completion = await openai.chat.completions.create({
-					model: openaiModel.trim(),
-					messages: allMessages,
-					tools: enabledTools,
-					tool_choice: 'auto'
-				});
-
-				message = completion.choices?.[0]?.message;
-			}
-
-			const reply = message?.content || 'No response from AI.';
+			const reply = completion.choices?.[0]?.message?.content || 'No response from AI.';
 			return json({ response: reply });
 		} catch (error: any) {
 			console.error('OpenAI API Error:', error);
