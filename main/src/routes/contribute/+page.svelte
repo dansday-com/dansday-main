@@ -344,7 +344,7 @@
 								<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Sun</span>
 							</div>
 							{#each weeks as week, wi}
-								<div class="flex flex-col gap-[2px]">
+								<div class="grid grid-rows-7 gap-[2px]">
 									{#each week as day}
 										{#if day.date === ''}
 											<div class="aspect-square w-full"></div>
