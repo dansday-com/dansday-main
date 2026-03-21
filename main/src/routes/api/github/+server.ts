@@ -88,7 +88,9 @@ async function fetchContributionStats(username: string, token: string) {
 	const now = new Date();
 	const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
 	const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-	const weekStart = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+	const day = now.getDay();
+	const diffToMonday = day === 0 ? 6 : day - 1;
+	const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
 	weekStart.setHours(0, 0, 0, 0);
 
 	const yearQuery = `
@@ -104,6 +106,7 @@ async function fetchContributionStats(username: string, token: string) {
 				contributionsCollection(from: $from, to: $to) {
 					totalCommitContributions
 					totalPullRequestContributions
+					totalPullRequestReviewContributions
 					totalIssueContributions
 					contributionCalendar {
 						totalContributions
@@ -145,6 +148,7 @@ async function fetchContributionStats(username: string, token: string) {
 				contributionsCollection(from: $from, to: $to) {
 					totalCommitContributions
 					totalPullRequestContributions
+					totalPullRequestReviewContributions
 					totalIssueContributions
 					contributionCalendar { totalContributions }
 				}
@@ -173,7 +177,14 @@ async function fetchContributionStats(username: string, token: string) {
 	const thisYearData = user?.contributionsCollection;
 	const totalCommits = thisYearData?.totalCommitContributions ?? 0;
 	const totalPRs = thisYearData?.totalPullRequestContributions ?? 0;
+	const totalReviews = thisYearData?.totalPullRequestReviewContributions ?? 0;
 	const totalIssues = thisYearData?.totalIssueContributions ?? 0;
+
+	const fmt = (d: Date) => `${d.getDate()} ${d.toLocaleString('en', { month: 'short' })}`;
+	const todayStr = fmt(now);
+	const weekStartDate = fmt(weekStart);
+	const monthStartDate = fmt(new Date(now.getFullYear(), now.getMonth(), 1));
+	const yearStartDate = `1 Jan`;
 
 	return {
 		user: {
@@ -194,10 +205,51 @@ async function fetchContributionStats(username: string, token: string) {
 			allTime,
 			totalCommits,
 			totalPRs,
-			totalIssues
+			totalReviews,
+			totalIssues,
+			weekRange: `${weekStartDate} - ${todayStr}`,
+			monthRange: `${monthStartDate} - ${todayStr}`,
+			yearRange: `${yearStartDate} - ${todayStr}`,
+			allTimeRange: `${createdYear} - ${now.getFullYear()}`
 		},
-		calendar: allDays
+		calendar: allDays,
+		createdYear,
+		currentYear: now.getFullYear()
 	};
+}
+
+async function fetchCalendarForYear(username: string, token: string, year: number) {
+	const now = new Date();
+	const from = new Date(year, 0, 1).toISOString();
+	const to = year === now.getFullYear() ? now.toISOString() : new Date(year, 11, 31, 23, 59, 59).toISOString();
+
+	const q = `
+		query($username: String!, $from: DateTime!, $to: DateTime!) {
+			user(login: $username) {
+				contributionsCollection(from: $from, to: $to) {
+					contributionCalendar {
+						totalContributions
+						weeks {
+							contributionDays { contributionCount date }
+						}
+					}
+				}
+			}
+		}
+	`;
+
+	const data = await graphql(token, q, { username, from, to });
+	if (data.errors) throw new Error(data.errors[0]?.message ?? 'GraphQL error');
+
+	const calendar = data.data?.user?.contributionsCollection?.contributionCalendar;
+	const days: { date: string; count: number }[] = [];
+	for (const week of calendar?.weeks ?? []) {
+		for (const day of week.contributionDays) {
+			days.push({ date: day.date, count: day.contributionCount });
+		}
+	}
+
+	return { calendar: days, total: calendar?.totalContributions ?? 0 };
 }
 
 async function fetchMyRepos(username: string, token: string, orgs: string[]) {
@@ -305,6 +357,50 @@ function prQuery(owner: string, name: string, cursor: string | null) {
 	`;
 }
 
+function issueQuery(owner: string, name: string, cursor: string | null) {
+	const afterClause = cursor ? `, after: "${cursor}"` : '';
+	return `
+		query($owner: String!, $name: String!) {
+			repository(owner: $owner, name: $name) {
+				issues(first: 50, orderBy: {field: CREATED_AT, direction: DESC}${afterClause}) {
+					nodes {
+						number
+						title
+						createdAt
+						author { login }
+					}
+					pageInfo { hasNextPage endCursor }
+				}
+			}
+		}
+	`;
+}
+
+function reviewQuery(username: string, cursor: string | null) {
+	const afterClause = cursor ? `, after: "${cursor}"` : '';
+	return `
+		query($username: String!) {
+			user(login: $username) {
+				contributionsCollection {
+					pullRequestReviewContributions(first: 50${afterClause}) {
+						nodes {
+							pullRequestReview {
+								createdAt
+								pullRequest {
+									number
+									title
+									repository { name owner { login } isPrivate }
+								}
+							}
+						}
+						pageInfo { hasNextPage endCursor }
+					}
+				}
+			}
+		}
+	`;
+}
+
 function repoName(username: string, repo: any): string {
 	const ownerLogin = repo.owner?.login ?? '';
 	const isOwner = ownerLogin.toLowerCase() === username.toLowerCase();
@@ -341,6 +437,44 @@ function extractPRs(username: string, repo: any, prs: any[]) {
 			private: repo.isPrivate ?? false,
 			additions: pr.additions ?? 0,
 			deletions: pr.deletions ?? 0
+		});
+	}
+	return items;
+}
+
+function extractIssues(username: string, repo: any, issues: any[]) {
+	const items: { repo: string; title: string; type: string; date: string; oid: string; private: boolean }[] = [];
+	for (const issue of issues) {
+		if (!issue.author?.login || issue.author.login.toLowerCase() !== username.toLowerCase()) continue;
+		items.push({
+			repo: repoName(username, repo),
+			title: issue.title ?? '',
+			type: 'issue',
+			date: issue.createdAt ?? '',
+			oid: `issue:${repo.owner?.login}/${repo.name}#${issue.number}`,
+			private: repo.isPrivate ?? false
+		});
+	}
+	return items;
+}
+
+function extractReviews(username: string, nodes: any[]) {
+	const items: { repo: string; title: string; type: string; date: string; oid: string; private: boolean }[] = [];
+	for (const node of nodes) {
+		const review = node.pullRequestReview;
+		if (!review?.pullRequest) continue;
+		const pr = review.pullRequest;
+		const repo = pr.repository;
+		const ownerLogin = repo.owner?.login ?? '';
+		const isOwner = ownerLogin.toLowerCase() === username.toLowerCase();
+		const repoLabel = isOwner ? repo.name : `${ownerLogin}/${repo.name}`;
+		items.push({
+			repo: repoLabel,
+			title: `Review: ${pr.title ?? ''}`,
+			type: 'review',
+			date: review.createdAt ?? '',
+			oid: `review:${ownerLogin}/${repo.name}#${pr.number}:${review.createdAt}`,
+			private: repo.isPrivate ?? false
 		});
 	}
 	return items;
@@ -394,8 +528,56 @@ async function syncRepoPRs(username: string, token: string, repo: any) {
 	}
 }
 
+async function syncRepoIssues(username: string, token: string, repo: any) {
+	const owner = repo.owner?.login;
+	const name = repo.name;
+
+	const d = await graphql(token, issueQuery(owner, name, null), { owner, name });
+	const issues = d.data?.repository?.issues;
+	if (!issues) return;
+
+	await saveActivityToDb(extractIssues(username, repo, issues.nodes ?? []));
+
+	let cursor = issues.pageInfo?.endCursor;
+	let hasNext = issues.pageInfo?.hasNextPage;
+
+	while (hasNext) {
+		const next = await graphql(token, issueQuery(owner, name, cursor), { owner, name });
+		const i = next.data?.repository?.issues;
+		if (!i) break;
+
+		await saveActivityToDb(extractIssues(username, repo, i.nodes ?? []));
+		hasNext = i.pageInfo?.hasNextPage;
+		cursor = i.pageInfo?.endCursor;
+	}
+}
+
+async function syncReviews(username: string, token: string) {
+	const d = await graphql(token, reviewQuery(username, null), { username });
+	const reviews = d.data?.user?.contributionsCollection?.pullRequestReviewContributions;
+	if (!reviews) return;
+
+	await saveActivityToDb(extractReviews(username, reviews.nodes ?? []));
+
+	let cursor = reviews.pageInfo?.endCursor;
+	let hasNext = reviews.pageInfo?.hasNextPage;
+
+	while (hasNext) {
+		const next = await graphql(token, reviewQuery(username, cursor), { username });
+		const r = next.data?.user?.contributionsCollection?.pullRequestReviewContributions;
+		if (!r) break;
+
+		await saveActivityToDb(extractReviews(username, r.nodes ?? []));
+		hasNext = r.pageInfo?.hasNextPage;
+		cursor = r.pageInfo?.endCursor;
+	}
+}
+
 async function syncAllActivity(username: string, token: string, repos: any[]) {
-	await Promise.all(repos.map((repo) => Promise.all([syncRepoCommits(username, token, repo), syncRepoPRs(username, token, repo)]).catch(() => {})));
+	await Promise.all([
+		...repos.map((repo) => Promise.all([syncRepoCommits(username, token, repo), syncRepoPRs(username, token, repo), syncRepoIssues(username, token, repo)]).catch(() => {})),
+		syncReviews(username, token).catch(() => {})
+	]);
 	await setLastSyncTime();
 }
 
@@ -457,10 +639,17 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	const page = parseInt(url.searchParams.get('page') ?? '1', 10);
+	const calendarYear = url.searchParams.get('calendarYear');
 	const limit = 10;
 	const offset = (page - 1) * limit;
 
 	try {
+		if (calendarYear) {
+			const year = parseInt(calendarYear, 10);
+			const result = await fetchCalendarForYear(username, token, year);
+			return json(result);
+		}
+
 		if (page > 1) {
 			const activity = await getActivityFromDb(offset, limit);
 			return json(activity);
@@ -481,8 +670,10 @@ export const GET: RequestHandler = async ({ url }) => {
 			return json({
 				username,
 				user: { name: username, avatarUrl: '', bio: '', organizations: [] },
-				stats: { week: 0, month: 0, year: 0, allTime: 0, totalCommits: 0, totalPRs: 0, totalIssues: 0 },
+				stats: { week: 0, month: 0, year: 0, allTime: 0, totalCommits: 0, totalPRs: 0, totalReviews: 0, totalIssues: 0, weekRange: '', monthRange: '', yearRange: '', allTimeRange: '' },
 				calendar: [],
+				createdYear: new Date().getFullYear(),
+				currentYear: new Date().getFullYear(),
 				topRepos: [],
 				topPRs: [],
 				activity

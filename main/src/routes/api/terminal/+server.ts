@@ -36,7 +36,7 @@ function buildStats(rows: Record<string, any>[], dateKey: string) {
 
 	for (const row of rows) {
 		const date = String(row[dateKey] ?? '');
-		const repo = row.repo ?? 'unknown';
+		const repo = row.is_private ? 'private-repo' : (row.repo ?? 'unknown');
 		const year = date.slice(0, 4);
 		const month = date.slice(0, 7);
 		const week = getISOWeek(date);
@@ -88,29 +88,37 @@ async function executeTool(name: string): Promise<string> {
 			return toToon(projects.map((p) => ({ title: p.title, description: p.short_desc, category: catMap.get(p.category_id), created_at: p.created_at })));
 		}
 		case 'get_activity': {
-			const rows = await query<{ repo: string; title: string; committed_at: string }>(
-				'SELECT repo, title, committed_at FROM github_activity WHERE type = "commit" ORDER BY committed_at DESC'
+			const rows = await query<{ repo: string; title: string; committed_at: string; is_private: number }>(
+				'SELECT repo, title, committed_at, is_private FROM github_activity WHERE type = "commit" ORDER BY committed_at DESC'
 			);
+			const publicRows = rows.filter((r) => !r.is_private);
+			const privateCount = rows.length - publicRows.length;
 			const stats = buildStats(rows, 'committed_at');
 			return toToon({
 				totalCount: rows.length,
+				publicCount: publicRows.length,
+				privateCount,
 				yearlyStats: stats.yearly,
 				monthlyStats: stats.monthly,
 				weeklyStats: stats.weekly,
-				items: rows.map((r) => ({ repo: r.repo, title: r.title, date: r.committed_at }))
+				items: publicRows.map((r) => ({ repo: r.repo, title: r.title, date: r.committed_at }))
 			});
 		}
 		case 'get_prs': {
-			const rows = await query<{ repo: string; title: string; additions: number; deletions: number; committed_at: string }>(
-				'SELECT repo, title, additions, deletions, committed_at FROM github_activity WHERE type = "pr" ORDER BY committed_at DESC'
+			const rows = await query<{ repo: string; title: string; additions: number; deletions: number; committed_at: string; is_private: number }>(
+				'SELECT repo, title, additions, deletions, committed_at, is_private FROM github_activity WHERE type = "pr" ORDER BY committed_at DESC'
 			);
+			const publicRows = rows.filter((r) => !r.is_private);
+			const privateCount = rows.length - publicRows.length;
 			const stats = buildStats(rows, 'committed_at');
 			return toToon({
 				totalCount: rows.length,
+				publicCount: publicRows.length,
+				privateCount,
 				yearlyStats: stats.yearly,
 				monthlyStats: stats.monthly,
 				weeklyStats: stats.weekly,
-				items: rows.map((r) => ({ repo: r.repo, title: r.title, additions: r.additions, deletions: r.deletions, mergedAt: r.committed_at }))
+				items: publicRows.map((r) => ({ repo: r.repo, title: r.title, additions: r.additions, deletions: r.deletions, mergedAt: r.committed_at }))
 			});
 		}
 		default:
