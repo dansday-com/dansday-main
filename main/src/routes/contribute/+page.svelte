@@ -334,17 +334,17 @@
 										>{ml.label}</span
 									>
 								{/each}
-								<div class="row-start-2 -row-end-1 flex flex-col gap-[2px]">
+								<div class="row-start-2 -row-end-1 grid grid-rows-7 gap-[2px]">
 									<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Mon</span>
-									<span class="flex-1"></span>
+									<span></span>
 									<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Wed</span>
-									<span class="flex-1"></span>
+									<span></span>
 									<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Fri</span>
-									<span class="flex-1"></span>
+									<span></span>
 									<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Sun</span>
 								</div>
 								{#each weeks as week, wi}
-									<div class="row-start-2 -row-end-1 flex flex-col gap-[2px]">
+									<div class="row-start-2 -row-end-1 grid grid-rows-7 gap-[2px]">
 										{#each week as day}
 											{#if day.date === ''}
 												<div class="aspect-square w-full"></div>
