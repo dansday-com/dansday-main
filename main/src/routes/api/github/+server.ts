@@ -344,19 +344,23 @@ function prQuery(owner: string, name: string, cursor: string | null) {
 	`;
 }
 
-function issueQuery(owner: string, name: string, cursor: string | null) {
+function issueContribQuery(username: string, from: string, to: string, cursor: string | null) {
 	const afterClause = cursor ? `, after: "${cursor}"` : '';
 	return `
-		query($owner: String!, $name: String!) {
-			repository(owner: $owner, name: $name) {
-				issues(first: 50, orderBy: {field: CREATED_AT, direction: DESC}${afterClause}) {
-					nodes {
-						number
-						title
-						createdAt
-						author { login }
+		query($username: String!, $from: DateTime!, $to: DateTime!) {
+			user(login: $username) {
+				contributionsCollection(from: $from, to: $to) {
+					issueContributions(first: 50${afterClause}) {
+						nodes {
+							issue {
+								number
+								title
+								createdAt
+								repository { name owner { login } isPrivate }
+							}
+						}
+						pageInfo { hasNextPage endCursor }
 					}
-					pageInfo { hasNextPage endCursor }
 				}
 			}
 		}
@@ -429,16 +433,21 @@ function extractPRs(username: string, repo: any, prs: any[]) {
 	return items;
 }
 
-function extractIssues(username: string, repo: any, issues: any[]) {
+function extractIssueContribs(username: string, nodes: any[]) {
 	const items: { repo: string; title: string; type: string; date: string; oid: string; private: boolean }[] = [];
-	for (const issue of issues) {
-		if (!issue.author?.login || issue.author.login.toLowerCase() !== username.toLowerCase()) continue;
+	for (const node of nodes) {
+		const issue = node.issue;
+		if (!issue?.repository) continue;
+		const repo = issue.repository;
+		const ownerLogin = repo.owner?.login ?? '';
+		const isOwner = ownerLogin.toLowerCase() === username.toLowerCase();
+		const repoLabel = isOwner ? repo.name : `${ownerLogin}/${repo.name}`;
 		items.push({
-			repo: repoName(username, repo),
+			repo: repoLabel,
 			title: issue.title ?? '',
 			type: 'issue',
 			date: issue.createdAt ?? '',
-			oid: `issue:${repo.owner?.login}/${repo.name}#${issue.number}`,
+			oid: `issue:${ownerLogin}/${repo.name}#${issue.number}`,
 			private: repo.isPrivate ?? false
 		});
 	}
@@ -515,27 +524,29 @@ async function syncRepoPRs(username: string, token: string, repo: any) {
 	}
 }
 
-async function syncRepoIssues(username: string, token: string, repo: any) {
-	const owner = repo.owner?.login;
-	const name = repo.name;
+async function syncIssues(username: string, token: string, createdYear: number) {
+	const now = new Date();
+	const currentYear = now.getFullYear();
+	for (let yr = createdYear; yr <= currentYear; yr++) {
+		const from = new Date(yr, 0, 1).toISOString();
+		const to = yr === currentYear ? now.toISOString() : new Date(yr, 11, 31, 23, 59, 59).toISOString();
+		const d = await graphql(token, issueContribQuery(username, from, to, null), { username, from, to });
+		const issues = d.data?.user?.contributionsCollection?.issueContributions;
+		if (!issues) continue;
 
-	const d = await graphql(token, issueQuery(owner, name, null), { owner, name });
-	const issues = d.data?.repository?.issues;
-	if (!issues) return;
+		await saveActivityToDb(extractIssueContribs(username, issues.nodes ?? []));
 
-	await saveActivityToDb(extractIssues(username, repo, issues.nodes ?? []));
+		let cursor = issues.pageInfo?.endCursor;
+		let hasNext = issues.pageInfo?.hasNextPage;
 
-	let cursor = issues.pageInfo?.endCursor;
-	let hasNext = issues.pageInfo?.hasNextPage;
-
-	while (hasNext) {
-		const next = await graphql(token, issueQuery(owner, name, cursor), { owner, name });
-		const i = next.data?.repository?.issues;
-		if (!i) break;
-
-		await saveActivityToDb(extractIssues(username, repo, i.nodes ?? []));
-		hasNext = i.pageInfo?.hasNextPage;
-		cursor = i.pageInfo?.endCursor;
+		while (hasNext) {
+			const next = await graphql(token, issueContribQuery(username, from, to, cursor), { username, from, to });
+			const i = next.data?.user?.contributionsCollection?.issueContributions;
+			if (!i) break;
+			await saveActivityToDb(extractIssueContribs(username, i.nodes ?? []));
+			hasNext = i.pageInfo?.hasNextPage;
+			cursor = i.pageInfo?.endCursor;
+		}
 	}
 }
 
@@ -568,9 +579,10 @@ async function syncReviews(username: string, token: string, createdYear: number)
 async function syncAllActivity(username: string, token: string, repos: any[], createdYear: number) {
 	await Promise.all([
 		...repos.map((repo) =>
-			Promise.all([syncRepoCommits(username, token, repo), syncRepoPRs(username, token, repo), syncRepoIssues(username, token, repo)]).catch(() => {})
+			Promise.all([syncRepoCommits(username, token, repo), syncRepoPRs(username, token, repo)]).catch(() => {})
 		),
-		syncReviews(username, token, createdYear).catch(() => {})
+		syncReviews(username, token, createdYear).catch(() => {}),
+		syncIssues(username, token, createdYear).catch(() => {})
 	]);
 	await setLastSyncTime();
 }
