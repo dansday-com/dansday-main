@@ -81,13 +81,28 @@
 			}
 
 			const data = await response.json();
+			const fullText = data.response || '';
+			const lines = fullText.split('\n');
+			let typed = '';
+			let charIndex = 0;
 
-			const updatedHistory = [...history];
-			updatedHistory[historyIndex] = {
-				...updatedHistory[historyIndex],
-				output: (data.response || '').split('\n')
-			};
-			history = updatedHistory;
+			await new Promise<void>((resolve) => {
+				const interval = setInterval(() => {
+					charIndex++;
+					typed = fullText.slice(0, charIndex);
+					const updatedHistory = [...history];
+					updatedHistory[historyIndex] = {
+						...updatedHistory[historyIndex],
+						output: typed.split('\n')
+					};
+					history = updatedHistory;
+					scrollToBottom();
+					if (charIndex >= fullText.length) {
+						clearInterval(interval);
+						resolve();
+					}
+				}, 12);
+			});
 		} catch (error) {
 			const updatedHistory = [...history];
 			updatedHistory[historyIndex] = {
