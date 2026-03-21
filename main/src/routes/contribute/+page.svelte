@@ -326,7 +326,6 @@
 				</div>
 				<div class="flex gap-3">
 					<div class="min-w-0 flex-1 overflow-x-auto">
-						{#if calendarDays.length > 0}
 						<div class="min-w-[500px]">
 							<div class="grid grid-rows-[auto_repeat(7,1fr)] gap-x-0.5" style="grid-template-columns: 2rem repeat({weeks.length}, 1fr)">
 								<span></span>
@@ -393,7 +392,6 @@
 								{/each}
 							</div>
 						</div>
-						{/if}
 						<div class="mt-2 flex items-center justify-end">
 							<div class="flex items-center gap-1.5 text-[10px] text-[#8b949e]">
 								<span>Less</span>
