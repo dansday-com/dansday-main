@@ -283,7 +283,7 @@
 			</div>
 
 			<!-- Stat cards -->
-			<div class="mb-5 grid grid-cols-4 gap-2 sm:grid-cols-7">
+			<div class="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
 				{#each [{ label: 'this week', value: githubData.stats.week, color: 'text-[#39d353]', sub: githubData.stats.weekRange }, { label: 'this month', value: githubData.stats.month, color: 'text-[#26a641]', sub: githubData.stats.monthRange }, { label: 'all time', value: githubData.stats.allTime, color: 'text-[#3fb950]', sub: githubData.stats.allTimeRange }, { label: 'commits (yr)', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]', sub: githubData.stats.yearRange }, { label: 'PRs (yr)', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]', sub: githubData.stats.yearRange }, { label: 'reviews (yr)', value: githubData.stats.totalReviews, color: 'text-[#d2a8ff]', sub: githubData.stats.yearRange }, { label: 'issues (yr)', value: githubData.stats.totalIssues, color: 'text-[#f78166]', sub: githubData.stats.yearRange }] as card}
 					<div class="rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center">
 						<div class="text-lg font-bold {card.color}">{(card.value ?? 0).toLocaleString()}</div>
@@ -294,71 +294,71 @@
 			</div>
 
 			<!-- Contribution calendar -->
-			<div class="mb-5 flex gap-3">
-				<div class="min-w-0 flex-1 overflow-x-auto rounded border border-[#30363d] bg-[#161b22]/60 p-3">
-					<div class="mb-2 text-xs text-[#8b949e]">
+			<div class="mb-5 rounded border border-[#30363d] bg-[#161b22]/60 p-3">
+				<div class="mb-2 flex items-center justify-between">
+					<div class="text-xs text-[#8b949e]">
 						{#if calendarLoading}
 							<span class="text-[#8b949e]">Loading...</span>
 						{:else}
 							<span class="font-semibold text-white">{calendarTotal.toLocaleString()}</span> contributions in {selectedYear}
 						{/if}
 					</div>
-					<div class="relative">
-						<div class="flex">
-							<div class="flex flex-col justify-between pr-2 pt-4.5 text-[10px] leading-none text-[#8b949e]">
-								<span>Mon</span>
-								<span></span>
-								<span>Wed</span>
-								<span></span>
-								<span>Fri</span>
-								<span></span>
-								<span>Sun</span>
-							</div>
-							<div class="min-w-0 flex-1">
-								<div class="relative mb-1 h-3.5">
-									{#each monthLabels as ml}
-										<span class="absolute top-0 text-[10px] text-[#8b949e]" style="left: {(ml.col / weeks.length) * 100}%">{ml.label}</span>
-									{/each}
-								</div>
-								<div class="flex justify-between gap-px">
-									{#each weeks as week}
-										<div class="flex flex-1 flex-col gap-px">
-											{#each week as day}
-												{#if day.count === -1}
-													<div class="aspect-square w-full"></div>
-												{:else}
-													<div
-														class="aspect-square w-full cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
-														onmouseenter={(e) => { hoveredDay = { date: day.date, count: day.count, el: e.target as HTMLElement }; }}
-														onmouseleave={() => { hoveredDay = null; }}
-													></div>
-												{/if}
-											{/each}
-										</div>
-									{/each}
-								</div>
-							</div>
-						</div>
+					<div class="flex flex-wrap items-center gap-1">
+						{#each yearOptions as year}
+							<button
+								class="rounded px-2 py-0.5 text-[10px] font-medium transition-colors {year === selectedYear ? 'bg-[#238636] text-white' : 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
+								onclick={() => selectYear(year)}
+							>{year}</button>
+						{/each}
 					</div>
-					<div class="mt-2 flex items-center justify-end">
-						<div class="flex items-center gap-1.5 text-[10px] text-[#8b949e]">
-							<span>Less</span>
-							<div class="h-[9px] w-[9px] rounded-sm bg-white/15"></div>
-							<div class="h-[9px] w-[9px] rounded-sm bg-[#0e4429]"></div>
-							<div class="h-[9px] w-[9px] rounded-sm bg-[#006d32]"></div>
-							<div class="h-[9px] w-[9px] rounded-sm bg-[#26a641]"></div>
-							<div class="h-[9px] w-[9px] rounded-sm bg-[#39d353]"></div>
-							<span>More</span>
+				</div>
+				<div class="overflow-x-auto">
+					<div class="flex" style="min-width: fit-content">
+						<div class="grid shrink-0 pr-1.5" style="grid-template-rows: repeat(7, 10px); gap: 2px; padding-top: 20px">
+							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Mon</span>
+							<span></span>
+							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Wed</span>
+							<span></span>
+							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Fri</span>
+							<span></span>
+							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Sun</span>
+						</div>
+						<div>
+							<div class="relative mb-0.5 h-4">
+								{#each monthLabels as ml}
+									<span class="absolute top-0 text-[10px] text-[#8b949e]" style="left: {ml.col * 12}px">{ml.label}</span>
+								{/each}
+							</div>
+							<div class="flex gap-0.5">
+								{#each weeks as week}
+									<div class="flex flex-col gap-0.5">
+										{#each week as day}
+											{#if day.count === -1}
+												<div class="h-2.5 w-2.5"></div>
+											{:else}
+												<div
+													class="h-2.5 w-2.5 cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
+													onmouseenter={(e) => { hoveredDay = { date: day.date, count: day.count, el: e.target as HTMLElement }; }}
+													onmouseleave={() => { hoveredDay = null; }}
+												></div>
+											{/if}
+										{/each}
+									</div>
+								{/each}
+							</div>
 						</div>
 					</div>
 				</div>
-				<div class="flex flex-col gap-1">
-					{#each yearOptions as year}
-						<button
-							class="rounded px-3 py-1 text-xs font-medium transition-colors {year === selectedYear ? 'bg-[#238636] text-white' : 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
-							onclick={() => selectYear(year)}
-						>{year}</button>
-					{/each}
+				<div class="mt-2 flex items-center justify-end">
+					<div class="flex items-center gap-1.5 text-[10px] text-[#8b949e]">
+						<span>Less</span>
+						<div class="h-2.25 w-2.25 rounded-sm bg-white/15"></div>
+						<div class="h-2.25 w-2.25 rounded-sm bg-[#0e4429]"></div>
+						<div class="h-2.25 w-2.25 rounded-sm bg-[#006d32]"></div>
+						<div class="h-2.25 w-2.25 rounded-sm bg-[#26a641]"></div>
+						<div class="h-2.25 w-2.25 rounded-sm bg-[#39d353]"></div>
+						<span>More</span>
+					</div>
 				</div>
 			</div>
 
