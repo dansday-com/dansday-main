@@ -327,13 +327,13 @@
 				</div>
 				<div class="overflow-x-auto [--cell-gap:2px] [--cell:12px] sm:[--cell:13px]">
 					<div class="flex min-w-[500px]">
-						<div class="mt-4.5 grid shrink-0 grid-rows-[repeat(7,var(--cell,12px))] gap-[var(--cell-gap,2px)] pr-1.5">
+						<div class="mt-4.5 flex shrink-0 flex-col gap-[var(--cell-gap,2px)] pr-1.5">
 							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Mon</span>
-							<span></span>
+							<span class="aspect-square w-3"></span>
 							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Wed</span>
-							<span></span>
+							<span class="aspect-square w-3"></span>
 							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Fri</span>
-							<span></span>
+							<span class="aspect-square w-3"></span>
 							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Sun</span>
 						</div>
 						<div class="min-w-0 flex-1">
@@ -344,16 +344,16 @@
 							</div>
 							<div class="grid gap-[var(--cell-gap,2px)]" style="grid-template-columns: repeat({weeks.length}, 1fr)">
 								{#each weeks as week}
-									<div class="grid gap-[var(--cell-gap,2px)]" style="grid-template-rows: repeat(7, var(--cell, 12px))">
+									<div class="flex flex-col gap-[var(--cell-gap,2px)]">
 										{#each week as day}
 											{#if day.date === ''}
-												<div></div>
+												<div class="aspect-square w-full"></div>
 											{:else if day.future}
 												<div
 													role="gridcell"
 													tabindex="0"
 													aria-label="No contributions on {day.date}"
-													class="w-full cursor-pointer rounded-sm bg-white/15 opacity-40"
+													class="aspect-square w-full cursor-pointer rounded-sm bg-white/15 opacity-40"
 													onmouseenter={(e) => {
 														hoveredDay = { date: day.date, count: 0 };
 														mouseX = e.clientX;
@@ -372,7 +372,7 @@
 													role="gridcell"
 													tabindex="0"
 													aria-label="{day.count} contribution{day.count !== 1 ? 's' : ''} on {day.date}"
-													class="w-full cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
+													class="aspect-square w-full cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
 													onmouseenter={(e) => {
 														hoveredDay = { date: day.date, count: day.count };
 														mouseX = e.clientX;
