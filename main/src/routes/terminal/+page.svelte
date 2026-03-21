@@ -126,7 +126,11 @@
 
 <Metadata title={metaTitle} description={metaDescription} />
 
-<main class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#080808]/80 font-mono text-sm backdrop-blur-sm md:text-base" onclick={focusInput} role="presentation">
+<main
+	class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#080808]/80 font-mono text-sm backdrop-blur-sm md:text-base"
+	onclick={focusInput}
+	role="presentation"
+>
 	<div bind:this={containerElement} class="text-ash-100 flex-1 p-4 pb-12 sm:p-6">
 		<div class="mb-4">
 			<div>Welcome to Ubuntu 24.04 LTS (GNU/Linux 6.6.87.2-microsoft-standard-WSL2 x86_64)</div>
