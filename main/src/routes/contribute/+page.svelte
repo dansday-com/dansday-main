@@ -206,7 +206,9 @@
 				return;
 			}
 			githubData = await res.json();
-			await selectYear(githubData!.currentYear);
+			calendarDays = githubData!.calendar;
+			calendarTotal = githubData!.stats.totalCommits + githubData!.stats.totalPRs + githubData!.stats.totalReviews + githubData!.stats.totalIssues;
+			selectedYear = githubData!.currentYear;
 
 			const total = githubData?.activity?.items?.length ?? 0;
 			let i = 0;
