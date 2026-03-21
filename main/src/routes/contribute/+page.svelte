@@ -327,19 +327,18 @@
 				</div>
 				<div class="overflow-x-auto">
 					<div class="min-w-[500px]">
-						<div class="relative mb-0.5 ml-8 h-4">
+						<div class="grid gap-[2px]" style="grid-template-columns: 2rem repeat({weeks.length}, 1fr); grid-template-rows: 1rem repeat(7, 1fr)">
+							<span class="col-start-1 row-start-1"></span>
 							{#each monthLabels as ml}
-								<span class="absolute top-0 text-[10px] text-[#8b949e]" style="left: {(ml.col / weeks.length) * 100}%">{ml.label}</span>
+								<span class="flex items-center justify-center text-[10px] text-[#8b949e]" style="grid-column:{ml.col + 2};grid-row:1">{ml.label}</span>
 							{/each}
-						</div>
-						<div class="grid gap-[2px]" style="grid-template-columns: 2rem repeat({weeks.length}, 1fr); grid-template-rows: repeat(7, 1fr)">
-							<span class="flex items-center text-[10px] leading-none text-[#8b949e]" style="grid-column:1;grid-row:1">Mon</span>
-							<span style="grid-column:1;grid-row:2"></span>
-							<span class="flex items-center text-[10px] leading-none text-[#8b949e]" style="grid-column:1;grid-row:3">Wed</span>
-							<span style="grid-column:1;grid-row:4"></span>
-							<span class="flex items-center text-[10px] leading-none text-[#8b949e]" style="grid-column:1;grid-row:5">Fri</span>
-							<span style="grid-column:1;grid-row:6"></span>
-							<span class="flex items-center text-[10px] leading-none text-[#8b949e]" style="grid-column:1;grid-row:7">Sun</span>
+							<span class="col-start-1 row-start-2 flex items-center text-[10px] leading-none text-[#8b949e]">Mon</span>
+							<span class="col-start-1 row-start-3"></span>
+							<span class="col-start-1 row-start-4 flex items-center text-[10px] leading-none text-[#8b949e]">Wed</span>
+							<span class="col-start-1 row-start-5"></span>
+							<span class="col-start-1 row-start-6 flex items-center text-[10px] leading-none text-[#8b949e]">Fri</span>
+							<span class="col-start-1 row-start-7"></span>
+							<span class="col-start-1 row-start-8 flex items-center text-[10px] leading-none text-[#8b949e]">Sun</span>
 							{#each weeks as week, wi}
 								{#each week as day, di}
 									{#if day.date === ''}
