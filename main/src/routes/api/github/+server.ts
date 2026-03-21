@@ -5,7 +5,7 @@ import { redisGet, redisSet } from '$lib/server/redis';
 import type { RequestHandler } from './$types';
 
 const GITHUB_GRAPHQL = 'https://api.github.com/graphql';
-const SYNC_INTERVAL_MS = 10 * 60 * 1000;
+const SYNC_INTERVAL_MS = 6 * 60 * 1000;
 
 function getHeaders(token: string) {
 	return {

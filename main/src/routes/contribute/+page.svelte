@@ -262,7 +262,7 @@
 			<div class="mb-5 grid grid-cols-4 gap-2 sm:grid-cols-7">
 				{#each [{ label: 'this week', value: githubData.stats.week, color: 'text-[#39d353]', sub: githubData.stats.weekRange }, { label: 'this month', value: githubData.stats.month, color: 'text-[#26a641]', sub: githubData.stats.monthRange }, { label: 'all time', value: githubData.stats.allTime, color: 'text-[#3fb950]', sub: githubData.stats.allTimeRange }, { label: 'commits (yr)', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]', sub: githubData.stats.yearRange }, { label: 'PRs (yr)', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]', sub: githubData.stats.yearRange }, { label: 'reviews (yr)', value: githubData.stats.totalReviews, color: 'text-[#d2a8ff]', sub: githubData.stats.yearRange }, { label: 'issues (yr)', value: githubData.stats.totalIssues, color: 'text-[#f78166]', sub: githubData.stats.yearRange }] as card}
 					<div class="rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center">
-						<div class="text-lg font-bold {card.color}">{card.value.toLocaleString()}</div>
+						<div class="text-lg font-bold {card.color}">{(card.value ?? 0).toLocaleString()}</div>
 						<div class="text-xs text-[#8b949e]">{card.label}</div>
 						<div class="text-[10px] text-[#6e7681]">{card.sub}</div>
 					</div>
