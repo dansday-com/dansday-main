@@ -327,9 +327,10 @@
 				<div class="flex gap-3">
 					<div class="min-w-0 flex-1 overflow-x-auto">
 						<div class="min-w-[500px]">
-							<div class="flex gap-x-0.5" style="padding-left:2rem">
+							<div class="grid gap-x-0.5" style="grid-template-columns: 2rem repeat({weeks.length}, 1fr)">
+								<span></span>
 								{#each weeks as _, wi}
-									<div class="flex-1 text-center text-[10px] leading-none text-[#8b949e]">
+									<div class="text-center text-[10px] leading-none text-[#8b949e]">
 										{#each monthLabels as ml}{#if ml.col === wi}{ml.label}{/if}{/each}
 									</div>
 								{/each}
