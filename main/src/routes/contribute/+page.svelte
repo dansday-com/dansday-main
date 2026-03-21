@@ -264,7 +264,7 @@
 					<div class="rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center">
 						<div class="text-lg font-bold {card.color}">{(card.value ?? 0).toLocaleString()}</div>
 						<div class="text-xs text-[#8b949e]">{card.label}</div>
-						<div class="text-[10px] text-[#6e7681]">{card.sub}</div>
+						{#if card.sub}<div class="text-[10px] text-[#6e7681]">{card.sub}</div>{/if}
 					</div>
 				{/each}
 			</div>
