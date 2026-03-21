@@ -336,7 +336,7 @@
 						{/each}
 					</div>
 				</div>
-				<div class="flex gap-3">
+				<div class="flex gap-4">
 					<div class="min-w-0 flex-1 overflow-x-auto">
 						<div class="min-w-[500px] relative" bind:this={calendarEl}>
 							<div class="mb-0.5 grid gap-0.5" style="padding-left:calc(2rem + 2px); grid-template-columns: repeat({weeks.length}, 1fr)">
@@ -408,16 +408,16 @@
 								{/each}
 							</div>
 						</div>
-						<div class="mt-2 flex items-center justify-end">
-							<div class="flex items-center gap-1.5 text-[10px] text-[#8b949e]">
-								<span>Less</span>
-								<div class="h-2.25 w-2.25 rounded-sm bg-white/15"></div>
-								<div class="h-2.25 w-2.25 rounded-sm bg-[#0e4429]"></div>
-								<div class="h-2.25 w-2.25 rounded-sm bg-[#006d32]"></div>
-								<div class="h-2.25 w-2.25 rounded-sm bg-[#26a641]"></div>
-								<div class="h-2.25 w-2.25 rounded-sm bg-[#39d353]"></div>
-								<span>More</span>
-							</div>
+						</div>
+				<div class="mt-2 flex items-center justify-end">
+						<div class="flex items-center gap-1.5 text-[10px] text-[#8b949e]">
+							<span>Less</span>
+							<div class="h-2.25 w-2.25 rounded-sm bg-white/15"></div>
+							<div class="h-2.25 w-2.25 rounded-sm bg-[#0e4429]"></div>
+							<div class="h-2.25 w-2.25 rounded-sm bg-[#006d32]"></div>
+							<div class="h-2.25 w-2.25 rounded-sm bg-[#26a641]"></div>
+							<div class="h-2.25 w-2.25 rounded-sm bg-[#39d353]"></div>
+							<span>More</span>
 						</div>
 					</div>
 					<div class="hidden flex-col items-center gap-1 lg:flex">
