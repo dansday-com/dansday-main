@@ -317,7 +317,7 @@
 			</div>
 
 			<div class="mb-5 rounded border border-[#30363d] bg-[#161b22]/60 p-3">
-				<div class="mb-2 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+				<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 					<div class="shrink-0 text-xs text-[#8b949e]">
 						{#if calendarLoading}
 							<span class="text-[#8b949e]">Loading...</span>
