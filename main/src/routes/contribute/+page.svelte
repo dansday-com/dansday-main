@@ -116,11 +116,10 @@
 		const isCurrentYear = year === new Date().getFullYear();
 		const allDays: { date: string; count: number; future: boolean }[] = [];
 		const cursor = new Date(year, 0, 1);
-		const endDate = new Date(year, 11, 31);
+		const endDate = isCurrentYear ? new Date() : new Date(year, 11, 31);
 		while (cursor <= endDate) {
 			const ds = localDateStr(cursor);
-			const isFuture = isCurrentYear && ds > today;
-			allDays.push({ date: ds, count: dayMap.get(ds) ?? 0, future: isFuture });
+			allDays.push({ date: ds, count: dayMap.get(ds) ?? 0, future: false });
 			cursor.setDate(cursor.getDate() + 1);
 		}
 		const weeks: { date: string; count: number; future: boolean }[][] = [];
