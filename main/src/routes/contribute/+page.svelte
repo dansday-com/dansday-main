@@ -62,17 +62,22 @@
 	let mouseX = $state(0);
 	let mouseY = $state(0);
 	let mainEl = $state<HTMLElement | null>(null);
+	let tooltipEl = $state<HTMLElement | null>(null);
 	const tooltipStyle = $derived.by(() => {
 		if (!hoveredDay || !mainEl) return 'display:none';
 		const rect = mainEl.getBoundingClientRect();
-		const y = mouseY - rect.top - 36;
-		const nearRight = mouseX > rect.right - 160;
-		if (nearRight) {
-			const fromRight = rect.right - mouseX + 12;
-			return `right:${fromRight}px;top:${y}px`;
-		}
-		const fromLeft = mouseX - rect.left + 12;
-		return `left:${fromLeft}px;top:${y}px`;
+		const tw = tooltipEl?.offsetWidth ?? 220;
+		const th = tooltipEl?.offsetHeight ?? 32;
+		const gap = 10;
+		const wouldClipRight = mouseX + gap + tw > rect.right;
+		const wouldClipBottom = mouseY - gap - th < rect.top;
+		const xStyle = wouldClipRight
+			? `left:${mouseX - rect.left - tw - gap}px`
+			: `left:${mouseX - rect.left + gap}px`;
+		const yStyle = wouldClipBottom
+			? `top:${mouseY - rect.top + gap}px`
+			: `top:${mouseY - rect.top - th - gap}px`;
+		return `${xStyle};${yStyle}`;
 	});
 
 	function timeAgo(iso: string): string {
@@ -298,7 +303,7 @@
 			</div>
 
 			<!-- Stat cards -->
-			<div class="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+			<div class="mb-5 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
 				{#each [{ label: 'this week', value: githubData.stats.week, color: 'text-[#39d353]', sub: githubData.stats.weekRange }, { label: 'this month', value: githubData.stats.month, color: 'text-[#26a641]', sub: githubData.stats.monthRange }, { label: 'all time', value: githubData.stats.allTime, color: 'text-[#3fb950]', sub: githubData.stats.allTimeRange }, { label: 'commits', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]', sub: githubData.stats.yearRange }, { label: 'PRs', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]', sub: githubData.stats.yearRange }, { label: 'reviews', value: githubData.stats.totalReviews, color: 'text-[#d2a8ff]', sub: githubData.stats.yearRange }, { label: 'issues', value: githubData.stats.totalIssues, color: 'text-[#f78166]', sub: githubData.stats.yearRange }] as card}
 					<div class="rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center">
 						<div class="text-lg font-bold {card.color}">{(card.value ?? 0).toLocaleString()}</div>
@@ -310,7 +315,7 @@
 
 			<!-- Contribution calendar -->
 			<div class="mb-5 rounded border border-[#30363d] bg-[#161b22]/60 p-3">
-				<div class="mb-2 flex items-center justify-between">
+				<div class="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
 					<div class="text-xs text-[#8b949e]">
 						{#if calendarLoading}
 							<span class="text-[#8b949e]">Loading...</span>
@@ -330,7 +335,7 @@
 					</div>
 				</div>
 				<div class="overflow-x-auto">
-					<div class="flex">
+					<div class="flex min-w-[500px]">
 						<div class="grid shrink-0 pr-1.5" style="grid-template-rows: repeat(7, 1fr); gap: 2px; padding-top: 18px">
 							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Mon</span>
 							<span></span>
@@ -353,7 +358,21 @@
 											{#if day.date === ''}
 												<div class="aspect-square w-full"></div>
 											{:else if day.future}
-												<div class="aspect-square w-full rounded-sm bg-white/15 opacity-40 cursor-pointer" onmouseenter={(e) => { hoveredDay = { date: day.date, count: 0 }; mouseX = e.clientX; mouseY = e.clientY; }} onmousemove={(e) => { mouseX = e.clientX; mouseY = e.clientY; }} onmouseleave={() => { hoveredDay = null; }}></div>
+												<div
+													class="aspect-square w-full cursor-pointer rounded-sm bg-white/15 opacity-40"
+													onmouseenter={(e) => {
+														hoveredDay = { date: day.date, count: 0 };
+														mouseX = e.clientX;
+														mouseY = e.clientY;
+													}}
+													onmousemove={(e) => {
+														mouseX = e.clientX;
+														mouseY = e.clientY;
+													}}
+													onmouseleave={() => {
+														hoveredDay = null;
+													}}
+												></div>
 											{:else}
 												<div
 													class="aspect-square w-full cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
@@ -488,7 +507,7 @@
 		{/if}
 	</div>
 	{#if hoveredDay}
-		<div
+		<div bind:this={tooltipEl}
 			class="pointer-events-none absolute z-[9999] rounded border border-[#30363d] bg-[#1b1f23] px-2 py-1.5 text-xs whitespace-nowrap text-white shadow-lg"
 			style={tooltipStyle}
 		>
