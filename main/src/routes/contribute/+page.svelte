@@ -334,57 +334,65 @@
 									</div>
 								{/each}
 							</div>
-							<div class="mt-0.5 grid gap-x-0.5" style="grid-template-columns: 2rem repeat({weeks.length}, 1fr)">
-								<div class="grid h-full grid-rows-7 gap-0.5">
-									{#each ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'] as label}
-										<div class="flex items-center text-[10px] leading-none text-[#8b949e]">{label}</div>
-									{/each}
+							<div class="mt-0.5 flex gap-x-0.5">
+								<div class="w-8 shrink-0">
+									<div class="grid grid-rows-7 gap-0.5">
+										<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Mon</span>
+										<span></span>
+										<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Wed</span>
+										<span></span>
+										<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Fri</span>
+										<span></span>
+										<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Sun</span>
+									</div>
 								</div>
 								{#each weeks as week}
-									<div class="grid grid-rows-7 gap-0.5">
-										{#each week as day}
-											{#if day.date === ''}
-												<div class="aspect-square w-full"></div>
-											{:else if day.future}
-												<div
-													role="gridcell"
-													tabindex="0"
-													aria-label="No contributions on {day.date}"
-													class="aspect-square w-full cursor-pointer rounded-sm bg-white/15 opacity-40"
-													onmouseenter={(e) => {
-														hoveredDay = { date: day.date, count: 0 };
-														mouseX = e.clientX;
-														mouseY = e.clientY;
-													}}
-													onmousemove={(e) => {
-														mouseX = e.clientX;
-														mouseY = e.clientY;
-													}}
-													onmouseleave={() => {
-														hoveredDay = null;
-													}}
-												></div>
-											{:else}
-												<div
-													role="gridcell"
-													tabindex="0"
-													aria-label="{day.count} contribution{day.count !== 1 ? 's' : ''} on {day.date}"
-													class="aspect-square w-full cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
-													onmouseenter={(e) => {
-														hoveredDay = { date: day.date, count: day.count };
-														mouseX = e.clientX;
-														mouseY = e.clientY;
-													}}
-													onmousemove={(e) => {
-														mouseX = e.clientX;
-														mouseY = e.clientY;
-													}}
-													onmouseleave={() => {
-														hoveredDay = null;
-													}}
-												></div>
-											{/if}
-										{/each}
+									<div class="flex-1">
+										<div class="grid grid-rows-7 gap-0.5">
+											{#each week as day}
+												{#if day.date === ''}
+													<div class="aspect-square w-full"></div>
+												{:else if day.future}
+													<div
+														role="gridcell"
+														tabindex="0"
+														aria-label="No contributions on {day.date}"
+														class="aspect-square w-full cursor-pointer rounded-sm bg-white/15 opacity-40"
+														onmouseenter={(e) => {
+															hoveredDay = { date: day.date, count: 0 };
+															mouseX = e.clientX;
+															mouseY = e.clientY;
+														}}
+														onmousemove={(e) => {
+															mouseX = e.clientX;
+															mouseY = e.clientY;
+														}}
+														onmouseleave={() => {
+															hoveredDay = null;
+														}}
+													></div>
+												{:else}
+													<div
+														role="gridcell"
+														tabindex="0"
+														aria-label="{day.count} contribution{day.count !== 1 ? 's' : ''} on {day.date}"
+														class="aspect-square w-full cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
+														onmouseenter={(e) => {
+															hoveredDay = { date: day.date, count: day.count };
+															mouseX = e.clientX;
+															mouseY = e.clientY;
+														}}
+														onmousemove={(e) => {
+															mouseX = e.clientX;
+															mouseY = e.clientY;
+														}}
+														onmouseleave={() => {
+															hoveredDay = null;
+														}}
+													></div>
+												{/if}
+											{/each}
+										</div>
 									</div>
 								{/each}
 							</div>
