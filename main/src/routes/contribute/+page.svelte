@@ -58,17 +58,16 @@
 	let calendarTotal = $state(0);
 	let selectedYear = $state(new Date().getFullYear());
 	let calendarLoading = $state(false);
-	let hoveredDay = $state<{ date: string; count: number; el: HTMLElement } | null>(null);
-	let tooltipEl = $state<HTMLElement | null>(null);
+	let hoveredDay = $state<{ date: string; count: number } | null>(null);
+	let mouseX = $state(0);
+	let mouseY = $state(0);
+	let mainEl = $state<HTMLElement | null>(null);
 	const tooltipStyle = $derived.by(() => {
-		if (!hoveredDay || !tooltipEl) return 'display:none';
-		const rect = hoveredDay.el.getBoundingClientRect();
-		const scrollParent = hoveredDay.el.closest('.overflow-y-auto') as HTMLElement | null;
-		if (!scrollParent) return 'display:none';
-		const parentRect = scrollParent.getBoundingClientRect();
-		const x = rect.left + rect.width / 2 - parentRect.left + scrollParent.scrollLeft;
-		const y = rect.top - parentRect.top + scrollParent.scrollTop - 40;
-		return `left:${x}px;top:${y}px;transform:translateX(-50%)`;
+		if (!hoveredDay || !mainEl) return 'display:none';
+		const rect = mainEl.getBoundingClientRect();
+		const x = mouseX - rect.left + 12;
+		const y = mouseY - rect.top - 36;
+		return `left:${x}px;top:${y}px`;
 	});
 
 	function timeAgo(iso: string): string {
@@ -98,26 +97,32 @@
 		return 'bg-[#39d353]';
 	}
 
+	function pad2(n: number) {
+		return String(n).padStart(2, '0');
+	}
+	function localDateStr(d: Date) {
+		return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+	}
+
 	function buildWeeks(days: { date: string; count: number }[], year: number) {
 		const dayMap = new Map(days.map((d) => [d.date, d.count]));
-		const now = new Date();
-		const today = now.toISOString().slice(0, 10);
-		const isCurrentYear = year === now.getFullYear();
-		const endDate = new Date(year, 11, 31);
-		const allDays: { date: string; count: number }[] = [];
+		const today = localDateStr(new Date());
+		const isCurrentYear = year === new Date().getFullYear();
+		const allDays: { date: string; count: number; future: boolean }[] = [];
 		const cursor = new Date(year, 0, 1);
+		const endDate = new Date(year, 11, 31);
 		while (cursor <= endDate) {
-			const ds = cursor.toISOString().slice(0, 10);
+			const ds = localDateStr(cursor);
 			const isFuture = isCurrentYear && ds > today;
-			allDays.push({ date: ds, count: isFuture ? -1 : (dayMap.get(ds) ?? 0) });
+			allDays.push({ date: ds, count: dayMap.get(ds) ?? 0, future: isFuture });
 			cursor.setDate(cursor.getDate() + 1);
 		}
-		const weeks: { date: string; count: number }[][] = [];
-		let week: { date: string; count: number }[] = [];
+		const weeks: { date: string; count: number; future: boolean }[][] = [];
+		let week: { date: string; count: number; future: boolean }[] = [];
 		if (allDays.length > 0) {
-			const first = new Date(allDays[0].date).getDay();
-			const mondayIdx = first === 0 ? 6 : first - 1;
-			for (let i = 0; i < mondayIdx; i++) week.push({ date: '', count: -1 });
+			const firstDay = cursor.getDay !== undefined ? new Date(year, 0, 1).getDay() : 0;
+			const mondayIdx = firstDay === 0 ? 6 : firstDay - 1;
+			for (let i = 0; i < mondayIdx; i++) week.push({ date: '', count: -1, future: false });
 		}
 		for (const day of allDays) {
 			week.push(day);
@@ -127,7 +132,7 @@
 			}
 		}
 		if (week.length > 0) {
-			while (week.length < 7) week.push({ date: '', count: -1 });
+			while (week.length < 7) week.push({ date: '', count: -1, future: false });
 			weeks.push(week);
 		}
 		return weeks;
@@ -138,9 +143,10 @@
 		const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 		let lastMonth = -1;
 		for (let i = 0; i < weeks.length; i++) {
-			const firstReal = weeks[i].find((d) => d.date && d.count !== -1);
+			const firstReal = weeks[i].find((d) => d.date !== '');
 			if (!firstReal) continue;
-			const m = new Date(firstReal.date).getMonth();
+			const parts = firstReal.date.split('-');
+			const m = parseInt(parts[1], 10) - 1;
 			if (m !== lastMonth) {
 				labels.push({ label: months[m], col: i });
 				lastMonth = m;
@@ -150,10 +156,11 @@
 	}
 
 	function formatTooltipDate(dateStr: string) {
-		const d = new Date(dateStr);
+		const [y, m, d] = dateStr.split('-').map(Number);
+		const date = new Date(y, m - 1, d);
 		const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 		const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-		return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+		return `${days[date.getDay()]}, ${months[m - 1]} ${d}, ${y}`;
 	}
 
 	async function selectYear(year: number) {
@@ -167,9 +174,10 @@
 		calendarLoading = true;
 		try {
 			const res = await fetch(`/api/github?calendarYear=${year}`);
+			if (!res.ok) throw new Error('API error');
 			const data = await res.json();
-			calendarDays = data.calendar;
-			calendarTotal = data.total;
+			calendarDays = data.calendar ?? [];
+			calendarTotal = data.total ?? 0;
 		} catch {
 			calendarDays = [];
 			calendarTotal = 0;
@@ -179,8 +187,10 @@
 
 	const weeks = $derived(calendarDays.length ? buildWeeks(calendarDays, selectedYear) : []);
 	const monthLabels = $derived(getMonthLabels(weeks));
-	const yearOptions = $derived(githubData ? Array.from({ length: githubData.currentYear - githubData.createdYear + 1 }, (_, i) => githubData!.currentYear - i) : []);
-	const maxRepoCount = $derived(githubData?.topRepos.length ? Math.max(...githubData.topRepos.map((r) => r.commits)) : 1);
+	const yearOptions = $derived(
+		githubData ? Array.from({ length: githubData.currentYear - githubData.createdYear + 1 }, (_, i) => githubData!.currentYear - i) : []
+	);
+	const maxRepoCount = $derived(githubData?.topRepos?.length ? Math.max(...githubData.topRepos.map((r) => r.commits)) : 1);
 
 	onMount(async () => {
 		try {
@@ -236,7 +246,7 @@
 
 <Metadata title={metaTitle} description={metaDescription} />
 
-<main class="relative flex min-h-0 flex-1 flex-col font-mono text-sm md:text-base">
+<main bind:this={mainEl} class="relative flex min-h-0 flex-1 flex-col font-mono text-sm md:text-base">
 	<div class="absolute inset-0 -z-10 bg-[#080808]/80 backdrop-blur-sm"></div>
 	<div class="text-ash-100 relative z-10 flex-1 overflow-y-auto p-4 pb-12 sm:p-6">
 		<!-- Header -->
@@ -262,7 +272,7 @@
 					{#if githubData.user.bio}
 						<div class="mt-0.5 truncate text-xs text-[#8b949e]">{githubData.user.bio}</div>
 					{/if}
-					{#if githubData.user.organizations.length > 0}
+					{#if githubData.user.organizations?.length > 0}
 						<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
 							<i class="fas fa-building text-[10px] text-[#8b949e]"></i>
 							{#each githubData.user.organizations as org}
@@ -306,15 +316,17 @@
 					<div class="flex flex-wrap items-center gap-1">
 						{#each yearOptions as year}
 							<button
-								class="rounded px-2 py-0.5 text-[10px] font-medium transition-colors {year === selectedYear ? 'bg-[#238636] text-white' : 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
-								onclick={() => selectYear(year)}
-							>{year}</button>
+								class="rounded px-2 py-0.5 text-[10px] font-medium transition-colors {year === selectedYear
+									? 'bg-[#238636] text-white'
+									: 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
+								onclick={() => selectYear(year)}>{year}</button
+							>
 						{/each}
 					</div>
 				</div>
 				<div class="overflow-x-auto">
-					<div class="flex" style="min-width: fit-content">
-						<div class="grid shrink-0 pr-1.5" style="grid-template-rows: repeat(7, 10px); gap: 2px; padding-top: 20px">
+					<div class="flex">
+						<div class="grid shrink-0 pr-1.5" style="grid-template-rows: repeat(7, 1fr); gap: 2px; padding-top: 18px">
 							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Mon</span>
 							<span></span>
 							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Wed</span>
@@ -323,23 +335,35 @@
 							<span></span>
 							<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Sun</span>
 						</div>
-						<div>
+						<div class="min-w-0 flex-1">
 							<div class="relative mb-0.5 h-4">
 								{#each monthLabels as ml}
-									<span class="absolute top-0 text-[10px] text-[#8b949e]" style="left: {ml.col * 12}px">{ml.label}</span>
+									<span class="absolute top-0 text-[10px] text-[#8b949e]" style="left: {(ml.col / weeks.length) * 100}%">{ml.label}</span>
 								{/each}
 							</div>
-							<div class="flex gap-0.5">
+							<div class="grid gap-0.5" style="grid-template-columns: repeat({weeks.length}, 1fr)">
 								{#each weeks as week}
-									<div class="flex flex-col gap-0.5">
+									<div class="grid gap-0.5" style="grid-template-rows: repeat(7, 1fr)">
 										{#each week as day}
-											{#if day.count === -1}
-												<div class="h-2.5 w-2.5"></div>
+											{#if day.date === ''}
+												<div class="aspect-square w-full"></div>
+											{:else if day.future}
+												<div class="aspect-square w-full"></div>
 											{:else}
 												<div
-													class="h-2.5 w-2.5 cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
-													onmouseenter={(e) => { hoveredDay = { date: day.date, count: day.count, el: e.target as HTMLElement }; }}
-													onmouseleave={() => { hoveredDay = null; }}
+													class="aspect-square w-full cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
+													onmouseenter={(e) => {
+														hoveredDay = { date: day.date, count: day.count };
+														mouseX = e.clientX;
+														mouseY = e.clientY;
+													}}
+													onmousemove={(e) => {
+														mouseX = e.clientX;
+														mouseY = e.clientY;
+													}}
+													onmouseleave={() => {
+														hoveredDay = null;
+													}}
 												></div>
 											{/if}
 										{/each}
@@ -362,16 +386,6 @@
 				</div>
 			</div>
 
-			{#if hoveredDay}
-				<div
-					bind:this={tooltipEl}
-					class="pointer-events-none absolute z-50 whitespace-nowrap rounded bg-[#1b1f23] px-2 py-1.5 text-xs text-white shadow-lg border border-[#30363d]"
-					style={tooltipStyle}
-				>
-					<strong>{hoveredDay.count === 0 ? 'No' : hoveredDay.count} contribution{hoveredDay.count !== 1 ? 's' : ''}</strong> on {formatTooltipDate(hoveredDay.date)}
-				</div>
-			{/if}
-
 			<!-- Live activity feed -->
 			<div class="mb-5">
 				<div class="mb-2 flex items-center gap-2 text-xs tracking-wider text-[#8b949e] uppercase">
@@ -381,7 +395,15 @@
 				<div class="flex flex-col gap-1">
 					{#each githubData.activity.items.slice(0, visibleCount) as item}
 						<div class="activity-item flex items-start gap-2 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
-							<i class="fas {item.type === 'pr' ? 'fa-code-pull-request text-[#bc8cff]' : item.type === 'issue' ? 'fa-circle-dot text-[#f78166]' : item.type === 'review' ? 'fa-eye text-[#d2a8ff]' : 'fa-code-commit text-[#8b949e]'} mt-0.5 shrink-0 text-xs"></i>
+							<i
+								class="fas {item.type === 'pr'
+									? 'fa-code-pull-request text-[#bc8cff]'
+									: item.type === 'issue'
+										? 'fa-circle-dot text-[#f78166]'
+										: item.type === 'review'
+											? 'fa-eye text-[#d2a8ff]'
+											: 'fa-code-commit text-[#8b949e]'} mt-0.5 shrink-0 text-xs"
+							></i>
 							<div class="min-w-0 flex-1">
 								<div class="flex flex-wrap items-center gap-1.5">
 									<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{item.repo}</span>
@@ -393,7 +415,9 @@
 										<span class="text-[10px] text-[#f85149]">-{item.deletions}</span>
 									{/if}
 								</div>
-								<span class="mt-0.5 line-clamp-1 block text-xs {item.private ? 'text-[#8b949e]' : 'text-[#c9d1d9]'}">{item.private ? mask(item.title) : item.title}</span>
+								<span class="mt-0.5 line-clamp-1 block text-xs {item.private ? 'text-[#8b949e]' : 'text-[#c9d1d9]'}"
+									>{item.private ? mask(item.title) : item.title}</span
+								>
 							</div>
 							<div class="mt-0.5 shrink-0 text-[10px] text-[#8b949e]">{timeAgo(item.date)}</div>
 						</div>
@@ -412,7 +436,7 @@
 			<!-- Top PRs + Top repos -->
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 				<!-- Top PRs -->
-				{#if githubData.topPRs.length > 0}
+				{#if githubData.topPRs?.length > 0}
 					<div>
 						<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top pull requests</div>
 						<div class="flex flex-col gap-1">
@@ -426,11 +450,13 @@
 												<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
 											{/if}
 										</div>
-										<span class="mt-0.5 line-clamp-1 block text-xs {pr.private ? 'text-[#8b949e]' : 'text-[#c9d1d9]'}">{pr.private ? mask(pr.title) : pr.title}</span>
+										<span class="mt-0.5 line-clamp-1 block text-xs {pr.private ? 'text-[#8b949e]' : 'text-[#c9d1d9]'}"
+											>{pr.private ? mask(pr.title) : pr.title}</span
+										>
 									</div>
 									<div class="flex shrink-0 items-center gap-2 text-xs">
-										<span class="text-[#3fb950]">+{pr.additions.toLocaleString()}</span>
-										<span class="text-[#f85149]">-{pr.deletions.toLocaleString()}</span>
+										<span class="text-[#3fb950]">+{(pr.additions ?? 0).toLocaleString()}</span>
+										<span class="text-[#f85149]">-{(pr.deletions ?? 0).toLocaleString()}</span>
 									</div>
 								</div>
 							{/each}
@@ -439,7 +465,7 @@
 				{/if}
 
 				<!-- Top repos -->
-				{#if githubData.topRepos.length > 0}
+				{#if githubData.topRepos?.length > 0}
 					<div>
 						<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top repositories</div>
 						<div class="flex flex-col gap-1">
@@ -456,6 +482,16 @@
 			</div>
 		{/if}
 	</div>
+	{#if hoveredDay}
+		<div
+			class="pointer-events-none absolute z-[9999] rounded border border-[#30363d] bg-[#1b1f23] px-2 py-1.5 text-xs whitespace-nowrap text-white shadow-lg"
+			style={tooltipStyle}
+		>
+			<strong>{hoveredDay.count === 0 ? 'No' : hoveredDay.count} contribution{hoveredDay.count !== 1 ? 's' : ''}</strong> on {formatTooltipDate(
+				hoveredDay.date
+			)}
+		</div>
+	{/if}
 </main>
 
 <style>

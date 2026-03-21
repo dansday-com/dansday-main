@@ -575,7 +575,9 @@ async function syncReviews(username: string, token: string) {
 
 async function syncAllActivity(username: string, token: string, repos: any[]) {
 	await Promise.all([
-		...repos.map((repo) => Promise.all([syncRepoCommits(username, token, repo), syncRepoPRs(username, token, repo), syncRepoIssues(username, token, repo)]).catch(() => {})),
+		...repos.map((repo) =>
+			Promise.all([syncRepoCommits(username, token, repo), syncRepoPRs(username, token, repo), syncRepoIssues(username, token, repo)]).catch(() => {})
+		),
 		syncReviews(username, token).catch(() => {})
 	]);
 	await setLastSyncTime();
@@ -646,8 +648,13 @@ export const GET: RequestHandler = async ({ url }) => {
 	try {
 		if (calendarYear) {
 			const year = parseInt(calendarYear, 10);
-			const result = await fetchCalendarForYear(username, token, year);
-			return json(result);
+			try {
+				const result = await fetchCalendarForYear(username, token, year);
+				return json(result);
+			} catch (err: any) {
+				console.error('[GitHub Calendar API]', err);
+				return json({ calendar: [], total: 0 }, { status: 500 });
+			}
 		}
 
 		if (page > 1) {
@@ -670,7 +677,20 @@ export const GET: RequestHandler = async ({ url }) => {
 			return json({
 				username,
 				user: { name: username, avatarUrl: '', bio: '', organizations: [] },
-				stats: { week: 0, month: 0, year: 0, allTime: 0, totalCommits: 0, totalPRs: 0, totalReviews: 0, totalIssues: 0, weekRange: '', monthRange: '', yearRange: '', allTimeRange: '' },
+				stats: {
+					week: 0,
+					month: 0,
+					year: 0,
+					allTime: 0,
+					totalCommits: 0,
+					totalPRs: 0,
+					totalReviews: 0,
+					totalIssues: 0,
+					weekRange: '',
+					monthRange: '',
+					yearRange: '',
+					allTimeRange: ''
+				},
 				calendar: [],
 				createdYear: new Date().getFullYear(),
 				currentYear: new Date().getFullYear(),
