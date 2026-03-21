@@ -12,9 +12,9 @@ return new class extends Migration
             $table->id();
             $table->string('repo', 255);
             $table->text('title');
-            $table->enum('type', ['commit', 'pr'])->default('commit');
+            $table->enum('type', ['commit', 'pr', 'review', 'issue'])->default('commit');
             $table->timestamp('committed_at');
-            $table->string('oid', 40)->unique();
+            $table->string('oid', 255)->unique();
             $table->boolean('is_private')->default(false);
             $table->integer('additions')->nullable();
             $table->integer('deletions')->nullable();
