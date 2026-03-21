@@ -409,15 +409,16 @@
 							</div>
 						</div>
 						</div>
-				<div class="mt-2 flex items-center justify-end">
-						<div class="flex items-center gap-1.5 text-[10px] text-[#8b949e]">
-							<span>Less</span>
-							<div class="h-2.25 w-2.25 rounded-sm bg-white/15"></div>
-							<div class="h-2.25 w-2.25 rounded-sm bg-[#0e4429]"></div>
-							<div class="h-2.25 w-2.25 rounded-sm bg-[#006d32]"></div>
-							<div class="h-2.25 w-2.25 rounded-sm bg-[#26a641]"></div>
-							<div class="h-2.25 w-2.25 rounded-sm bg-[#39d353]"></div>
-							<span>More</span>
+						<div class="mt-2 flex items-center justify-end">
+							<div class="flex items-center gap-1.5 text-[10px] text-[#8b949e]">
+								<span>Less</span>
+								<div class="h-2.25 w-2.25 rounded-sm bg-white/15"></div>
+								<div class="h-2.25 w-2.25 rounded-sm bg-[#0e4429]"></div>
+								<div class="h-2.25 w-2.25 rounded-sm bg-[#006d32]"></div>
+								<div class="h-2.25 w-2.25 rounded-sm bg-[#26a641]"></div>
+								<div class="h-2.25 w-2.25 rounded-sm bg-[#39d353]"></div>
+								<span>More</span>
+							</div>
 						</div>
 					</div>
 					<div class="hidden flex-col items-center gap-1 lg:flex">
