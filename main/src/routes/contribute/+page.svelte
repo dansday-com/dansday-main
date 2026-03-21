@@ -65,9 +65,14 @@
 	const tooltipStyle = $derived.by(() => {
 		if (!hoveredDay || !mainEl) return 'display:none';
 		const rect = mainEl.getBoundingClientRect();
-		const x = mouseX - rect.left + 12;
 		const y = mouseY - rect.top - 36;
-		return `left:${x}px;top:${y}px`;
+		const nearRight = mouseX > rect.right - 160;
+		if (nearRight) {
+			const fromRight = rect.right - mouseX + 12;
+			return `right:${fromRight}px;top:${y}px`;
+		}
+		const fromLeft = mouseX - rect.left + 12;
+		return `left:${fromLeft}px;top:${y}px`;
 	});
 
 	function timeAgo(iso: string): string {
@@ -168,7 +173,7 @@
 		selectedYear = year;
 		if (githubData && year === githubData.currentYear) {
 			calendarDays = githubData.calendar;
-			calendarTotal = githubData.stats.year;
+			calendarTotal = githubData.stats.totalCommits + githubData.stats.totalPRs + githubData.stats.totalReviews + githubData.stats.totalIssues;
 			return;
 		}
 		calendarLoading = true;
@@ -202,7 +207,7 @@
 			}
 			githubData = await res.json();
 			calendarDays = githubData!.calendar;
-			calendarTotal = githubData!.stats.year;
+			calendarTotal = githubData!.stats.totalCommits + githubData!.stats.totalPRs + githubData!.stats.totalReviews + githubData!.stats.totalIssues;
 			selectedYear = githubData!.currentYear;
 
 			const total = githubData?.activity?.items?.length ?? 0;
@@ -294,7 +299,7 @@
 
 			<!-- Stat cards -->
 			<div class="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-				{#each [{ label: 'this week', value: githubData.stats.week, color: 'text-[#39d353]', sub: githubData.stats.weekRange }, { label: 'this month', value: githubData.stats.month, color: 'text-[#26a641]', sub: githubData.stats.monthRange }, { label: 'all time', value: githubData.stats.allTime, color: 'text-[#3fb950]', sub: githubData.stats.allTimeRange }, { label: 'commits (yr)', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]', sub: githubData.stats.yearRange }, { label: 'PRs (yr)', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]', sub: githubData.stats.yearRange }, { label: 'reviews (yr)', value: githubData.stats.totalReviews, color: 'text-[#d2a8ff]', sub: githubData.stats.yearRange }, { label: 'issues (yr)', value: githubData.stats.totalIssues, color: 'text-[#f78166]', sub: githubData.stats.yearRange }] as card}
+				{#each [{ label: 'this week', value: githubData.stats.week, color: 'text-[#39d353]', sub: githubData.stats.weekRange }, { label: 'this month', value: githubData.stats.month, color: 'text-[#26a641]', sub: githubData.stats.monthRange }, { label: 'all time', value: githubData.stats.allTime, color: 'text-[#3fb950]', sub: githubData.stats.allTimeRange }, { label: 'commits', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]', sub: githubData.stats.yearRange }, { label: 'PRs', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]', sub: githubData.stats.yearRange }, { label: 'reviews', value: githubData.stats.totalReviews, color: 'text-[#d2a8ff]', sub: githubData.stats.yearRange }, { label: 'issues', value: githubData.stats.totalIssues, color: 'text-[#f78166]', sub: githubData.stats.yearRange }] as card}
 					<div class="rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center">
 						<div class="text-lg font-bold {card.color}">{(card.value ?? 0).toLocaleString()}</div>
 						<div class="text-xs text-[#8b949e]">{card.label}</div>
@@ -348,7 +353,7 @@
 											{#if day.date === ''}
 												<div class="aspect-square w-full"></div>
 											{:else if day.future}
-												<div class="aspect-square w-full"></div>
+												<div class="aspect-square w-full rounded-sm bg-white/15 opacity-40 cursor-pointer" onmouseenter={(e) => { hoveredDay = { date: day.date, count: 0 }; mouseX = e.clientX; mouseY = e.clientY; }} onmousemove={(e) => { mouseX = e.clientX; mouseY = e.clientY; }} onmouseleave={() => { hoveredDay = null; }}></div>
 											{:else}
 												<div
 													class="aspect-square w-full cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"

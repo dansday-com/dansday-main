@@ -12,7 +12,9 @@ const toolSections: Record<string, string | undefined> = {
 	get_articles: 'articles_enable',
 	get_projects: 'projects_enable',
 	get_activity: 'contribute_enable',
-	get_prs: 'contribute_enable'
+	get_prs: 'contribute_enable',
+	get_reviews: 'contribute_enable',
+	get_issues: 'contribute_enable'
 };
 
 async function getEnabledToolNames(): Promise<string[]> {
@@ -119,6 +121,40 @@ async function executeTool(name: string): Promise<string> {
 				monthlyStats: stats.monthly,
 				weeklyStats: stats.weekly,
 				items: publicRows.map((r) => ({ repo: r.repo, title: r.title, additions: r.additions, deletions: r.deletions, mergedAt: r.committed_at }))
+			});
+		}
+		case 'get_reviews': {
+			const rows = await query<{ repo: string; title: string; committed_at: string; is_private: number }>(
+				'SELECT repo, title, committed_at, is_private FROM github_activity WHERE type = "review" ORDER BY committed_at DESC'
+			);
+			const publicRows = rows.filter((r) => !r.is_private);
+			const privateCount = rows.length - publicRows.length;
+			const stats = buildStats(rows, 'committed_at');
+			return toToon({
+				totalCount: rows.length,
+				publicCount: publicRows.length,
+				privateCount,
+				yearlyStats: stats.yearly,
+				monthlyStats: stats.monthly,
+				weeklyStats: stats.weekly,
+				items: publicRows.map((r) => ({ repo: r.repo, title: r.title, date: r.committed_at }))
+			});
+		}
+		case 'get_issues': {
+			const rows = await query<{ repo: string; title: string; committed_at: string; is_private: number }>(
+				'SELECT repo, title, committed_at, is_private FROM github_activity WHERE type = "issue" ORDER BY committed_at DESC'
+			);
+			const publicRows = rows.filter((r) => !r.is_private);
+			const privateCount = rows.length - publicRows.length;
+			const stats = buildStats(rows, 'committed_at');
+			return toToon({
+				totalCount: rows.length,
+				publicCount: publicRows.length,
+				privateCount,
+				yearlyStats: stats.yearly,
+				monthlyStats: stats.monthly,
+				weeklyStats: stats.weekly,
+				items: publicRows.map((r) => ({ repo: r.repo, title: r.title, date: r.committed_at }))
 			});
 		}
 		default:

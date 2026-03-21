@@ -376,12 +376,12 @@ function issueQuery(owner: string, name: string, cursor: string | null) {
 	`;
 }
 
-function reviewQuery(username: string, cursor: string | null) {
+function reviewQuery(username: string, from: string, to: string, cursor: string | null) {
 	const afterClause = cursor ? `, after: "${cursor}"` : '';
 	return `
-		query($username: String!) {
+		query($username: String!, $from: DateTime!, $to: DateTime!) {
 			user(login: $username) {
-				contributionsCollection {
+				contributionsCollection(from: $from, to: $to) {
 					pullRequestReviewContributions(first: 50${afterClause}) {
 						nodes {
 							pullRequestReview {
@@ -552,33 +552,38 @@ async function syncRepoIssues(username: string, token: string, repo: any) {
 	}
 }
 
-async function syncReviews(username: string, token: string) {
-	const d = await graphql(token, reviewQuery(username, null), { username });
-	const reviews = d.data?.user?.contributionsCollection?.pullRequestReviewContributions;
-	if (!reviews) return;
+async function syncReviews(username: string, token: string, createdYear: number) {
+	const now = new Date();
+	const currentYear = now.getFullYear();
+	for (let yr = createdYear; yr <= currentYear; yr++) {
+		const from = new Date(yr, 0, 1).toISOString();
+		const to = yr === currentYear ? now.toISOString() : new Date(yr, 11, 31, 23, 59, 59).toISOString();
+		const d = await graphql(token, reviewQuery(username, from, to, null), { username, from, to });
+		const reviews = d.data?.user?.contributionsCollection?.pullRequestReviewContributions;
+		if (!reviews) continue;
 
-	await saveActivityToDb(extractReviews(username, reviews.nodes ?? []));
+		await saveActivityToDb(extractReviews(username, reviews.nodes ?? []));
 
-	let cursor = reviews.pageInfo?.endCursor;
-	let hasNext = reviews.pageInfo?.hasNextPage;
+		let cursor = reviews.pageInfo?.endCursor;
+		let hasNext = reviews.pageInfo?.hasNextPage;
 
-	while (hasNext) {
-		const next = await graphql(token, reviewQuery(username, cursor), { username });
-		const r = next.data?.user?.contributionsCollection?.pullRequestReviewContributions;
-		if (!r) break;
-
-		await saveActivityToDb(extractReviews(username, r.nodes ?? []));
-		hasNext = r.pageInfo?.hasNextPage;
-		cursor = r.pageInfo?.endCursor;
+		while (hasNext) {
+			const next = await graphql(token, reviewQuery(username, from, to, cursor), { username, from, to });
+			const r = next.data?.user?.contributionsCollection?.pullRequestReviewContributions;
+			if (!r) break;
+			await saveActivityToDb(extractReviews(username, r.nodes ?? []));
+			hasNext = r.pageInfo?.hasNextPage;
+			cursor = r.pageInfo?.endCursor;
+		}
 	}
 }
 
-async function syncAllActivity(username: string, token: string, repos: any[]) {
+async function syncAllActivity(username: string, token: string, repos: any[], createdYear: number) {
 	await Promise.all([
 		...repos.map((repo) =>
 			Promise.all([syncRepoCommits(username, token, repo), syncRepoPRs(username, token, repo), syncRepoIssues(username, token, repo)]).catch(() => {})
 		),
-		syncReviews(username, token).catch(() => {})
+		syncReviews(username, token, createdYear).catch(() => {})
 	]);
 	await setLastSyncTime();
 }
@@ -610,7 +615,7 @@ async function fetchAndCacheStats(username: string, token: string) {
 	}));
 	const data = { username, ...stats, topRepos, topPRs };
 	await setCachedStats(data);
-	return { data, repos };
+	return { data, repos, createdYear: stats.createdYear };
 }
 
 async function backgroundSync() {
@@ -622,7 +627,7 @@ async function backgroundSync() {
 	if (Date.now() - lastSync > SYNC_INTERVAL_MS) {
 		try {
 			const result = await fetchAndCacheStats(username, token);
-			syncAllActivity(username, token, result.repos).catch((err) => console.error('[GitHub sync]', err));
+			syncAllActivity(username, token, result.repos, result.createdYear).catch((err) => console.error('[GitHub sync]', err));
 		} catch (err) {
 			console.error('[GitHub background sync]', err);
 		}
@@ -648,8 +653,12 @@ export const GET: RequestHandler = async ({ url }) => {
 	try {
 		if (calendarYear) {
 			const year = parseInt(calendarYear, 10);
+			const cacheKey = `github:calendar:${year}`;
+			const cached = await redisGet(cacheKey);
+			if (cached) return json(JSON.parse(cached));
 			try {
 				const result = await fetchCalendarForYear(username, token, year);
+				await redisSet(cacheKey, JSON.stringify(result));
 				return json(result);
 			} catch (err: any) {
 				console.error('[GitHub Calendar API]', err);
