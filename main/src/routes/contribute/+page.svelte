@@ -87,15 +87,26 @@
 		return 'bg-[#39d353]';
 	}
 
-	function buildWeeks(days: { date: string; count: number }[]) {
+	function buildWeeks(days: { date: string; count: number }[], year: number) {
+		const dayMap = new Map(days.map((d) => [d.date, d.count]));
+		const now = new Date();
+		const isCurrentYear = year === now.getFullYear();
+		const endDate = isCurrentYear ? now : new Date(year, 11, 31);
+		const allDays: { date: string; count: number }[] = [];
+		const cursor = new Date(year, 0, 1);
+		while (cursor <= endDate) {
+			const ds = cursor.toISOString().slice(0, 10);
+			allDays.push({ date: ds, count: dayMap.get(ds) ?? 0 });
+			cursor.setDate(cursor.getDate() + 1);
+		}
 		const weeks: { date: string; count: number }[][] = [];
 		let week: { date: string; count: number }[] = [];
-		if (days.length > 0) {
-			const d = new Date(days[0].date).getDay();
-			const mondayIdx = d === 0 ? 6 : d - 1;
+		if (allDays.length > 0) {
+			const first = new Date(allDays[0].date).getDay();
+			const mondayIdx = first === 0 ? 6 : first - 1;
 			for (let i = 0; i < mondayIdx; i++) week.push({ date: '', count: -1 });
 		}
-		for (const day of days) {
+		for (const day of allDays) {
 			week.push(day);
 			if (week.length === 7) {
 				weeks.push(week);
@@ -105,6 +116,10 @@
 		if (week.length > 0) {
 			while (week.length < 7) week.push({ date: '', count: -1 });
 			weeks.push(week);
+		}
+		if (!isCurrentYear) {
+			const empty = Array.from({ length: 7 }, () => ({ date: '', count: -1 }));
+			while (weeks.length < 53) weeks.push([...empty]);
 		}
 		return weeks;
 	}
@@ -153,7 +168,7 @@
 		calendarLoading = false;
 	}
 
-	const weeks = $derived(calendarDays.length ? buildWeeks(calendarDays) : []);
+	const weeks = $derived(calendarDays.length ? buildWeeks(calendarDays, selectedYear) : []);
 	const monthLabels = $derived(getMonthLabels(weeks));
 	const yearOptions = $derived(githubData ? Array.from({ length: githubData.currentYear - githubData.createdYear + 1 }, (_, i) => githubData!.currentYear - i) : []);
 	const maxRepoCount = $derived(githubData?.topRepos.length ? Math.max(...githubData.topRepos.map((r) => r.commits)) : 1);
@@ -281,30 +296,30 @@
 					</div>
 					<div class="relative">
 						<div class="flex">
-							<div class="flex flex-col gap-[3px] pr-2 pt-[18px] text-[10px] text-[#8b949e]">
-								<div class="h-[9px] leading-[9px]">Mon</div>
-								<div class="h-[9px] leading-[9px]"></div>
-								<div class="h-[9px] leading-[9px]">Wed</div>
-								<div class="h-[9px] leading-[9px]"></div>
-								<div class="h-[9px] leading-[9px]">Fri</div>
-								<div class="h-[9px] leading-[9px]"></div>
-								<div class="h-[9px] leading-[9px]"></div>
+							<div class="flex flex-col justify-between pr-2 pt-4.5 text-[10px] leading-none text-[#8b949e]">
+								<span>Mon</span>
+								<span></span>
+								<span>Wed</span>
+								<span></span>
+								<span>Fri</span>
+								<span></span>
+								<span></span>
 							</div>
-							<div class="flex-1">
-								<div class="relative mb-1 h-[14px]">
+							<div class="min-w-0 flex-1">
+								<div class="relative mb-1 h-3.5">
 									{#each monthLabels as ml}
-										<span class="absolute top-0 text-[10px] text-[#8b949e]" style="left: {ml.col * 12}px">{ml.label}</span>
+										<span class="absolute top-0 text-[10px] text-[#8b949e]" style="left: {(ml.col / weeks.length) * 100}%">{ml.label}</span>
 									{/each}
 								</div>
-								<div class="flex gap-[3px]">
+								<div class="flex justify-between gap-px">
 									{#each weeks as week}
-										<div class="flex flex-col gap-[3px]">
+										<div class="flex flex-1 flex-col gap-px">
 											{#each week as day}
 												{#if day.count === -1}
-													<div class="h-[9px] w-[9px]"></div>
+													<div class="aspect-square w-full"></div>
 												{:else}
 													<div
-														class="h-[9px] w-[9px] cursor-pointer rounded-sm {cellColor(day.count)} transition-transform hover:scale-125"
+														class="aspect-square w-full cursor-pointer rounded-sm {cellColor(day.count)} hover:brightness-125"
 														onmouseenter={(e) => { const rect = (e.target as HTMLElement).getBoundingClientRect(); hoveredDay = { date: day.date, count: day.count, x: rect.left + rect.width / 2, y: rect.top }; }}
 														onmouseleave={() => { hoveredDay = null; }}
 													></div>
@@ -359,11 +374,11 @@
 							<i class="fas {item.type === 'pr' ? 'fa-code-pull-request text-[#bc8cff]' : item.type === 'issue' ? 'fa-circle-dot text-[#f78166]' : item.type === 'review' ? 'fa-eye text-[#d2a8ff]' : 'fa-code-commit text-[#8b949e]'} mt-0.5 shrink-0 text-xs"></i>
 							<div class="min-w-0 flex-1">
 								<div class="flex flex-wrap items-center gap-1.5">
-									<span class="shrink-0 text-xs font-medium {item.private ? 'text-[#8b949e]' : 'text-[#58a6ff]'}">{item.private ? mask(item.repo) : item.repo}</span>
+									<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{item.repo}</span>
 									{#if item.private}
 										<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
 									{/if}
-									{#if !item.private && item.type === 'pr' && item.additions != null}
+									{#if item.type === 'pr' && item.additions != null}
 										<span class="text-[10px] text-[#3fb950]">+{item.additions}</span>
 										<span class="text-[10px] text-[#f85149]">-{item.deletions}</span>
 									{/if}
@@ -396,12 +411,12 @@
 									<i class="fas fa-code-pull-request shrink-0 text-xs text-[#bc8cff]"></i>
 									<div class="min-w-0 flex-1">
 										<div class="flex flex-wrap items-center gap-1.5">
-											<span class="shrink-0 text-xs font-medium {pr.private ? 'text-[#8b949e]' : 'text-[#58a6ff]'}">{pr.private ? mask(pr.repo) : pr.repo}</span>
+											<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{pr.repo}</span>
 											{#if pr.private}
 												<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
 											{/if}
 										</div>
-										<span class="mt-0.5 line-clamp-1 block text-xs {pr.private ? 'text-[#8b949e]' : 'text-[#c9d1d9]'}">{pr.private ? mask(pr.title) : pr.title}</span>
+										<span class="mt-0.5 line-clamp-1 block text-xs text-[#c9d1d9]">{pr.title}</span>
 									</div>
 									<div class="flex shrink-0 items-center gap-2 text-xs">
 										<span class="text-[#3fb950]">+{pr.additions.toLocaleString()}</span>
