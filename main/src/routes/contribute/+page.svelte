@@ -68,12 +68,15 @@
 
 	$effect(() => {
 		if (!calendarEl || !weeks.length) return;
-		const first = calendarEl.querySelector('[data-cell]') as HTMLElement | null;
-		if (!first) return;
-		const rect = first.getBoundingClientRect();
-		const parentRect = calendarEl.getBoundingClientRect();
-		cellSize = rect.width;
-		cellTop = rect.top - parentRect.top;
+		requestAnimationFrame(() => {
+			if (!calendarEl) return;
+			const first = calendarEl.querySelector('[data-cell]') as HTMLElement | null;
+			if (!first) return;
+			const rect = first.getBoundingClientRect();
+			const parentRect = calendarEl.getBoundingClientRect();
+			cellSize = rect.width;
+			cellTop = rect.top - parentRect.top;
+		});
 	});
 	let tooltipEl = $state<HTMLElement | null>(null);
 	const tooltipStyle = $derived.by(() => {
@@ -344,19 +347,19 @@
 								{#each ['Mon','','Wed','','Fri','','Sun'] as label, i}
 									{#if label}
 										<span
-											class="absolute text-[10px] leading-none text-[#8b949e] flex items-center"
-											style="top:{cellTop + i * (cellSize + 2)}px; left:0; width:{cellSize}px; height:{cellSize}px"
+											class="absolute flex items-center text-[10px] leading-none text-[#8b949e]"
+											style="top:{cellTop + i * (cellSize + 2)}px; left:0; width:2rem; height:{cellSize}px"
 										>{label}</span>
 									{/if}
 								{/each}
 								{#each monthLabels as ml}
 									<span
-										class="absolute text-[10px] leading-none text-[#8b949e] text-center"
-										style="left:{cellSize + 2 + ml.col * (cellSize + 2)}px; top:0; width:{cellSize}px"
+										class="absolute text-center text-[10px] leading-none text-[#8b949e]"
+										style="left:{32 + 2 + ml.col * (cellSize + 2)}px; top:0; width:{cellSize}px"
 									>{ml.label}</span>
 								{/each}
 							{/if}
-							<div class="grid gap-0.5" style="padding-left:{cellSize + 2}px; padding-top:{cellSize > 0 ? cellSize + 2 : 0}px; grid-template-columns: repeat({weeks.length}, 1fr)">
+							<div class="grid gap-0.5" style="padding-left:calc(2rem + 2px); padding-top:{cellSize > 0 ? cellSize + 2 : 0}px; grid-template-columns: repeat({weeks.length}, 1fr)">
 								{#each weeks as week}
 									<div class="grid grid-rows-7 gap-0.5">
 										{#each week as day, di}
