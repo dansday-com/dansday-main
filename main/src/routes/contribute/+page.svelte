@@ -138,7 +138,6 @@
 			}
 		}
 		if (week.length > 0) {
-			while (week.length < 7) week.push({ date: '', count: -1, future: false });
 			weeks.push(week);
 		}
 		return weeks;
