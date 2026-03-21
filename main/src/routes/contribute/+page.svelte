@@ -288,7 +288,7 @@
 					{/if}
 					{#if githubData.user.organizations?.length > 0}
 						<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-							<i class="fas fa-building text-[10px] text-[#8b949e]"></i>
+							<i class="fas fa-building text-xs text-[#8b949e]"></i>
 							{#each githubData.user.organizations as org}
 								<a
 									href={org.url}
@@ -298,7 +298,7 @@
 									title={org.name}
 								>
 									<img src={org.avatarUrl} alt={org.name} class="h-4 w-4 rounded-sm border border-[#30363d]" />
-									<span class="text-[10px] text-[#8b949e] transition-colors hover:text-white">{org.login}</span>
+									<span class="text-xs text-[#8b949e] transition-colors hover:text-white">{org.login}</span>
 								</a>
 							{/each}
 						</div>
@@ -311,7 +311,7 @@
 					<div class="w-28 shrink-0 rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center lg:w-auto lg:shrink">
 						<div class="text-lg font-bold {card.color}">{(card.value ?? 0).toLocaleString()}</div>
 						<div class="text-xs text-[#8b949e]">{card.label}</div>
-						{#if card.sub}<div class="text-[10px] text-[#6e7681]">{card.sub}</div>{/if}
+						{#if card.sub}<div class="text-xs text-[#6e7681]">{card.sub}</div>{/if}
 					</div>
 				{/each}
 			</div>
@@ -328,7 +328,7 @@
 					<div class="flex items-center gap-1 overflow-x-auto lg:hidden">
 						{#each yearOptions as year}
 							<button
-								class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors {year === selectedYear
+								class="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium transition-colors {year === selectedYear
 									? 'bg-[#238636] text-white'
 									: 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
 								onclick={() => selectYear(year)}>{year}</button
@@ -341,7 +341,7 @@
 						<div class="relative min-w-[500px]" bind:this={calendarEl}>
 							<div class="mb-0.5 grid gap-0.5" style="padding-left:calc(2rem + 2px); grid-template-columns: repeat({weeks.length}, 1fr)">
 								{#each weeks as _, wi}
-									<div class="text-center text-[10px] leading-none text-[#8b949e]">
+									<div class="text-center text-xs leading-none text-[#8b949e]">
 										{#each monthLabels as ml}{#if ml.col === wi}{ml.label}{/if}{/each}
 									</div>
 								{/each}
@@ -350,7 +350,7 @@
 								{#each ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'] as label, i}
 									{#if label}
 										<span
-											class="absolute flex items-center text-[10px] leading-none text-[#8b949e]"
+											class="absolute flex items-center text-xs leading-none text-[#8b949e]"
 											style="top:{cellTop + i * (cellSize + 2)}px; left:0; width:2rem; height:{cellSize}px">{label}</span
 										>
 									{/if}
@@ -409,7 +409,7 @@
 							</div>
 						</div>
 						<div class="mt-4 flex items-center justify-end">
-							<div class="absolute flex items-center gap-1.5 text-[10px] text-[#8b949e] lg:relative">
+							<div class="absolute flex items-center gap-1.5 text-xs text-[#8b949e] lg:relative">
 								<span>Less</span>
 								<div class="h-2.25 w-2.25 rounded-sm bg-white/15"></div>
 								<div class="h-2.25 w-2.25 rounded-sm bg-[#0e4429]"></div>
@@ -423,7 +423,7 @@
 					<div class="hidden flex-col items-center gap-1 lg:flex">
 						{#each yearOptions as year}
 							<button
-								class="rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors {year === selectedYear
+								class="rounded px-1.5 py-0.5 text-lg font-medium transition-colors {year === selectedYear
 									? 'bg-[#238636] text-white'
 									: 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
 								onclick={() => selectYear(year)}>{year}</button
@@ -454,18 +454,18 @@
 								<div class="flex flex-wrap items-center gap-1.5">
 									<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{item.repo}</span>
 									{#if item.private}
-										<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
+										<span class="rounded border border-[#30363d] px-1 text-xs text-[#8b949e]">private</span>
 									{/if}
 									{#if item.type === 'pr' && item.additions != null}
-										<span class="text-[10px] text-[#3fb950]">+{item.additions}</span>
-										<span class="text-[10px] text-[#f85149]">-{item.deletions}</span>
+										<span class="text-xs text-[#3fb950]">+{item.additions}</span>
+										<span class="text-xs text-[#f85149]">-{item.deletions}</span>
 									{/if}
 								</div>
 								<span class="mt-0.5 line-clamp-1 block text-xs {item.private ? 'text-[#8b949e]' : 'text-[#c9d1d9]'}"
 									>{item.private ? mask(item.title) : item.title}</span
 								>
 							</div>
-							<div class="mt-0.5 shrink-0 text-[10px] text-[#8b949e]">{timeAgo(item.date)}</div>
+							<div class="mt-0.5 shrink-0 text-xs text-[#8b949e]">{timeAgo(item.date)}</div>
 						</div>
 					{/each}
 					{#if githubData.activity.hasMore}
@@ -491,7 +491,7 @@
 										<div class="flex flex-wrap items-center gap-1.5">
 											<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{pr.repo}</span>
 											{#if pr.private}
-												<span class="rounded border border-[#30363d] px-1 text-[10px] text-[#8b949e]">private</span>
+												<span class="rounded border border-[#30363d] px-1 text-xs text-[#8b949e]">private</span>
 											{/if}
 										</div>
 										<span class="mt-0.5 line-clamp-1 block text-xs {pr.private ? 'text-[#8b949e]' : 'text-[#c9d1d9]'}"
