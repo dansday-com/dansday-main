@@ -251,9 +251,8 @@
 
 <Metadata title={metaTitle} description={metaDescription} />
 
-<main bind:this={mainEl} class="relative flex min-h-0 flex-1 flex-col font-mono text-sm md:text-base">
-	<div class="absolute inset-0 -z-10 bg-[#080808]/80 backdrop-blur-sm"></div>
-	<div class="text-ash-100 relative z-10 flex-1 overflow-y-auto p-4 pb-12 sm:p-6">
+<main bind:this={mainEl} class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#080808]/80 font-mono text-sm backdrop-blur-sm md:text-base">
+	<div class="text-ash-100 flex-1 p-4 pb-12 sm:p-6">
 		<div class="mb-6">
 			<div class="text-base font-bold text-white">~/contribute</div>
 			<div class="mt-0.5 text-xs text-[#8b949e]">Live GitHub contribution stats</div>
@@ -295,9 +294,9 @@
 				</div>
 			</div>
 
-			<div class="mb-5 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+			<div class="mb-5 flex gap-2 overflow-x-auto lg:grid lg:grid-cols-7">
 				{#each [{ label: 'this week', value: githubData.stats.week, color: 'text-[#39d353]', sub: githubData.stats.weekRange }, { label: 'this month', value: githubData.stats.month, color: 'text-[#26a641]', sub: githubData.stats.monthRange }, { label: 'all time', value: githubData.stats.allTime, color: 'text-[#3fb950]', sub: githubData.stats.allTimeRange }, { label: 'commits', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]', sub: githubData.stats.yearRange }, { label: 'PRs', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]', sub: githubData.stats.yearRange }, { label: 'reviews', value: githubData.stats.totalReviews, color: 'text-[#d2a8ff]', sub: githubData.stats.yearRange }, { label: 'issues', value: githubData.stats.totalIssues, color: 'text-[#f78166]', sub: githubData.stats.yearRange }] as card}
-					<div class="rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center">
+					<div class="min-w-24 shrink-0 rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center lg:min-w-0 lg:shrink">
 						<div class="text-lg font-bold {card.color}">{(card.value ?? 0).toLocaleString()}</div>
 						<div class="text-xs text-[#8b949e]">{card.label}</div>
 						{#if card.sub}<div class="text-[10px] text-[#6e7681]">{card.sub}</div>{/if}
@@ -306,15 +305,15 @@
 			</div>
 
 			<div class="mb-5 rounded border border-[#30363d] bg-[#161b22]/60 p-3">
-				<div class="mb-2 text-xs text-[#8b949e]">
-					{#if calendarLoading}
-						<span class="text-[#8b949e]">Loading...</span>
-					{:else}
-						<span class="font-semibold text-white">{calendarTotal.toLocaleString()}</span> contributions in {selectedYear}
-					{/if}
-				</div>
-				<div class="flex gap-3">
-					<div class="flex flex-col items-center gap-1">
+				<div class="mb-2 flex items-center justify-between">
+					<div class="text-xs text-[#8b949e]">
+						{#if calendarLoading}
+							<span class="text-[#8b949e]">Loading...</span>
+						{:else}
+							<span class="font-semibold text-white">{calendarTotal.toLocaleString()}</span> contributions in {selectedYear}
+						{/if}
+					</div>
+					<div class="flex flex-wrap items-center gap-1 lg:hidden">
 						{#each yearOptions as year}
 							<button
 								class="rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors {year === selectedYear
@@ -324,6 +323,8 @@
 							>
 						{/each}
 					</div>
+				</div>
+				<div class="flex gap-3">
 					<div class="min-w-0 flex-1 overflow-x-auto">
 						<div class="min-w-[500px]">
 							<div class="grid gap-[2px]" style="grid-template-columns: 2rem repeat({weeks.length}, 1fr)">
@@ -402,6 +403,16 @@
 								<span>More</span>
 							</div>
 						</div>
+					</div>
+					<div class="hidden flex-col items-center gap-1 lg:flex">
+						{#each yearOptions as year}
+							<button
+								class="rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors {year === selectedYear
+									? 'bg-[#238636] text-white'
+									: 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
+								onclick={() => selectYear(year)}>{year}</button
+							>
+						{/each}
 					</div>
 				</div>
 			</div>
