@@ -310,9 +310,7 @@
 						{#if calendarLoading}
 							<span class="text-[#8b949e]">Loading...</span>
 						{:else}
-							<span class="font-semibold text-white">{calendarTotal.toLocaleString()}</span>
-							<span class="hidden sm:inline">contributions in {selectedYear}</span>
-							<span class="sm:hidden">in {selectedYear}</span>
+							<span class="font-semibold text-white">{calendarTotal.toLocaleString()}</span> contributions in {selectedYear}
 						{/if}
 					</div>
 					<div class="flex items-center gap-1 overflow-x-auto lg:hidden">
@@ -332,7 +330,7 @@
 							<div class="grid grid-rows-[auto_repeat(7,1fr)] gap-x-0.5" style="grid-template-columns: 2rem repeat({weeks.length}, 1fr)">
 								<span></span>
 								{#each monthLabels as ml}
-									<span class="row-start-1 flex items-end text-[10px] leading-none text-[#8b949e]" style="grid-column:{ml.col + 2}">{ml.label}</span>
+									<span class="row-start-1 flex items-end justify-center text-[10px] leading-none text-[#8b949e]" style="grid-column:{ml.col + 2}">{ml.label}</span>
 								{/each}
 								<div class="row-start-2 -row-end-1 grid grid-rows-7 gap-[2px]">
 									<span class="flex items-center text-[10px] leading-none text-[#8b949e]">Mon</span>
