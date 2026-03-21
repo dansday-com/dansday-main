@@ -338,7 +338,7 @@
 				</div>
 				<div class="flex gap-4">
 					<div class="min-w-0 flex-1 overflow-x-auto">
-						<div class="min-w-[500px] relative" bind:this={calendarEl}>
+						<div class="relative min-w-[500px]" bind:this={calendarEl}>
 							<div class="mb-0.5 grid gap-0.5" style="padding-left:calc(2rem + 2px); grid-template-columns: repeat({weeks.length}, 1fr)">
 								{#each weeks as _, wi}
 									<div class="text-center text-[10px] leading-none text-[#8b949e]">
@@ -347,12 +347,12 @@
 								{/each}
 							</div>
 							{#if cellSize > 0}
-								{#each ['Mon','','Wed','','Fri','','Sun'] as label, i}
+								{#each ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'] as label, i}
 									{#if label}
 										<span
 											class="absolute flex items-center text-[10px] leading-none text-[#8b949e]"
-											style="top:{cellTop + i * (cellSize + 2)}px; left:0; width:2rem; height:{cellSize}px"
-										>{label}</span>
+											style="top:{cellTop + i * (cellSize + 2)}px; left:0; width:2rem; height:{cellSize}px">{label}</span
+										>
 									{/if}
 								{/each}
 							{/if}
@@ -408,8 +408,8 @@
 								{/each}
 							</div>
 						</div>
-						<div class="mt-2 flex items-center justify-end">
-							<div class="flex items-center gap-1.5 text-[10px] text-[#8b949e]">
+						<div class="mt-4 flex items-center justify-end">
+							<div class="absolute flex items-center gap-1.5 text-[10px] text-[#8b949e] lg:relative">
 								<span>Less</span>
 								<div class="h-2.25 w-2.25 rounded-sm bg-white/15"></div>
 								<div class="h-2.25 w-2.25 rounded-sm bg-[#0e4429]"></div>
