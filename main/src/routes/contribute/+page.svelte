@@ -308,7 +308,7 @@
 
 			<div class="mb-5 flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-7">
 				{#each [{ label: 'this week', value: githubData.stats.week, color: 'text-[#39d353]', sub: githubData.stats.weekRange }, { label: 'this month', value: githubData.stats.month, color: 'text-[#26a641]', sub: githubData.stats.monthRange }, { label: 'all time', value: githubData.stats.allTime, color: 'text-[#3fb950]', sub: githubData.stats.allTimeRange }, { label: 'commits', value: githubData.stats.totalCommits, color: 'text-[#58a6ff]', sub: githubData.stats.yearRange }, { label: 'PRs', value: githubData.stats.totalPRs, color: 'text-[#bc8cff]', sub: githubData.stats.yearRange }, { label: 'reviews', value: githubData.stats.totalReviews, color: 'text-[#d2a8ff]', sub: githubData.stats.yearRange }, { label: 'issues', value: githubData.stats.totalIssues, color: 'text-[#f78166]', sub: githubData.stats.yearRange }] as card}
-					<div class="w-30 shrink-0 rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center lg:w-auto lg:shrink">
+					<div class="w-32 shrink-0 rounded border border-[#30363d] bg-[#161b22]/60 p-2 text-center lg:w-auto lg:shrink">
 						<div class="text-lg font-bold {card.color}">{(card.value ?? 0).toLocaleString()}</div>
 						<div class="text-xs text-[#8b949e]">{card.label}</div>
 						{#if card.sub}<div class="text-xs text-[#6e7681]">{card.sub}</div>{/if}
