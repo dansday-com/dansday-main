@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		return {
 			meta: {
 				title: project.title as string,
-				description: (project.short_desc as string) || (project.description as string) || '',
+				description: (project.short_desc as string) || '',
 				poster: (project.image as string) || ''
 			},
 			body: (project.description as string) || ''

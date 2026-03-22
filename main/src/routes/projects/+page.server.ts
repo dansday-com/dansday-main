@@ -5,8 +5,6 @@ import type { PageServerLoad } from './$types';
 function slug(name: string): string {
 	return name
 		.toLowerCase()
-		.replace(/\s+/g, '-')
-		.replace(/[^a-z0-9-]/g, '');
 }
 
 export const load: PageServerLoad = async ({ parent }) => {
@@ -25,7 +23,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 			return {
 				id: row.id as number,
 				title: row.title as string,
-				description: (row.short_desc as string) || (row.description as string) || '',
+				description: (row.short_desc as string) || '',
 				poster: (row.image as string) || '',
 				category_id: catId,
 				category_name: cat?.name ?? null,
