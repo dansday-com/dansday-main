@@ -423,7 +423,7 @@
 					<div class="hidden flex-col items-center gap-1 lg:flex">
 						{#each yearOptions as year}
 							<button
-								class="rounded px-1.5 py-0.5 text-lg font-medium transition-colors {year === selectedYear
+								class="rounded px-1.5 py-0.5 text-base font-medium transition-colors {year === selectedYear
 									? 'bg-[#238636] text-white'
 									: 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
 								onclick={() => selectYear(year)}>{year}</button
