@@ -42,9 +42,9 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-12 mb-3">
-                                    <label for="text" class="form-label">{{ __('content.text') }}</label>
-                                    <textarea class="form-control @error('text') is-invalid @enderror" name="text" rows="4" required>{{ $testimonial->text }}</textarea>
-                                    @error('text')
+                                    <label for="description" class="form-label">{{ __('content.description') }}</label>
+                                    <textarea class="form-control @error('description') is-invalid @enderror" name="description" rows="4" required>{{ $testimonial->description }}</textarea>
+                                    @error('description')
                                         <div class="invalid-feedback">
                                             {{ __('content.text_not_valid') }} {{ __('content.max_characters') }}: 255.
                                         </div>

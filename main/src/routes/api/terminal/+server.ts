@@ -67,27 +67,27 @@ async function executeTool(name: string): Promise<string> {
 		case 'get_home': {
 			const [home, general] = await Promise.all([fetchHome(), fetchGeneral()]);
 			const siteUrl = (env.BASE_URL ?? '').replace(/\/+$/, '');
-			return toToon({ title: home.title, content: home.description, site_url: siteUrl, social_links: general.social_links });
+			return toToon({ title: home.title, description: home.description, site_url: siteUrl, social_links: general.social_links });
 		}
 		case 'get_about': {
 			const about = await fetchAbouts();
 			return toToon({
 				design_skills: about.design_skills.map((s) => s.title),
 				dev_skills: about.dev_skills.map((s) => s.title),
-				education: about.edu_experiences.map((e) => ({ title: e.title, period: e.period, content: e.description })),
-				employment: about.emp_experiences.map((e) => ({ title: e.title, period: e.period, content: e.description })),
-				services: about.services.map((s) => ({ title: s.title, content: s.description })),
-				testimonials: about.testimonials.map((t) => ({ name: t.name, company: t.company, content: t.text }))
+				education: about.edu_experiences.map((e) => ({ title: e.title, period: e.period, description: e.description })),
+				employment: about.emp_experiences.map((e) => ({ title: e.title, period: e.period, description: e.description })),
+				services: about.services.map((s) => ({ title: s.title, description: s.description })),
+				testimonials: about.testimonials.map((t) => ({ name: t.name, company: t.company, description: t.description }))
 			});
 		}
 		case 'get_articles': {
 			const articles = await fetchArticles();
-			return toToon(articles.map((a) => ({ title: a.title, short_description: a.short_desc, content: a.description, created_at: a.created_at })));
+			return toToon(articles.map((a) => ({ title: a.title, description: a.description, created_at: a.created_at })));
 		}
 		case 'get_projects': {
 			const { projects, projects_categories } = await fetchProjects();
 			const catMap = new Map(projects_categories.map((c) => [c.id, c.name]));
-			return toToon(projects.map((p) => ({ title: p.title, short_description: p.short_desc, content: p.description, category: catMap.get(p.category_id) })));
+			return toToon(projects.map((p) => ({ title: p.title, description: p.description, category: catMap.get(p.category_id) })));
 		}
 		case 'get_activity': {
 			const rows = await query<{ repo: string; title: string; committed_at: string; is_private: number }>(

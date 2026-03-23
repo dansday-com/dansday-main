@@ -7,7 +7,7 @@ function esc(s: unknown): string {
 type Exp = { title?: unknown; period?: unknown; description?: unknown };
 type Service = { title?: unknown; description?: unknown };
 type Skill = { title?: unknown };
-type Testimonial = { name?: unknown; company?: unknown; text?: unknown };
+type Testimonial = { name?: unknown; company?: unknown; description?: unknown };
 
 export function experienceToCodeLines(edu: Exp[], emp: Exp[]): string[] {
 	const lines: string[] = ['const experience = {'];
@@ -69,7 +69,7 @@ export function skillsToCodeLines(design: Skill[], development: Skill[]): string
 export function testimonialsToCodeLines(testimonials: Testimonial[]): string[] {
 	const lines: string[] = ['const testimonials = ['];
 	for (const t of testimonials) {
-		lines.push(`  { name: "${esc(t.name)}", company: "${esc(t.company)}", text: "${esc(t.text)}" },`);
+		lines.push(`  { name: "${esc(t.name)}", company: "${esc(t.company)}", description: "${esc(t.description)}" },`);
 	}
 	lines.push('];');
 	return lines;

@@ -26,7 +26,7 @@ class TestimonialController extends Controller
         $data = array(
             "name"=>$request->input("name"),
             "company"=>$request->input("company"),
-            "text"=>$request->input("text"),
+            "description"=>$request->input("description"),
             "order"=>$request->input("order"),
         );
 
@@ -34,7 +34,7 @@ class TestimonialController extends Controller
             $validate = Validator::make($data, [
                 "name" => ['required', 'string', 'max:55'],
                 "company" => ['required', 'string', 'max:55'],
-                "text" => ['required', 'string', 'max:255'],
+                "description" => ['required', 'string', 'max:255'],
             ]);
             if($validate->fails()){
                 return redirect('/admin/testimonials')
@@ -46,7 +46,7 @@ class TestimonialController extends Controller
             $testimonial = new Testimonial();
             $testimonial->name = $data["name"];
             $testimonial->company = $data["company"];
-            $testimonial->text = $data['text'];
+            $testimonial->description = $data['description'];
             $testimonial->order = $data['order'];
             $testimonial->save();
             return redirect('/admin/testimonials') -> with('ok-add', '');
@@ -72,7 +72,7 @@ class TestimonialController extends Controller
         $data = array(
             "name"=>$request->input("name"),
             "company"=>$request->input("company"),
-            "text"=>$request->input("text"),
+            "description"=>$request->input("description"),
             "order"=>$request->input("order"),
         );
 
@@ -80,7 +80,7 @@ class TestimonialController extends Controller
             $validate = Validator::make($data, [
                 "name" => ['required', 'string', 'max:55'],
                 "company" => ['required', 'string', 'max:55'],
-                "text" => ['required', 'string', 'max:255'],
+                "description" => ['required', 'string', 'max:255'],
             ]);
             if($validate->fails()){
                 return redirect('/admin/testimonials/'.$id)
@@ -91,7 +91,7 @@ class TestimonialController extends Controller
             $data_new = array(
                 "name"=>$data['name'],
                 "company"=>$data['company'],
-                "text"=>$data['text'],
+                "description"=>$data['description'],
                 "order"=>$data['order'],
             );
             Testimonial::where("id", $id)->update($data_new);

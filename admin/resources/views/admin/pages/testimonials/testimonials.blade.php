@@ -30,7 +30,7 @@
                                         <th class="custom-width" scope="col">#</th>
                                         <th>{{ __('content.name') }}</th>
                                         <th>{{ __('content.company') }}</th>
-                                        <th>{{ __('content.text') }}</th>
+                                        <th>{{ __('content.description') }}</th>
                                         <th>{{ __('content.order') }}</th>
                                         <th class="custom-width-action">{{ __('content.action') }}</th>
                                     </tr>
@@ -42,7 +42,7 @@
                                             <td>{{ $i }}</td>
                                             <td>{{ $testimonial->name }}</td>
                                             <td>{{ $testimonial->company }}</td>
-                                            <td>{{ $testimonial->text }}</td>
+                                            <td>{{ $testimonial->description }}</td>
                                             <td>
                                                 <div class="btn-group">
                                                     @if ($i < count($testimonials))
@@ -139,9 +139,9 @@
                             @enderror
                         </div>
                         <div class="col-md-12 mb-3">
-                            <label for="text" class="form-label">{{ __('content.text') }}</label>
-                            <textarea class="form-control @error('text') is-invalid @enderror" name="text" rows="4" required>{{old('text')}}</textarea>
-                            @error('text')
+                            <label for="description" class="form-label">{{ __('content.description') }}</label>
+                            <textarea class="form-control @error('description') is-invalid @enderror" name="description" rows="4" required>{{old('description')}}</textarea>
+                            @error('description')
                                 <div class="invalid-feedback">
                                     {{ __('content.text_not_valid') }}
                                 </div>
