@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { fetchGeneral, fetchHome, fetchArticles, fetchProjects, fetchAbouts, fetchSection } from '$lib/server/data';
+import { fetchGeneral, fetchHome, fetchAbouts, fetchSection } from '$lib/server/data';
 import { query } from '$lib/server/db';
 import { encode as toToon } from '@toon-format/toon';
 import OpenAI from 'openai';
@@ -8,6 +8,7 @@ import type { RequestHandler } from './$types';
 import loggerProvider from '../../../../otel/logger.js';
 
 const toolSections: Record<string, string | undefined> = {
+	search: undefined,
 	get_home: undefined,
 	get_about: 'about_enable',
 	get_articles: 'articles_enable',
@@ -21,7 +22,36 @@ const toolSections: Record<string, string | undefined> = {
 
 const noParams = { type: 'object', properties: {} } as const;
 
+const dateParams = {
+	type: 'object',
+	properties: {
+		startDate: {
+			type: 'string',
+			description: 'Filter results from this date (YYYY-MM-DD). Use this to answer time-based questions like "last week", "this month", etc.'
+		},
+		endDate: { type: 'string', description: 'Filter results up to this date (YYYY-MM-DD).' }
+	}
+} as const;
+
+const searchParams = {
+	type: 'object',
+	properties: {
+		keyword: { type: 'string', description: 'Search keyword to match against titles and descriptions across articles, projects, and GitHub activity (e.g. "3cat", "laravel", "discord").' },
+		startDate: { type: 'string', description: 'Filter results from this date (YYYY-MM-DD).' },
+		endDate: { type: 'string', description: 'Filter results up to this date (YYYY-MM-DD).' }
+	},
+	required: ['keyword']
+} as const;
+
 const toolDefinitions: Record<string, OpenAI.Chat.ChatCompletionTool> = {
+	search: {
+		type: 'function',
+		function: {
+			name: 'search',
+			description: 'Search across articles, projects, and GitHub activity by keyword. Use this when the user asks about a topic that may span multiple data sources (e.g. "tell me about 3cat", "what have I done with discord").',
+			parameters: searchParams
+		}
+	},
 	get_home: {
 		type: 'function',
 		function: { name: 'get_home', description: 'Get homepage title, description, site URL, and social links', parameters: noParams }
@@ -32,31 +62,60 @@ const toolDefinitions: Record<string, OpenAI.Chat.ChatCompletionTool> = {
 	},
 	get_articles: {
 		type: 'function',
-		function: { name: 'get_articles', description: 'Get list of articles/blog posts with titles, descriptions, and dates', parameters: noParams }
+		function: {
+			name: 'get_articles',
+			description: 'Get list of articles/blog posts with titles, descriptions, and dates. Use startDate/endDate to filter by time period.',
+			parameters: dateParams
+		}
 	},
 	get_projects: {
 		type: 'function',
-		function: { name: 'get_projects', description: 'Get list of projects with titles, descriptions, and categories', parameters: noParams }
+		function: {
+			name: 'get_projects',
+			description: 'Get list of projects with titles, descriptions, and categories. Use startDate/endDate to filter by time period.',
+			parameters: dateParams
+		}
 	},
 	get_activity: {
 		type: 'function',
-		function: { name: 'get_activity', description: 'Get total GitHub activity (commits, PRs, reviews, issues) with stats broken down by repo, year, month, and week', parameters: noParams }
+		function: {
+			name: 'get_activity',
+			description:
+				'Get total GitHub activity (commits, PRs, reviews, issues) with stats broken down by repo, year, month, and week. Use startDate/endDate to filter by time period.',
+			parameters: dateParams
+		}
 	},
 	get_commits: {
 		type: 'function',
-		function: { name: 'get_commits', description: 'Get GitHub commit activity with stats broken down by repo, year, month, and week', parameters: noParams }
+		function: {
+			name: 'get_commits',
+			description: 'Get GitHub commit activity with stats broken down by repo, year, month, and week. Use startDate/endDate to filter by time period.',
+			parameters: dateParams
+		}
 	},
 	get_prs: {
 		type: 'function',
-		function: { name: 'get_prs', description: 'Get GitHub pull request activity with additions, deletions, and stats', parameters: noParams }
+		function: {
+			name: 'get_prs',
+			description: 'Get GitHub pull request activity with additions, deletions, and stats. Use startDate/endDate to filter by time period.',
+			parameters: dateParams
+		}
 	},
 	get_reviews: {
 		type: 'function',
-		function: { name: 'get_reviews', description: 'Get GitHub PR review activity with stats broken down by repo, year, month, and week', parameters: noParams }
+		function: {
+			name: 'get_reviews',
+			description: 'Get GitHub PR review activity with stats broken down by repo, year, month, and week. Use startDate/endDate to filter by time period.',
+			parameters: dateParams
+		}
 	},
 	get_issues: {
 		type: 'function',
-		function: { name: 'get_issues', description: 'Get GitHub issue activity with stats broken down by repo, year, month, and week', parameters: noParams }
+		function: {
+			name: 'get_issues',
+			description: 'Get GitHub issue activity with stats broken down by repo, year, month, and week. Use startDate/endDate to filter by time period.',
+			parameters: dateParams
+		}
 	}
 };
 
@@ -105,8 +164,67 @@ function buildStats(rows: Record<string, any>[], dateKey: string) {
 	return { yearly: toArr(yearly), monthly: toArr(monthly), weekly: toArr(weekly) };
 }
 
-async function executeTool(name: string): Promise<string> {
+function buildDateFilter(args: Record<string, any>): { clause: string; params: any[] } {
+	const conditions: string[] = [];
+	const params: any[] = [];
+	if (args.startDate) {
+		conditions.push('created_at >= ?');
+		params.push(args.startDate);
+	}
+	if (args.endDate) {
+		conditions.push('created_at <= ?');
+		params.push(args.endDate + ' 23:59:59');
+	}
+	return { clause: conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '', params };
+}
+
+async function executeTool(name: string, args: Record<string, any> = {}): Promise<string> {
 	switch (name) {
+		case 'search': {
+			const keyword = `%${args.keyword ?? ''}%`;
+			const df = buildDateFilter(args);
+			const dateClause = df.clause;
+			const dp = df.params;
+
+			const [articles, projects, activity, skills, experiences, services, testimonials, categories] = await Promise.all([
+				query<{ title: string; description: string; created_at: string }>(
+					'SELECT title, description, created_at FROM articles WHERE enable = 1 AND (title LIKE ? OR description LIKE ?)' + dateClause + ' ORDER BY created_at DESC',
+					[keyword, keyword, ...dp]
+				),
+				query<{ title: string; description: string; category_id: number; created_at: string }>(
+					'SELECT title, description, category_id, created_at FROM project WHERE enable = 1 AND (title LIKE ? OR description LIKE ?)' + dateClause + ' ORDER BY created_at DESC',
+					[keyword, keyword, ...dp]
+				),
+				query<{ repo: string; title: string; type: string; created_at: string }>(
+					'SELECT repo, title, type, created_at FROM github_activity WHERE (repo LIKE ? OR title LIKE ?)' + dateClause + ' ORDER BY created_at DESC',
+					[keyword, keyword, ...dp]
+				),
+				query<{ title: string; type: string }>('SELECT title, type FROM skill WHERE title LIKE ? ORDER BY `order` ASC', [keyword]),
+				query<{ title: string; type: string; period: string; description: string }>(
+					'SELECT title, type, period, description FROM experience WHERE (title LIKE ? OR description LIKE ?) ORDER BY `order` ASC',
+					[keyword, keyword]
+				),
+				query<{ title: string; description: string }>('SELECT title, description FROM service WHERE (title LIKE ? OR description LIKE ?) ORDER BY `order` ASC', [keyword, keyword]),
+				query<{ name: string; company: string; description: string }>(
+					'SELECT name, company, description FROM testimonial WHERE (name LIKE ? OR company LIKE ? OR description LIKE ?) ORDER BY `order` ASC',
+					[keyword, keyword, keyword]
+				),
+				query<{ id: number; name: string }>('SELECT id, name FROM project_category ORDER BY id ASC')
+			]);
+
+			const catMap = new Map(categories.map((c) => [c.id, c.name]));
+
+			const result: Record<string, any> = {};
+			if (skills.length > 0) result.skills = skills.map((s) => ({ title: s.title, type: s.type }));
+			if (experiences.length > 0) result.experiences = experiences.map((e) => ({ title: e.title, type: e.type, period: e.period, description: e.description }));
+			if (services.length > 0) result.services = services.map((s) => ({ title: s.title, description: s.description }));
+			if (testimonials.length > 0) result.testimonials = testimonials.map((t) => ({ name: t.name, company: t.company, description: t.description }));
+			if (articles.length > 0) result.articles = articles.map((a) => ({ title: a.title, description: a.description, created_at: a.created_at }));
+			if (projects.length > 0) result.projects = projects.map((p) => ({ title: p.title, description: p.description, category: catMap.get(p.category_id) }));
+			if (activity.length > 0) result.activity = { totalCount: activity.length, stats: buildStats(activity, 'created_at'), items: activity.map((r) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at })) };
+
+			return toToon(result);
+		}
 		case 'get_home': {
 			const [home, general] = await Promise.all([fetchHome(), fetchGeneral()]);
 			const siteUrl = (env.BASE_URL ?? '').replace(/\/+$/, '');
@@ -124,17 +242,28 @@ async function executeTool(name: string): Promise<string> {
 			});
 		}
 		case 'get_articles': {
-			const articles = await fetchArticles();
+			const df = buildDateFilter(args);
+			const articles = await query<{ title: string; description: string; created_at: string }>(
+				'SELECT title, description, created_at FROM articles WHERE enable = 1' + df.clause + ' ORDER BY created_at DESC',
+				df.params
+			);
 			return toToon(articles.map((a) => ({ title: a.title, description: a.description, created_at: a.created_at })));
 		}
 		case 'get_projects': {
-			const { projects, projects_categories } = await fetchProjects();
-			const catMap = new Map(projects_categories.map((c) => [c.id, c.name]));
+			const df = buildDateFilter(args);
+			const projects = await query<{ title: string; description: string; category_id: number; created_at: string }>(
+				'SELECT title, description, category_id, created_at FROM project WHERE enable = 1' + df.clause + ' ORDER BY created_at DESC',
+				df.params
+			);
+			const categories = await query<{ id: number; name: string }>('SELECT id, name FROM project_category ORDER BY id ASC');
+			const catMap = new Map(categories.map((c) => [c.id, c.name]));
 			return toToon(projects.map((p) => ({ title: p.title, description: p.description, category: catMap.get(p.category_id) })));
 		}
 		case 'get_activity': {
+			const df = buildDateFilter(args);
 			const rows = await query<{ repo: string; title: string; type: string; created_at: string }>(
-				'SELECT repo, title, type, created_at FROM github_activity ORDER BY created_at DESC'
+				'SELECT repo, title, type, created_at FROM github_activity WHERE 1=1' + df.clause + ' ORDER BY created_at DESC',
+				df.params
 			);
 			const stats = buildStats(rows, 'created_at');
 			return toToon({
@@ -146,8 +275,10 @@ async function executeTool(name: string): Promise<string> {
 			});
 		}
 		case 'get_commits': {
+			const df = buildDateFilter(args);
 			const rows = await query<{ repo: string; title: string; created_at: string }>(
-				'SELECT repo, title, created_at FROM github_activity WHERE type = "commit" ORDER BY created_at DESC'
+				'SELECT repo, title, created_at FROM github_activity WHERE type = "commit"' + df.clause + ' ORDER BY created_at DESC',
+				df.params
 			);
 			const stats = buildStats(rows, 'created_at');
 			return toToon({
@@ -159,8 +290,10 @@ async function executeTool(name: string): Promise<string> {
 			});
 		}
 		case 'get_prs': {
+			const df = buildDateFilter(args);
 			const rows = await query<{ repo: string; title: string; additions: number; deletions: number; created_at: string }>(
-				'SELECT repo, title, additions, deletions, created_at FROM github_activity WHERE type = "pr" ORDER BY created_at DESC'
+				'SELECT repo, title, additions, deletions, created_at FROM github_activity WHERE type = "pr"' + df.clause + ' ORDER BY created_at DESC',
+				df.params
 			);
 			const stats = buildStats(rows, 'created_at');
 			return toToon({
@@ -172,8 +305,10 @@ async function executeTool(name: string): Promise<string> {
 			});
 		}
 		case 'get_reviews': {
+			const df = buildDateFilter(args);
 			const rows = await query<{ repo: string; title: string; created_at: string }>(
-				'SELECT repo, title, created_at FROM github_activity WHERE type = "review" ORDER BY created_at DESC'
+				'SELECT repo, title, created_at FROM github_activity WHERE type = "review"' + df.clause + ' ORDER BY created_at DESC',
+				df.params
 			);
 			const stats = buildStats(rows, 'created_at');
 			return toToon({
@@ -185,8 +320,10 @@ async function executeTool(name: string): Promise<string> {
 			});
 		}
 		case 'get_issues': {
+			const df = buildDateFilter(args);
 			const rows = await query<{ repo: string; title: string; created_at: string }>(
-				'SELECT repo, title, created_at FROM github_activity WHERE type = "issue" ORDER BY created_at DESC'
+				'SELECT repo, title, created_at FROM github_activity WHERE type = "issue"' + df.clause + ' ORDER BY created_at DESC',
+				df.params
 			);
 			const stats = buildStats(rows, 'created_at');
 			return toToon({
@@ -269,7 +406,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			const toolResults = await Promise.all(
 				message.tool_calls.map(async (tc: any) => {
-					const result = await executeTool(tc.function.name);
+					const toolArgs = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+					const result = await executeTool(tc.function.name, toolArgs);
 					return {
 						role: 'tool' as const,
 						tool_call_id: tc.id,
