@@ -4,9 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Support\Facades\File;
 use App\Models\ProjectCategory;
-use App\Models\ProjectGallery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -14,19 +12,14 @@ use Illuminate\Support\Facades\Storage;
 
 class ProjectController extends Controller
 {
-
     public function index()
     {
         $user = User::find(1);
-        $gallery = ProjectGallery::all();
         $categories = ProjectCategory::all();
-        $projects = DB::table('project')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $projects = DB::table('project')->orderBy('created_at', 'desc')->get();
         return view('admin.pages.projects.projects')
             ->with('projects', $projects)
             ->with('categories', $categories)
-            ->with('gallery', $gallery)
             ->with('user', $user);
     }
 
@@ -44,20 +37,19 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         $data = [
-            'enable' => $request->input('enable_project'),
-            'title' => $request->input('title'),
-            'category' => $request->input('category'),
-            'images_code' => $request->input('images_code'),
+            'enable'      => $request->input('enable_project'),
+            'title'       => $request->input('title'),
+            'category'    => $request->input('category'),
             'description' => $request->input('description'),
-            'short_desc' => $request->input('short_desc'),
-            'image' => $request->file('image'),
+            'short_desc'  => $request->input('short_desc'),
+            'image'       => $request->file('image'),
         ];
 
         $validate = Validator::make($data, [
-            'title' => ['string', 'max:55'],
-            'short_desc' => ['string', 'max:110'],
+            'title'       => ['required', 'string', 'max:55'],
+            'short_desc'  => ['nullable', 'string', 'max:110'],
             'description' => ['required'],
-            'image' => ['required', 'file', 'mimes:jpg,jpeg,png'],
+            'image'       => ['required', 'file', 'mimes:jpg,jpeg,png'],
         ]);
         if ($validate->fails()) {
             return redirect('/admin/projects/project')
@@ -83,10 +75,8 @@ class ProjectController extends Controller
         $project->enable = ($data['enable'] == 'on') ? 1 : 0;
         $project->title = $data['title'];
         $project->short_desc = $data['short_desc'];
-        $project->images_code = $data['images_code'];
         $project->description = str_replace([$disk->url('img/temp'), 'uploads/img/temp'], [$disk->url('img/projects'), 'uploads/img/projects'], $data['description']);
         $project->image = 'uploads/' . $route_image;
-        $project->order = 0;
         $project->category_id = $data['category'];
         $project->save();
         return redirect('/admin/projects/projects')->with('ok-add', '');
@@ -102,28 +92,26 @@ class ProjectController extends Controller
                 ->with('project', $project)
                 ->with('categories', $categories)
                 ->with('user', $user);
-        } else {
-            return redirect('/admin/projects/projects');
         }
+        return redirect('/admin/projects/projects');
     }
 
     public function update($id, Request $request)
     {
-        $project = Project::find($id);
         $data = [
-            'id' => $request->input('id'),
-            'enable' => $request->input('enable_project'),
-            'title' => $request->input('title'),
-            'category' => $request->input('category'),
-            'description' => $request->input('description'),
-            'short_desc' => $request->input('short_desc'),
-            'image' => $request->file('image'),
+            'id'            => $request->input('id'),
+            'enable'        => $request->input('enable_project'),
+            'title'         => $request->input('title'),
+            'category'      => $request->input('category'),
+            'description'   => $request->input('description'),
+            'short_desc'    => $request->input('short_desc'),
+            'image'         => $request->file('image'),
             'image_current' => $request->input('image_current'),
         ];
 
         $validate = Validator::make($data, [
-            'title' => ['required', 'string', 'max:55'],
-            'short_desc' => ['string', 'max:110'],
+            'title'       => ['required', 'string', 'max:55'],
+            'short_desc'  => ['nullable', 'string', 'max:110'],
             'description' => ['required'],
         ]);
         if ($validate->fails()) {
@@ -174,41 +162,28 @@ class ProjectController extends Controller
         }
 
         Project::where('id', $id)->update([
-            'enable' => ($data['enable'] == 'on') ? 1 : 0,
-            'title' => $data['title'],
-            'short_desc' => $data['short_desc'],
-            'description' => str_replace('uploads/img/temp', 'uploads/img/projects', $data['description']),
-            'image' => $route_image,
+            'enable'      => ($data['enable'] == 'on') ? 1 : 0,
+            'title'       => $data['title'],
+            'short_desc'  => $data['short_desc'],
+            'description' => str_replace([$disk->url('img/temp'), 'uploads/img/temp'], [$disk->url('img/projects'), 'uploads/img/projects'], $data['description']),
+            'image'       => $route_image,
             'category_id' => $data['category'],
         ]);
         return redirect('/admin/projects/projects')->with('ok-update', '');
     }
 
-
-    public function destroy($id, Request $request)
+    public function destroy($id)
     {
-        $validate = Project::where("id", $id)->get();
-        if (! empty($validate)) {
+        $project = Project::where('id', $id)->first();
+        if ($project) {
             $disk = Storage::disk('uploads');
-            $dirs = ['img/projects', 'img/work'];
-            foreach ($dirs as $dir) {
-                if (! $disk->exists($dir)) {
-                    continue;
-                }
-                $files = $disk->files($dir);
-                foreach ($files as $file) {
-                    if (str_contains($file, $validate[0]['images_code']) && $disk->exists($file)) {
-                        $disk->delete($file);
-                    }
-                }
-            }
-            if (! empty($validate[0]['image']) && uploads_path_safe_to_delete($validate[0]['image'])) {
-                $p = uploads_path_for_disk($validate[0]['image']);
+            if (!empty($project->image) && uploads_path_safe_to_delete($project->image)) {
+                $p = uploads_path_for_disk($project->image);
                 if ($p !== '' && $disk->exists($p)) {
                     $disk->delete($p);
                 }
             }
-            Project::where("id", $validate[0]['id'])->delete();
+            Project::where('id', $id)->delete();
             return redirect('/admin/projects/projects')->with('ok-delete', '');
         }
         return redirect('/admin/projects/projects')->with('no-delete', '');

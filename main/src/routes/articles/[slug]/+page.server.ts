@@ -1,4 +1,4 @@
-import { fetchArticle } from '$lib/server/data';
+import { fetchArticleBySlug } from '$lib/server/data';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		throw redirect(302, '/');
 	}
 	try {
-		const post = await fetchArticle(params.slug);
+		const post = await fetchArticleBySlug(params.slug);
 		const publishedDate =
 			post.date_formated != null
 				? (post.date_formated as string)
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 				poster: (post.image as string) || '',
 				publishedDate
 			},
-			body: (post.text as string) || ''
+			body: (post.description as string) || ''
 		};
 	} catch (e) {
 		error(404, 'Article not found');

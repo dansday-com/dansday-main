@@ -80,11 +80,7 @@
                                         {{ __('content.description') }}
                                         @include('admin.modules.ai-generate-btn', ['type' => 'project', 'field' => 'description', 'inputName' => 'description', 'summernote' => true])
                                     </label>
-                                    @php
-                                        $images_value = mt_rand(10,9999);    
-                                    @endphp
-                                    <input type="hidden" name="images_code" value="project_@php echo $images_value @endphp" />
-                                    <textarea class="form-control summernote @error('description') is-invalid @enderror" name="description" data-folder="uploads/img/temp" data-route="{{url('/')}}" data-code="project_@php echo $images_value; @endphp">{{ old('description') }}</textarea>
+                                    <textarea class="form-control summernote @error('description') is-invalid @enderror" name="description" data-folder="uploads/img/temp" data-route="{{url('/')}}">{{ old('description') }}</textarea>
                                     @error('description')
                                         <div class="invalid-feedback d-none">
                                             {{ __('content.text_not_valid') }}

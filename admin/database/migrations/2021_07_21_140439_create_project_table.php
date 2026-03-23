@@ -18,7 +18,6 @@ class CreateProjectTable extends Migration
             $table->boolean('enable');
             $table->string('title');
             $table->text('short_desc');
-            $table->string('images_code');
             $table->text('description');
             $table->text('image')->nullable();
 

@@ -23,6 +23,13 @@
                         <div class="modal-body">
                             <div class="row">
                                 <input type="hidden" name="id" value="{{$post->id}}" />
+                                <div class="col-md-12 mb-4">
+                                    <label for="enable" class="form-label">{{ __('content.enable') }}</label>
+                                    <div class="form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="enable" name="enable" @php echo ($post->enable == 1) ? 'checked' : ''; @endphp />
+                                        <label class="form-check-label" for="enable">{{ __('content.enable') }}</label>
+                                    </div>
+                                </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="title" class="form-label">{{ __('content.title') }}</label>
                                     <input class="form-control @error('title') is-invalid @enderror" type="text" name="title" value="{{ $post->title }}" required />
@@ -63,35 +70,13 @@
                                         </div>
                                     @enderror
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="status" class="form-label">{{ __('content.status') }}</label>
-                                    <select class="form-select @error('status') is-invalid @enderror" name="status">
-                                        <option value="pending" @php echo ($post->status == 'pending') ? 'selected' : ''; @endphp>{{ __('content.pending') }}</option>
-                                        <option value="published" @php echo ($post->status == 'published') ? 'selected' : ''; @endphp>{{ __('content.published') }}</option>
-                                    </select>
-                                    @error('status')
-                                        <div class="invalid-feedback">
-                                            {{ __('content.select_not_valid') }}
-                                        </div>
-                                    @enderror
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="slug" class="form-label">{{ __('content.slug') }}</label>
-                                    <input class="form-control @error('slug') is-invalid @enderror" type="text" name="slug" value="{{ $post->slug }}" required />
-                                    @error('slug')
-                                        <div class="invalid-feedback">
-                                            {{ __('content.text_not_valid') }} {{ __('content.max_characters') }}: 55.
-                                        </div>
-                                    @enderror
-                                </div>
                                 <div class="col-md-12 mb-3">
-                                    <label for="text" class="form-label d-flex justify-content-between align-items-center">
-                                        {{ __('content.content') }}
-                                        @include('admin.modules.ai-generate-btn', ['type' => 'article', 'field' => 'text', 'inputName' => 'text', 'summernote' => true])
+                                    <label for="description" class="form-label d-flex justify-content-between align-items-center">
+                                        {{ __('content.description') }}
+                                        @include('admin.modules.ai-generate-btn', ['type' => 'article', 'field' => 'description', 'inputName' => 'description', 'summernote' => true])
                                     </label>
-                                    <input type="hidden" name="images_code" value="{{$post->images_code}}" />
-                                    <textarea class="form-control summernote @error('text') is-invalid @enderror" name="text" data-folder="uploads/img/temp" data-route="{{url('/')}}" data-code="{{$post->images_code}}">{{ $post->text }}</textarea>
-                                    @error('text')
+                                    <textarea class="form-control summernote @error('description') is-invalid @enderror" name="description" data-folder="uploads/img/temp" data-route="{{url('/')}}">{{ $post->description }}</textarea>
+                                    @error('description')
                                         <div class="invalid-feedback">
                                             {{ __('content.text_required') }}
                                         </div>
@@ -121,7 +106,6 @@
                                         @enderror
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                         <div class="modal-footer">

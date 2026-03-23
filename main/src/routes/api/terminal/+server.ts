@@ -82,7 +82,7 @@ async function executeTool(name: string): Promise<string> {
 		}
 		case 'get_articles': {
 			const articles = await fetchArticles();
-			return toToon(articles.map((a) => ({ title: a.title, short_description: a.short_desc, content: a.text, slug: a.slug, created_at: a.created_at })));
+			return toToon(articles.map((a) => ({ title: a.title, short_description: a.short_desc, content: a.description, created_at: a.created_at })));
 		}
 		case 'get_projects': {
 			const { projects, projects_categories } = await fetchProjects();

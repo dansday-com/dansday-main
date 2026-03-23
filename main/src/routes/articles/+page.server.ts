@@ -2,6 +2,13 @@ import { redirect } from '@sveltejs/kit';
 import { fetchArticles } from '$lib/server/data';
 import type { PageServerLoad } from './$types';
 
+function slug(name: string) {
+	return name
+		.toLowerCase()
+		.replace(/\s+/g, '-')
+		.replace(/^-+|-+$/g, '');
+}
+
 export const load: PageServerLoad = async ({ parent }) => {
 	const data = await parent();
 	const section = (data.section ?? {}) as Record<string, unknown>;
@@ -11,7 +18,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 	try {
 		const articles = await fetchArticles();
 		const list = articles.map((row: Record<string, unknown>) => ({
-			slug: row.slug as string,
+			slug: slug(row.title as string),
 			title: row.title as string,
 			description: (row.short_desc as string) || '',
 			publishedDate:

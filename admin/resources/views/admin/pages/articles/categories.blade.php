@@ -29,7 +29,6 @@
                                     <tr>
                                         <th class="custom-width" scope="col">#</th>
                                         <th>{{ __('content.name') }}</th>
-                                        <th>{{ __('content.slug') }}</th>
                                         <th class="custom-width-action">{{ __('content.action') }}</th>
                                     </tr>
                                 </thead>
@@ -39,7 +38,6 @@
                                         <tr>
                                             <td>{{ $i }}</td>
                                             <td>{{ $category->name }}</td>
-                                            <td>{{ $category->slug }}</td>
                                             <td>
                                                 <div class="btn-group">
                                                     <a href="{{ url('/') }}/admin/articles/categories/{{ $category->id }}" class="btn btn-primary btn-sm mr-1">

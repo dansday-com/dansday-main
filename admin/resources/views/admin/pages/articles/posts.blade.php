@@ -59,10 +59,10 @@
                                                 </a>
                                             </td>
                                             <td>
-                                                @if ($post->status == 'pending')
-                                                    <i class="far fa-clock h4 text-danger" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ __('content.pending') }}"></i>
+                                                @if ($post->enable == 0)
+                                                    <i class="fas fa-circle h4 text-danger" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ __('content.disabled') }}"></i>
                                                 @else
-                                                    <i class="far fa-thumbs-up h4 text-success" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ __('content.published') }}"></i>
+                                                    <i class="fas fa-circle h4 text-success" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ __('content.enabled') }}"></i>
                                                 @endif
                                             </td>
                                             <td>

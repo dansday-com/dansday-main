@@ -21,6 +21,13 @@
                         @csrf
                         <div class="modal-body">
                             <div class="row">
+                                <div class="col-md-12 mb-4">
+                                    <label for="enable" class="form-label">{{ __('content.enable') }}</label>
+                                    <div class="form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" name="enable" checked />
+                                        <label class="form-check-label" for="enable">{{ __('content.enable') }}</label>
+                                    </div>
+                                </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="title" class="form-label">{{ __('content.title') }}</label>
                                     <input class="form-control @error('title') is-invalid @enderror" type="text" name="title" value="{{ old('title') }}" required />
@@ -61,29 +68,13 @@
                                         </div>
                                     @enderror
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="status" class="form-label">{{ __('content.status') }}</label>
-                                    <select class="form-select @error('status') is-invalid @enderror" name="status">
-                                        <option value="pending">{{ __('content.pending') }}</option>
-                                        <option value="published">{{ __('content.published') }}</option>
-                                    </select>
-                                    @error('status')
-                                        <div class="invalid-feedback">
-                                            {{ __('content.select_not_valid') }}
-                                        </div>
-                                    @enderror
-                                </div>
                                 <div class="col-md-12 mb-3">
-                                    <label for="text" class="form-label d-flex justify-content-between align-items-center">
-                                        {{ __('content.content') }}
-                                        @include('admin.modules.ai-generate-btn', ['type' => 'article', 'field' => 'text', 'inputName' => 'text', 'summernote' => true])
+                                    <label for="description" class="form-label d-flex justify-content-between align-items-center">
+                                        {{ __('content.description') }}
+                                        @include('admin.modules.ai-generate-btn', ['type' => 'article', 'field' => 'description', 'inputName' => 'description', 'summernote' => true])
                                     </label>
-                                    @php
-                                        $images_value = mt_rand(10,9999);    
-                                    @endphp
-                                    <input type="hidden" name="images_code" value="post_@php echo $images_value @endphp" />
-                                    <textarea class="form-control summernote @error('text') is-invalid @enderror" name="text" data-folder="uploads/img/temp" data-route="{{url('/')}}" data-code="post_@php echo $images_value; @endphp">{{ old('text') }}</textarea>
-                                    @error('text')
+                                    <textarea class="form-control summernote @error('description') is-invalid @enderror" name="description" data-folder="uploads/img/temp" data-route="{{url('/')}}">{{ old('description') }}</textarea>
+                                    @error('description')
                                         <div class="invalid-feedback">
                                             {{ __('content.text_required') }}
                                         </div>
@@ -106,7 +97,6 @@
                                         @enderror
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                         <div class="modal-footer">

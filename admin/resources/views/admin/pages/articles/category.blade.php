@@ -31,15 +31,6 @@
                                         </div>
                                     @enderror
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="slug" class="form-label">{{ __('content.slug') }}</label>
-                                    <input class="form-control @error('slug') is-invalid @enderror" type="text" name="slug" value="{{ $category->slug }}" required />
-                                    @error('slug')
-                                        <div class="invalid-feedback">
-                                            {{ __('content.text_not_valid') }} {{ __('content.max_characters') }}: 55.
-                                        </div>
-                                    @enderror
-                                </div>
                             </div>
                         </div>
                         <div class="modal-footer">

@@ -90,7 +90,7 @@
                                         {{ __('content.description') }}
                                         @include('admin.modules.ai-generate-btn', ['type' => 'project', 'field' => 'description', 'inputName' => 'description', 'summernote' => true])
                                     </label>
-                                    <textarea class="form-control summernote @error('description') is-invalid @enderror" name="description" data-folder="uploads/img/temp" data-route="{{url('/')}}" data-code="{{$project->images_code}}">{{ $project->description }}</textarea>
+                                    <textarea class="form-control summernote @error('description') is-invalid @enderror" name="description" data-folder="uploads/img/temp" data-route="{{url('/')}}">{{ $project->description }}</textarea>
                                     @error('description')
                                         <div class="invalid-feedback d-none">
                                             {{ __('content.text_not_valid') }}

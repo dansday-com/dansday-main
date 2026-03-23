@@ -44,7 +44,7 @@ export const GET: RequestHandler = async () => {
 		try {
 			const articles = await fetchArticles();
 			articleUrlData = articles.map((row) => ({
-				loc: `${baseUrl}/articles/${row.slug as string}`,
+				loc: `${baseUrl}/articles/${slug(row.title as string)}`,
 				lastmod:
 					row.updated_at != null
 						? new Date(row.updated_at as string).toISOString()
