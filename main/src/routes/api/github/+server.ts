@@ -87,11 +87,23 @@ async function setCachedStats(data: any): Promise<void> {
 async function fetchContributionStats(username: string, token: string) {
 	const now = new Date();
 	const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
-	const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-	const day = now.getDay();
+	const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59).toISOString();
+
+	const startOfWeek = new Date(now);
+	const day = startOfWeek.getDay();
 	const diffToMonday = day === 0 ? 6 : day - 1;
-	const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
-	weekStart.setHours(0, 0, 0, 0);
+	startOfWeek.setDate(now.getDate() - diffToMonday);
+
+	const endOfWeek = new Date(startOfWeek);
+	endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+	const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+	const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+	const weekStartStr = startOfWeek.toISOString().slice(0, 10);
+	const weekEndStr = endOfWeek.toISOString().slice(0, 10);
+	const monthStartStr = startOfMonth.toISOString().slice(0, 10);
+	const monthEndStr = endOfMonth.toISOString().slice(0, 10);
 
 	const yearQuery = `
 		query($username: String!, $from: DateTime!, $to: DateTime!) {
@@ -119,7 +131,7 @@ async function fetchContributionStats(username: string, token: string) {
 		}
 	`;
 
-	const data = await graphql(token, yearQuery, { username, from: yearStart, to: now.toISOString() });
+	const data = await graphql(token, yearQuery, { username, from: yearStart, to: yearEnd });
 	if (data.errors) throw new Error(data.errors[0]?.message ?? 'GraphQL error');
 
 	const user = data.data?.user;
@@ -132,11 +144,8 @@ async function fetchContributionStats(username: string, token: string) {
 		}
 	}
 
-	const weekStartStr = weekStart.toISOString().slice(0, 10);
-	const monthStartStr = monthStart.slice(0, 10);
-
-	const weekCommits = allDays.filter((d) => d.date >= weekStartStr).reduce((s, d) => s + d.count, 0);
-	const monthCommits = allDays.filter((d) => d.date >= monthStartStr).reduce((s, d) => s + d.count, 0);
+	const weekCommits = allDays.filter((d) => d.date >= weekStartStr && d.date <= weekEndStr).reduce((s, d) => s + d.count, 0);
+	const monthCommits = allDays.filter((d) => d.date >= monthStartStr && d.date <= monthEndStr).reduce((s, d) => s + d.count, 0);
 	const yearCommits = calendar?.totalContributions ?? 0;
 
 	const createdYear = new Date(user?.createdAt ?? yearStart).getFullYear();
@@ -160,7 +169,7 @@ async function fetchContributionStats(username: string, token: string) {
 	for (let yr = createdYear; yr <= currentYear; yr++) {
 		yearRanges.push({
 			from: new Date(yr, 0, 1).toISOString(),
-			to: yr === currentYear ? now.toISOString() : new Date(yr, 11, 31, 23, 59, 59).toISOString()
+			to: new Date(yr, 11, 31, 23, 59, 59).toISOString()
 		});
 	}
 
@@ -181,10 +190,9 @@ async function fetchContributionStats(username: string, token: string) {
 	const totalIssues = thisYearData?.totalIssueContributions ?? 0;
 
 	const fmt = (d: Date) => `${d.getDate()} ${d.toLocaleString('en', { month: 'short' })}`;
-	const todayStr = fmt(now);
-	const weekStartDate = fmt(weekStart);
-	const monthStartDate = fmt(new Date(now.getFullYear(), now.getMonth(), 1));
-	const yearStartDate = `1 Jan`;
+	const weekRangeStr = `${fmt(startOfWeek)} - ${fmt(endOfWeek)}`;
+	const monthRangeStr = `${fmt(startOfMonth)} - ${fmt(endOfMonth)}`;
+	const yearRangeStr = `1 Jan - 31 Dec`;
 
 	return {
 		user: {
@@ -207,9 +215,9 @@ async function fetchContributionStats(username: string, token: string) {
 			totalPRs,
 			totalReviews,
 			totalIssues,
-			weekRange: `${weekStartDate} - ${todayStr}`,
-			monthRange: `${monthStartDate} - ${todayStr}`,
-			yearRange: `${yearStartDate} - ${todayStr}`,
+			weekRange: weekRangeStr,
+			monthRange: monthRangeStr,
+			yearRange: yearRangeStr,
 			allTimeRange: `${createdYear} - ${now.getFullYear()}`
 		},
 		calendar: allDays,
@@ -219,9 +227,8 @@ async function fetchContributionStats(username: string, token: string) {
 }
 
 async function fetchCalendarForYear(username: string, token: string, year: number) {
-	const now = new Date();
 	const from = new Date(year, 0, 1).toISOString();
-	const to = year === now.getFullYear() ? now.toISOString() : new Date(year, 11, 31, 23, 59, 59).toISOString();
+	const to = new Date(year, 11, 31, 23, 59, 59).toISOString();
 
 	const q = `
 		query($username: String!, $from: DateTime!, $to: DateTime!) {
@@ -258,7 +265,7 @@ async function fetchMyRepos(username: string, token: string, createdYear: number
 
 	for (let yr = createdYear; yr <= now.getFullYear(); yr++) {
 		const from = new Date(yr, 0, 1).toISOString();
-		const to = yr === now.getFullYear() ? now.toISOString() : new Date(yr, 11, 31, 23, 59, 59).toISOString();
+		const to = new Date(yr, 11, 31, 23, 59, 59).toISOString();
 
 		const q = `
 			query($username: String!, $from: DateTime!, $to: DateTime!) {
@@ -529,7 +536,7 @@ async function syncIssues(username: string, token: string, createdYear: number) 
 	const currentYear = now.getFullYear();
 	for (let yr = createdYear; yr <= currentYear; yr++) {
 		const from = new Date(yr, 0, 1).toISOString();
-		const to = yr === currentYear ? now.toISOString() : new Date(yr, 11, 31, 23, 59, 59).toISOString();
+		const to = new Date(yr, 11, 31, 23, 59, 59).toISOString();
 		const d = await graphql(token, issueContribQuery(username, from, to, null), { username, from, to });
 		const issues = d.data?.user?.contributionsCollection?.issueContributions;
 		if (!issues) continue;
@@ -555,7 +562,7 @@ async function syncReviews(username: string, token: string, createdYear: number)
 	const currentYear = now.getFullYear();
 	for (let yr = createdYear; yr <= currentYear; yr++) {
 		const from = new Date(yr, 0, 1).toISOString();
-		const to = yr === currentYear ? now.toISOString() : new Date(yr, 11, 31, 23, 59, 59).toISOString();
+		const to = new Date(yr, 11, 31, 23, 59, 59).toISOString();
 		const d = await graphql(token, reviewQuery(username, from, to, null), { username, from, to });
 		const reviews = d.data?.user?.contributionsCollection?.pullRequestReviewContributions;
 		if (!reviews) continue;

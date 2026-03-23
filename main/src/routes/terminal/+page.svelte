@@ -24,8 +24,9 @@
 	const username = (general.terminal_username as string) ?? '';
 	const directory = '~';
 
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !isProcessing) {
+	function handleSubmit(event: Event) {
+		event.preventDefault();
+		if (!isProcessing) {
 			const command = currentInput.trim();
 			if (command) {
 				executeCommand(command);
@@ -82,26 +83,14 @@
 
 			const data = await response.json();
 			const fullText = data.response || '';
-			let typed = '';
-			let charIndex = 0;
 
-			await new Promise<void>((resolve) => {
-				const interval = setInterval(() => {
-					charIndex++;
-					typed = fullText.slice(0, charIndex);
-					const updatedHistory = [...history];
-					updatedHistory[historyIndex] = {
-						...updatedHistory[historyIndex],
-						output: typed.split('\n')
-					};
-					history = updatedHistory;
-					scrollToBottom();
-					if (charIndex >= fullText.length) {
-						clearInterval(interval);
-						resolve();
-					}
-				}, 12);
-			});
+			const updatedHistory = [...history];
+			updatedHistory[historyIndex] = {
+				...updatedHistory[historyIndex],
+				output: fullText.split('\n')
+			};
+			history = updatedHistory;
+			scrollToBottom();
 		} catch (error) {
 			const updatedHistory = [...history];
 			updatedHistory[historyIndex] = {
@@ -180,7 +169,7 @@
 		{/each}
 
 		{#if !isProcessing}
-			<div class="flex flex-wrap items-center">
+			<form class="flex flex-wrap items-center" onsubmit={handleSubmit}>
 				<span class="font-bold text-[#8ae234]">{username}</span>
 				<span class="text-white">:</span>
 				<span class="font-bold text-[#729fcf]">{directory}</span>
@@ -188,14 +177,13 @@
 				<input
 					bind:this={inputElement}
 					bind:value={currentInput}
-					onkeydown={handleKeydown}
 					class="flex-1 bg-transparent text-white outline-none"
 					type="text"
 					spellcheck="false"
 					autocomplete="off"
 					autofocus
 				/>
-			</div>
+			</form>
 		{/if}
 	</div>
 </main>

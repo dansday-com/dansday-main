@@ -5,6 +5,7 @@ import { query } from '$lib/server/db';
 import { encode as toToon } from '@toon-format/toon';
 import OpenAI from 'openai';
 import type { RequestHandler } from './$types';
+import loggerProvider from '../../../../otel/logger.js';
 
 const toolSections: Record<string, string | undefined> = {
 	get_home: undefined,
@@ -217,19 +218,44 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const allMessages = [...systemMessages, contextMessage, ...messages] as OpenAI.Chat.ChatCompletionMessageParam[];
 
-		try {
-			const completion = await openai.chat.completions.create({
-				model: openaiModel.trim(),
-				messages: allMessages,
-				temperature: 0
-			});
+			const aiReply = completion.choices?.[0]?.message?.content || 'No response from AI.';
 
-			const reply = completion.choices?.[0]?.message?.content || 'No response from AI.';
-			return json({ response: reply });
+			if (loggerProvider) {
+				const logger = loggerProvider.getLogger('terminal');
+				const userMessage = messages[messages.length - 1]?.content ?? '';
+				logger.emit({
+					body: 'AI Terminal Interaction',
+					attributes: {
+						'terminal.user_input': userMessage,
+						'terminal.system_prompt': systemContent,
+						'terminal.context_data': contextMessage.content,
+						'terminal.ai_response': aiReply
+					}
+				});
+			}
+
+			return json({ response: aiReply });
 		} catch (error: any) {
 			console.error('OpenAI API Error:', error);
+			const errorReply = `Error: Failed to connect to AI service.\n${error.message}`;
+
+			if (loggerProvider) {
+				const logger = loggerProvider.getLogger('terminal');
+				const userMessage = messages[messages.length - 1]?.content ?? '';
+				logger.emit({
+					body: 'AI Terminal Error',
+					attributes: {
+						'terminal.user_input': userMessage,
+						'terminal.system_prompt': systemContent,
+						'terminal.context_data': contextMessage.content,
+						'terminal.ai_response': errorReply,
+						'error.message': error.message
+					}
+				});
+			}
+
 			return json({
-				response: `Error: Failed to connect to AI service.\n${error.message}`
+				response: errorReply
 			});
 		}
 	} catch (error: any) {
