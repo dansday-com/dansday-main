@@ -80,8 +80,17 @@ export async function fetchProjects(): Promise<{
 	return { projects, projects_categories };
 }
 
-export async function fetchProject(id: number): Promise<Record<string, unknown>> {
-	const project = await queryOne<Row>('SELECT * FROM project WHERE id = ? LIMIT 1', [id]);
+export async function fetchProjectBySlug(slug: string): Promise<Record<string, unknown>> {
+	const projects = await query<Row>('SELECT * FROM project WHERE enable = 1', []);
+	function makeSlug(name: string) {
+		return name
+			.toLowerCase()
+			.replace(/\+/g, 'plus')
+			.replace(/#/g, 'sharp')
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '');
+	}
+	const project = projects.find((p) => makeSlug(p.title as string) === slug) ?? null;
 	if (!project) throw new Error('Not found');
 	const category = await queryOne<Row>('SELECT name FROM project_category WHERE id = ? LIMIT 1', [project.category_id as number]);
 	const data: Record<string, unknown> = { ...project };

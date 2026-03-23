@@ -1,13 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { browser } from '$app/environment';
-
 	import type { LayoutProps } from './$types';
 
 	let { children, data }: LayoutProps = $props();
 
 	const categoryFilterList = data.categoryFilterList ?? [];
-	let activeCategory = $derived(browser ? (page.url.searchParams.get('category') ?? '') : '');
+	let activeCategory = $derived(page.params.category ?? '');
 </script>
 
 <main class="flex-1 flex-grow overflow-y-auto px-3 lg:px-4">
@@ -22,7 +20,7 @@
 		</a>
 		{#each categoryFilterList as { id, name, slug } (id)}
 			<a
-				href="/projects?category={encodeURIComponent(slug)}"
+				href="/projects/category/{encodeURIComponent(slug)}"
 				data-active={activeCategory === slug}
 				class="text-ash-300 data-[active=true]:bg-ash-300 data-[active=true]:text-ash-800 flex shrink-0 items-center gap-1.5 px-3 py-0.5 leading-none transition-all"
 				aria-label="Filter by {name}"

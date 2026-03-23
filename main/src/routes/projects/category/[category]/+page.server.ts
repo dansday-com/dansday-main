@@ -11,7 +11,7 @@ function slug(name: string) {
 		.replace(/^-+|-+$/g, '');
 }
 
-export const load: PageServerLoad = async ({ parent }) => {
+export const load: PageServerLoad = async ({ params, parent }) => {
 	const data = await parent();
 	const section = (data.section ?? {}) as Record<string, unknown>;
 	if (section.projects_enable !== 1 && section.projects_enable !== true) {
@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 		const { projects, projects_categories } = await fetchProjects();
 		const categories = (projects_categories ?? []) as Array<{ id: number; name: string }>;
 		const byId = Object.fromEntries(categories.map((c) => [c.id, c]));
-		const items = (projects ?? []).map((row: Record<string, unknown>) => {
+		const allItems = (projects ?? []).map((row: Record<string, unknown>) => {
 			const catId = row.category_id as number | undefined;
 			const cat = catId ? byId[catId] : null;
 			return {
@@ -35,6 +35,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 				category_slug: cat ? slug(cat.name) : null
 			};
 		});
+		const items = allItems.filter((p) => p.category_slug === params.category);
 		return { items };
 	} catch {
 		return { items: [] };

@@ -1,17 +1,16 @@
 <script lang="ts">
 	import { page } from '$app/state';
- 	import Metadata from '$lib/components/metadata.svelte';
+	import Metadata from '$lib/components/metadata.svelte';
 	import { resolveImageUrl } from '$lib/image';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const baseUrl = data.adminBaseUrl ?? '';
-	const pageTitle = (data.projectsListMeta?.title as string) ?? (data.siteName ? `Projects | ${data.siteName}` : 'Projects');
-	const description = (data.projectsListMeta?.description as string) ?? '';
+	const pageTitle = (data.siteName ? `Projects | ${data.siteName}` : 'Projects');
 	let canonicalUrl = $derived(page.url.origin + page.url.pathname);
 </script>
 
-<Metadata title={pageTitle} {description} canonical={canonicalUrl} />
+<Metadata title={pageTitle} canonical={canonicalUrl} />
 
 <h1 class="sr-only">{pageTitle}</h1>
 

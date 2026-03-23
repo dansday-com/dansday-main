@@ -1,4 +1,4 @@
-import { fetchProject } from '$lib/server/data';
+import { fetchProjectBySlug } from '$lib/server/data';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -8,10 +8,8 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 	if (section.projects_enable !== 1 && section.projects_enable !== true) {
 		throw redirect(302, '/');
 	}
-	const id = parseInt(params.id, 10);
-	if (Number.isNaN(id)) error(404, 'Not found');
 	try {
-		const project = await fetchProject(id);
+		const project = await fetchProjectBySlug(params.slug);
 		return {
 			meta: {
 				title: project.title as string,
