@@ -24,6 +24,8 @@ return [
     'ai_terminal_prompt_desc'   => 'System prompt for the AI terminal. Leave blank to use the default.',
     'ai_content_prompt'         => 'Content Generation System Prompt',
     'ai_content_prompt_desc'    => 'System prompt for content generation. Leave blank to use the default.',
+    'ai_terminal_reasoning'     => 'Terminal Reasoning Effort',
+    'ai_content_reasoning'      => 'Content Generation Reasoning Effort',
     'ai_unavailable'            => 'AI service is temporarily unavailable. Please try again later.',
     'alert_ok_add'              => 'Added correctly!',
     'alert_ok_delete'           => 'The register has been deleted correctly!',
