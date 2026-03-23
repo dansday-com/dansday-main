@@ -16,7 +16,7 @@ export const load: LayoutServerLoad = async () => {
 		const categoryFilterList: Array<{ id: number; name: string; slug: string }> = [];
 		for (const cat of categories) {
 			const hasProject = projectList.some((p) => p.category_id === cat.id);
-			if (hasProject) categoryFilterList.push({id: cat.id, name: cat.name, slug: slug(cat.name) });
+			if (hasProject) categoryFilterList.push({ id: cat.id, name: cat.name, slug: slug(cat.name) });
 		}
 		return { categoryFilterList };
 	} catch {

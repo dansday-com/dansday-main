@@ -62,11 +62,7 @@ export const GET: RequestHandler = async () => {
 			const { projects, projects_categories } = await fetchProjects();
 			const categories = (projects_categories ?? []) as Array<{ id: number; name: string }>;
 			const projectList = (projects ?? []) as Array<{ category_id?: number }>;
-			const usedCategorySlugs = new Set(
-				categories
-					.filter((c) => projectList.some((p) => p.category_id === c.id))
-					.map((c) => slug(c.name))
-			);
+			const usedCategorySlugs = new Set(categories.filter((c) => projectList.some((p) => p.category_id === c.id)).map((c) => slug(c.name)));
 			categoryUrlData = Array.from(usedCategorySlugs).map((s) => ({
 				loc: `${baseUrl}/projects/category/${s}`,
 				changefreq: 'daily',

@@ -11,7 +11,7 @@
     </div>
 
     <div class="row">
-        
+
         <div class="col-lg-12 mb-4">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -28,11 +28,12 @@
                                 <thead>
                                     <tr>
                                         <th class="custom-width" scope="col">#</th>
+                                        <th>{{ __('content.status') }}</th>
                                         <th>{{ __('content.title') }}</th>
                                         <th>{{ __('content.date') }}</th>
                                         <th>{{ __('content.category') }}</th>
                                         <th class="max-w-150">{{ __('content.image') }}</th>
-                                        <th>{{ __('content.status') }}</th>
+                                        <th>{{ __('content.short_desc') }}</th>
                                         <th class="custom-width-action">{{ __('content.action') }}</th>
                                     </tr>
                                 </thead>
@@ -41,6 +42,13 @@
                                     @foreach ($articles as $post)
                                         <tr>
                                             <td>{{ $i }}</td>
+                                            <td>
+                                                @if ($post->enable == 0)
+                                                    <i class="fas fa-circle h4 text-danger" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ __('content.disabled') }}"></i>
+                                                @else
+                                                    <i class="fas fa-circle h4 text-success" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ __('content.enabled') }}"></i>
+                                                @endif
+                                            </td>
                                             <td>{{ $post->title }}</td>
                                             <td>{{ Str::replace('-', '/', $post->created_at)}}</td>
                                             <td>
@@ -58,13 +66,7 @@
                                                     </div>
                                                 </a>
                                             </td>
-                                            <td>
-                                                @if ($post->enable == 0)
-                                                    <i class="fas fa-circle h4 text-danger" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ __('content.disabled') }}"></i>
-                                                @else
-                                                    <i class="fas fa-circle h4 text-success" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ __('content.enabled') }}"></i>
-                                                @endif
-                                            </td>
+                                            <td>{{ $post->short_desc }}</td>
                                             <td>
                                                 <div class="btn-group">
                                                     <a href="{{ url('/') }}/admin/articles/post/{{ $post->id }}" class="btn btn-primary btn-sm mr-1">

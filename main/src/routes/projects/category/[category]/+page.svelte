@@ -6,7 +6,7 @@
 
 	let { data }: PageProps = $props();
 	const baseUrl = data.adminBaseUrl ?? '';
-	const pageTitle = (data.siteName ? `Projects | ${data.siteName}` : 'Projects');
+	const pageTitle = data.siteName ? `Projects | ${data.siteName}` : 'Projects';
 	let canonicalUrl = $derived(page.url.origin + page.url.pathname);
 </script>
 

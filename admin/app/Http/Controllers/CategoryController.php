@@ -59,7 +59,7 @@ class CategoryController extends Controller
             'name' => ['required', 'string', 'max:55'],
         ]);
         if ($validate->fails()) {
-            return redirect('/admin/articles/categories/' . $id)
+            return redirect('/admin/articles/categories')
                 ->with('error-validation', '')
                 ->withErrors($validate)
                 ->withInput();

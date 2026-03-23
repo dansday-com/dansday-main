@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
- 	import Metadata from '$lib/components/metadata.svelte';
+	import Metadata from '$lib/components/metadata.svelte';
 	import { resolveImageUrl } from '$lib/image';
 	import type { PageProps } from './$types';
 

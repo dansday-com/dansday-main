@@ -11,7 +11,7 @@
     </div>
 
     <div class="row">
-        
+
         <div class="col-lg-12 mb-4">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -40,9 +40,44 @@
                                             <td>{{ $category->name }}</td>
                                             <td>
                                                 <div class="btn-group">
-                                                    <a href="{{ url('/') }}/admin/articles/categories/{{ $category->id }}" class="btn btn-primary btn-sm mr-1">
-                                                        <i class="fas fa-pencil-alt"></i>
-                                                    </a>
+                                                    <form class="d-inline-block" action="{{url('/admin/articles/categories')}}/{{ $category->id }}" method="POST">
+                                                        @csrf
+                                                        @method('PUT')
+                                                        <button type="button" class="btn btn-primary btn-sm mr-1" data-bs-toggle="modal" data-bs-target="#updateCategory{{ $category->id }}">
+                                                            <i class="fas fa-pencil-alt"></i>
+                                                        </button>
+                                                        <div class="modal fade" id="updateCategory{{ $category->id }}" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+                                                            <div class="modal-dialog modal-min" role="document">
+                                                                <div class="modal-content">
+                                                                    <div class="modal-header">
+                                                                        <h5 class="modal-title" id="exampleModalLabel">
+                                                                            {{ __('content.edit_category') }}
+                                                                        </h5>
+                                                                        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                                                                            <span aria-hidden="true">&times;</span>
+                                                                        </button>
+                                                                    </div>
+                                                                    <div class="modal-body">
+                                                                        <div class="row">
+                                                                            <div class="col-md-12 mb-3">
+                                                                                <label for="name" class="form-label">{{ __('content.name') }}</label>
+                                                                                <input class="form-control @error('name') is-invalid @enderror" type="text" name="name" required value="{{ $category->name }}" />
+                                                                                @error('name')
+                                                                                    <div class="invalid-feedback">
+                                                                                        {{ __('content.text_not_valid') }} {{ __('content.max_characters') }}: 55.
+                                                                                    </div>
+                                                                                @enderror
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="submit" class="btn btn-primary">{{ __('content.update') }}</button>
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('content.cancel') }}</button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </form>
                                                     <form class="d-inline-block" action="{{url('/admin/articles/categories')}}/{{ $category->id }}" method="POST">
                                                         @csrf
                                                         @method('DELETE')
@@ -87,7 +122,7 @@
     </div>
 </div>
 
-<div class="modal fade " id="categoryNewModal" tabindex="-1" role="dialog" aria-labelledby="categoryNewModalLabel" aria-hidden="true">
+<div class="modal fade" id="categoryNewModal" tabindex="-1" role="dialog" aria-labelledby="categoryNewModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-min" role="document">
         <div class="modal-content">
             <div class="modal-header">
