@@ -19,69 +19,44 @@ const toolSections: Record<string, string | undefined> = {
 	get_issues: 'contribute_enable'
 };
 
+const noParams = { type: 'object', properties: {} } as const;
+
 const toolDefinitions: Record<string, OpenAI.Chat.ChatCompletionTool> = {
 	get_home: {
 		type: 'function',
-		function: {
-			name: 'get_home',
-			description: 'Get homepage title, description, site URL, and social links'
-		}
+		function: { name: 'get_home', description: 'Get homepage title, description, site URL, and social links', parameters: noParams }
 	},
 	get_about: {
 		type: 'function',
-		function: {
-			name: 'get_about',
-			description: 'Get skills, education, employment history, services, and testimonials'
-		}
+		function: { name: 'get_about', description: 'Get skills, education, employment history, services, and testimonials', parameters: noParams }
 	},
 	get_articles: {
 		type: 'function',
-		function: {
-			name: 'get_articles',
-			description: 'Get list of articles/blog posts with titles, descriptions, and dates'
-		}
+		function: { name: 'get_articles', description: 'Get list of articles/blog posts with titles, descriptions, and dates', parameters: noParams }
 	},
 	get_projects: {
 		type: 'function',
-		function: {
-			name: 'get_projects',
-			description: 'Get list of projects with titles, descriptions, and categories'
-		}
+		function: { name: 'get_projects', description: 'Get list of projects with titles, descriptions, and categories', parameters: noParams }
 	},
 	get_activity: {
 		type: 'function',
-		function: {
-			name: 'get_activity',
-			description: 'Get total GitHub activity (commits, PRs, reviews, issues) with stats broken down by repo, year, month, and week'
-		}
+		function: { name: 'get_activity', description: 'Get total GitHub activity (commits, PRs, reviews, issues) with stats broken down by repo, year, month, and week', parameters: noParams }
 	},
 	get_commits: {
 		type: 'function',
-		function: {
-			name: 'get_commits',
-			description: 'Get GitHub commit activity with stats broken down by repo, year, month, and week'
-		}
+		function: { name: 'get_commits', description: 'Get GitHub commit activity with stats broken down by repo, year, month, and week', parameters: noParams }
 	},
 	get_prs: {
 		type: 'function',
-		function: {
-			name: 'get_prs',
-			description: 'Get GitHub pull request activity with additions, deletions, and stats'
-		}
+		function: { name: 'get_prs', description: 'Get GitHub pull request activity with additions, deletions, and stats', parameters: noParams }
 	},
 	get_reviews: {
 		type: 'function',
-		function: {
-			name: 'get_reviews',
-			description: 'Get GitHub PR review activity with stats broken down by repo, year, month, and week'
-		}
+		function: { name: 'get_reviews', description: 'Get GitHub PR review activity with stats broken down by repo, year, month, and week', parameters: noParams }
 	},
 	get_issues: {
 		type: 'function',
-		function: {
-			name: 'get_issues',
-			description: 'Get GitHub issue activity with stats broken down by repo, year, month, and week'
-		}
+		function: { name: 'get_issues', description: 'Get GitHub issue activity with stats broken down by repo, year, month, and week', parameters: noParams }
 	}
 };
 
