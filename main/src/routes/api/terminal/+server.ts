@@ -36,7 +36,10 @@ const dateParams = {
 const searchParams = {
 	type: 'object',
 	properties: {
-		keyword: { type: 'string', description: 'Search keyword to match against titles and descriptions across articles, projects, and GitHub activity (e.g. "3cat", "laravel", "discord").' },
+		keyword: {
+			type: 'string',
+			description: 'Search keyword to match against titles and descriptions across articles, projects, and GitHub activity (e.g. "3cat", "laravel", "discord").'
+		},
 		startDate: { type: 'string', description: 'Filter results from this date (YYYY-MM-DD).' },
 		endDate: { type: 'string', description: 'Filter results up to this date (YYYY-MM-DD).' }
 	},
@@ -48,7 +51,8 @@ const toolDefinitions: Record<string, OpenAI.Chat.ChatCompletionTool> = {
 		type: 'function',
 		function: {
 			name: 'search',
-			description: 'Search across articles, projects, and GitHub activity by keyword. Use this when the user asks about a topic that may span multiple data sources (e.g. "tell me about 3cat", "what have I done with discord").',
+			description:
+				'Search across articles, projects, and GitHub activity by keyword. Use this when the user asks about a topic that may span multiple data sources (e.g. "tell me about 3cat", "what have I done with discord").',
 			parameters: searchParams
 		}
 	},
@@ -188,11 +192,15 @@ async function executeTool(name: string, args: Record<string, any> = {}): Promis
 
 			const [articles, projects, activity, skills, experiences, services, testimonials, categories] = await Promise.all([
 				query<{ title: string; description: string; created_at: string }>(
-					'SELECT title, description, created_at FROM articles WHERE enable = 1 AND (title LIKE ? OR description LIKE ?)' + dateClause + ' ORDER BY created_at DESC',
+					'SELECT title, description, created_at FROM articles WHERE enable = 1 AND (title LIKE ? OR description LIKE ?)' +
+						dateClause +
+						' ORDER BY created_at DESC',
 					[keyword, keyword, ...dp]
 				),
 				query<{ title: string; description: string; category_id: number; created_at: string }>(
-					'SELECT title, description, category_id, created_at FROM project WHERE enable = 1 AND (title LIKE ? OR description LIKE ?)' + dateClause + ' ORDER BY created_at DESC',
+					'SELECT title, description, category_id, created_at FROM project WHERE enable = 1 AND (title LIKE ? OR description LIKE ?)' +
+						dateClause +
+						' ORDER BY created_at DESC',
 					[keyword, keyword, ...dp]
 				),
 				query<{ repo: string; title: string; type: string; created_at: string }>(
@@ -204,7 +212,10 @@ async function executeTool(name: string, args: Record<string, any> = {}): Promis
 					'SELECT title, type, period, description FROM experience WHERE (title LIKE ? OR description LIKE ?) ORDER BY `order` ASC',
 					[keyword, keyword]
 				),
-				query<{ title: string; description: string }>('SELECT title, description FROM service WHERE (title LIKE ? OR description LIKE ?) ORDER BY `order` ASC', [keyword, keyword]),
+				query<{ title: string; description: string }>(
+					'SELECT title, description FROM service WHERE (title LIKE ? OR description LIKE ?) ORDER BY `order` ASC',
+					[keyword, keyword]
+				),
 				query<{ name: string; company: string; description: string }>(
 					'SELECT name, company, description FROM testimonial WHERE (name LIKE ? OR company LIKE ? OR description LIKE ?) ORDER BY `order` ASC',
 					[keyword, keyword, keyword]
@@ -221,7 +232,12 @@ async function executeTool(name: string, args: Record<string, any> = {}): Promis
 			if (testimonials.length > 0) result.testimonials = testimonials.map((t) => ({ name: t.name, company: t.company, description: t.description }));
 			if (articles.length > 0) result.articles = articles.map((a) => ({ title: a.title, description: a.description, created_at: a.created_at }));
 			if (projects.length > 0) result.projects = projects.map((p) => ({ title: p.title, description: p.description, category: catMap.get(p.category_id) }));
-			if (activity.length > 0) result.activity = { totalCount: activity.length, stats: buildStats(activity, 'created_at'), items: activity.map((r) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at })) };
+			if (activity.length > 0)
+				result.activity = {
+					totalCount: activity.length,
+					stats: buildStats(activity, 'created_at'),
+					items: activity.map((r) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
+				};
 
 			return toToon(result);
 		}
