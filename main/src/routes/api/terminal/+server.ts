@@ -221,7 +221,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const aiReply = completion.choices?.[0]?.message?.content || 'No response from AI.';
 
 			if (loggerProvider) {
-				const logger = loggerProvider.getLogger('ai-terminal');
+				const logger = loggerProvider.getLogger('terminal');
 				const userMessage = messages[messages.length - 1]?.content ?? '';
 				logger.emit({
 					body: 'AI Terminal Interaction',
@@ -240,7 +240,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const errorReply = `Error: Failed to connect to AI service.\n${error.message}`;
 
 			if (loggerProvider) {
-				const logger = loggerProvider.getLogger('ai-terminal');
+				const logger = loggerProvider.getLogger('terminal');
 				const userMessage = messages[messages.length - 1]?.content ?? '';
 				logger.emit({
 					body: 'AI Terminal Error',
