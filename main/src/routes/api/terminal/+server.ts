@@ -13,6 +13,7 @@ const toolSections: Record<string, string | undefined> = {
 	get_articles: 'articles_enable',
 	get_projects: 'projects_enable',
 	get_activity: 'contribute_enable',
+	get_commits: 'contribute_enable',
 	get_prs: 'contribute_enable',
 	get_reviews: 'contribute_enable',
 	get_issues: 'contribute_enable'
@@ -51,6 +52,13 @@ const toolDefinitions: Record<string, OpenAI.Chat.ChatCompletionTool> = {
 		type: 'function',
 		function: {
 			name: 'get_activity',
+			description: 'Get total GitHub activity (commits, PRs, reviews, issues) with stats broken down by repo, year, month, and week'
+		}
+	},
+	get_commits: {
+		type: 'function',
+		function: {
+			name: 'get_commits',
 			description: 'Get GitHub commit activity with stats broken down by repo, year, month, and week'
 		}
 	},
@@ -150,6 +158,19 @@ async function executeTool(name: string): Promise<string> {
 			return toToon(projects.map((p) => ({ title: p.title, description: p.description, category: catMap.get(p.category_id) })));
 		}
 		case 'get_activity': {
+			const rows = await query<{ repo: string; title: string; type: string; committed_at: string }>(
+				'SELECT repo, title, type, committed_at FROM github_activity ORDER BY committed_at DESC'
+			);
+			const stats = buildStats(rows, 'committed_at');
+			return toToon({
+				totalCount: rows.length,
+				yearlyStats: stats.yearly,
+				monthlyStats: stats.monthly,
+				weeklyStats: stats.weekly,
+				items: rows.map((r) => ({ repo: r.repo, title: r.title, type: r.type, date: r.committed_at }))
+			});
+		}
+		case 'get_commits': {
 			const rows = await query<{ repo: string; title: string; committed_at: string }>(
 				'SELECT repo, title, committed_at FROM github_activity WHERE type = "commit" ORDER BY committed_at DESC'
 			);
