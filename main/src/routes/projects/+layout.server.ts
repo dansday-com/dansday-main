@@ -4,9 +4,7 @@ import type { LayoutServerLoad } from './$types';
 function slug(name: string) {
 	return name
 		.toLowerCase()
-		.replace(/\+/g, 'plus')
-		.replace(/#/g, 'sharp')
-		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/\s+/g, '-')
 		.replace(/^-+|-+$/g, '');
 }
 

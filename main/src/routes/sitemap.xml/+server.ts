@@ -2,6 +2,13 @@ import { env } from '$env/dynamic/private';
 import { fetchSection, fetchArticles, fetchProjects } from '$lib/server/data';
 import type { RequestHandler } from './$types';
 
+function slug(name: string) {
+	return name
+		.toLowerCase()
+		.replace(/\s+/g, '-')
+		.replace(/^-+|-+$/g, '');
+}
+
 function escapeXml(unsafe: string): string {
 	return unsafe.replace(
 		/[&<"'>]/g,
@@ -27,6 +34,7 @@ export const GET: RequestHandler = async () => {
 	let section: Record<string, unknown> = {};
 	let articleUrlData: Array<{ loc: string; lastmod?: string; changefreq: string; priority: number }> = [];
 	let projectUrlData: Array<{ loc: string; lastmod?: string; changefreq: string; priority: number }> = [];
+	let categoryUrlData: Array<{ loc: string; changefreq: string; priority: number }> = [];
 
 	try {
 		section = (await fetchSection()) as Record<string, unknown>;
@@ -51,9 +59,21 @@ export const GET: RequestHandler = async () => {
 
 	if (notDisabled(section.projects_enable)) {
 		try {
-			const { projects } = await fetchProjects();
+			const { projects, projects_categories } = await fetchProjects();
+			const categories = (projects_categories ?? []) as Array<{ id: number; name: string }>;
+			const projectList = (projects ?? []) as Array<{ category_id?: number }>;
+			const usedCategorySlugs = new Set(
+				categories
+					.filter((c) => projectList.some((p) => p.category_id === c.id))
+					.map((c) => slug(c.name))
+			);
+			categoryUrlData = Array.from(usedCategorySlugs).map((s) => ({
+				loc: `${baseUrl}/projects/category/${s}`,
+				changefreq: 'daily',
+				priority: 0.7
+			}));
 			projectUrlData = (projects ?? []).map((row) => ({
-				loc: `${baseUrl}/projects/${row.id as number}`,
+				loc: `${baseUrl}/projects/${slug(row.title as string)}`,
 				lastmod: row.updated_at != null ? new Date(row.updated_at as string).toISOString() : undefined,
 				changefreq: 'daily',
 				priority: 0.6
@@ -86,6 +106,7 @@ export const GET: RequestHandler = async () => {
 		...(notDisabled(section.projects_enable)
 			? [{ loc: `${baseUrl}/projects`, changefreq: 'daily' as const, priority: 1.0, lastmod: new Date().toISOString() }]
 			: []),
+		...categoryUrlData,
 		...(notDisabled(section.articles_enable)
 			? [{ loc: `${baseUrl}/articles`, changefreq: 'daily' as const, priority: 1.0, lastmod: new Date().toISOString() }]
 			: []),

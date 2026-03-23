@@ -85,9 +85,7 @@ export async function fetchProjectBySlug(slug: string): Promise<Record<string, u
 	function makeSlug(name: string) {
 		return name
 			.toLowerCase()
-			.replace(/\+/g, 'plus')
-			.replace(/#/g, 'sharp')
-			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/\s+/g, '-')
 			.replace(/^-+|-+$/g, '');
 	}
 	const project = projects.find((p) => makeSlug(p.title as string) === slug) ?? null;
