@@ -13,7 +13,7 @@
 		<a
 			href="/projects"
 			data-active={activeCategory === ''}
-			class="text-ash-300 data-[active=true]:bg-ash-300 data-[active=true]:text-ash-800 flex shrink-0 items-center gap-1.5 px-3 py-0.5 leading-none transition-all"
+			class="text-ash-300 data-[active=true]:bg-ash-300 data-[active=true]:text-ash-800 flex shrink-0 items-center gap-1.5 px-3 py-0.5 leading-none"
 			aria-label="All projects"
 		>
 			All
@@ -22,7 +22,7 @@
 			<a
 				href="/projects/category/{encodeURIComponent(slug)}"
 				data-active={activeCategory === slug}
-				class="text-ash-300 data-[active=true]:bg-ash-300 data-[active=true]:text-ash-800 flex shrink-0 items-center gap-1.5 px-3 py-0.5 leading-none transition-all"
+				class="text-ash-300 data-[active=true]:bg-ash-300 data-[active=true]:text-ash-800 flex shrink-0 items-center gap-1.5 px-3 py-0.5 leading-none"
 				aria-label="Filter by {name}"
 			>
 				{name}
