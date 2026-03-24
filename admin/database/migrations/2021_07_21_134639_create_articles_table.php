@@ -18,7 +18,7 @@ class CreateArticlesTable extends Migration
             $table->string('author');
 
             $table->unsignedBigInteger('category_id');
-            $table->foreign('category_id')->references('id')->on('article_category');
+            $table->foreign('category_id')->references('id')->on('article_categories');
 
             $table->timestamps();
         });

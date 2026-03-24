@@ -13,7 +13,7 @@ class CreateProjectTable extends Migration
      */
     public function up()
     {
-        Schema::create('project', function (Blueprint $table) {
+        Schema::create('projects', function (Blueprint $table) {
             $table->id();
             $table->boolean('enable');
             $table->string('title');
@@ -22,7 +22,7 @@ class CreateProjectTable extends Migration
             $table->text('image')->nullable();
 
             $table->unsignedBigInteger('category_id');
-            $table->foreign('category_id')->references('id')->on('project_category');
+            $table->foreign('category_id')->references('id')->on('project_categories');
 
             $table->timestamps();
         });
@@ -35,6 +35,6 @@ class CreateProjectTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('project');
+        Schema::dropIfExists('projects');
     }
 }

@@ -13,7 +13,7 @@ class CreateProjectCategoryTable extends Migration
      */
     public function up()
     {
-        Schema::create('project_category', function (Blueprint $table) {
+        Schema::create('project_categories', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             
@@ -28,6 +28,6 @@ class CreateProjectCategoryTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('project_category');
+        Schema::dropIfExists('project_categories');
     }
 }

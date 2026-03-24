@@ -9,7 +9,7 @@ class CategoriesSeeder extends Seeder
 {
     public function run()
     {
-        DB::table('article_category')->insert(['name' => 'Photography']);
-        DB::table('article_category')->insert(['name' => 'Web design']);
+        DB::table('article_categories')->insert(['name' => 'Photography']);
+        DB::table('article_categories')->insert(['name' => 'Web design']);
     }
 }
