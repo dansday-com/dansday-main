@@ -314,7 +314,7 @@
 
 			<div class="mb-5 rounded border border-[#30363d] bg-[#161b22]/60 p-3">
 				<div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-					<div class="shrink-0 text-xs text-[#8b949e]">
+					<div class="shrink-0 text-sm text-[#8b949e]">
 						{#if calendarLoading}
 							<span class="text-[#8b949e]">Loading...</span>
 						{:else}
@@ -324,7 +324,7 @@
 					<div class="flex items-center gap-1 overflow-x-auto lg:hidden">
 						{#each yearOptions as year}
 							<button
-								class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors {year === selectedYear
+								class="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium transition-colors {year === selectedYear
 									? 'bg-[#238636] text-white'
 									: 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
 								onclick={() => selectYear(year)}>{year}</button
@@ -419,7 +419,7 @@
 					<div class="hidden flex-col items-center gap-1 lg:flex">
 						{#each yearOptions as year}
 							<button
-								class="rounded px-1.5 py-0.5 text-base font-medium transition-colors {year === selectedYear
+								class="rounded px-1.5 py-0.5 text-sm font-medium transition-colors {year === selectedYear
 									? 'bg-[#238636] text-white'
 									: 'text-[#8b949e] hover:bg-[#21262d] hover:text-white'}"
 								onclick={() => selectYear(year)}>{year}</button
