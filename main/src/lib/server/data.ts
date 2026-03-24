@@ -70,7 +70,7 @@ export async function fetchArticleBySlug(slug: string): Promise<Record<string, u
 	const articles = await query<Row>('SELECT * FROM articles WHERE enable = 1', []);
 	const post = articles.find((a) => makeSlug(a.title as string) === slug) ?? null;
 	if (!post) throw new Error('Not found');
-	const category = await queryOne<Row>('SELECT name FROM article_category WHERE id = ? LIMIT 1', [post.category_id as number]);
+	const category = await queryOne<Row>('SELECT name FROM article_categories WHERE id = ? LIMIT 1', [post.category_id as number]);
 	const data: Record<string, unknown> = { ...post };
 	data.category_name = category?.name ?? null;
 	data.date_formated = formatDate(post.created_at as string | Date) ?? null;
@@ -82,14 +82,14 @@ export async function fetchProjects(): Promise<{
 	projects_categories: Row[];
 }> {
 	const [projects, projects_categories] = await Promise.all([
-		query<Row>('SELECT * FROM project WHERE enable = 1 ORDER BY `created_at` DESC'),
-		query<Row>('SELECT * FROM project_category ORDER BY id ASC')
+		query<Row>('SELECT * FROM projects WHERE enable = 1 ORDER BY `created_at` DESC'),
+		query<Row>('SELECT * FROM project_categories ORDER BY id ASC')
 	]);
 	return { projects, projects_categories };
 }
 
 export async function fetchProjectBySlug(slug: string): Promise<Record<string, unknown>> {
-	const projects = await query<Row>('SELECT * FROM project WHERE enable = 1', []);
+	const projects = await query<Row>('SELECT * FROM projects WHERE enable = 1', []);
 	function makeSlug(name: string) {
 		return name
 			.toLowerCase()
@@ -98,7 +98,7 @@ export async function fetchProjectBySlug(slug: string): Promise<Record<string, u
 	}
 	const project = projects.find((p) => makeSlug(p.title as string) === slug) ?? null;
 	if (!project) throw new Error('Not found');
-	const category = await queryOne<Row>('SELECT name FROM project_category WHERE id = ? LIMIT 1', [project.category_id as number]);
+	const category = await queryOne<Row>('SELECT name FROM project_categories WHERE id = ? LIMIT 1', [project.category_id as number]);
 	const data: Record<string, unknown> = { ...project };
 	data.category_name = category?.name ?? null;
 	return data;

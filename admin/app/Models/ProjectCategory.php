@@ -8,5 +8,5 @@ use Illuminate\Database\Eloquent\Model;
 class ProjectCategory extends Model
 {
     use HasFactory;
-    protected $table = 'project_category';
+    protected $table = 'project_categories';
 }

@@ -120,7 +120,7 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 					: [],
 				wantProjects && (wantAll || t === 'project')
 					? query<{ title: string; description: string; category_id: number; created_at: string }>(
-							'SELECT title, description, category_id, created_at FROM project WHERE enable = 1' + kwFilter + dateClause + ' ORDER BY created_at DESC',
+							'SELECT title, description, category_id, created_at FROM projects WHERE enable = 1' + kwFilter + dateClause + ' ORDER BY created_at DESC',
 							[...kwParams, ...dp]
 						)
 					: [],
@@ -158,7 +158,7 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 							hasKeyword ? [keyword, keyword, keyword] : []
 						)
 					: [],
-				query<{ id: number; name: string }>('SELECT id, name FROM project_category ORDER BY id ASC')
+				query<{ id: number; name: string }>('SELECT id, name FROM project_categories ORDER BY id ASC')
 			]);
 
 			const [articles, projects, activity, skills, experiences, services, testimonials, categories] = queries;

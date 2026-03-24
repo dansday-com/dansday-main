@@ -16,7 +16,7 @@ class ProjectController extends Controller
     {
         $user = User::find(1);
         $categories = ProjectCategory::all();
-        $projects = DB::table('project')->orderBy('created_at', 'desc')->get();
+        $projects = DB::table('projects')->orderBy('created_at', 'desc')->get();
         return view('admin.pages.projects.projects')
             ->with('projects', $projects)
             ->with('categories', $categories)
