@@ -23,6 +23,9 @@
 	let cachedEntries: string[] = [];
 	let tabIndex = $state(-1);
 	let tabPrefix = '';
+	let commandHistory: string[] = [];
+	let historyNav = $state(-1);
+	let savedInput = '';
 
 	const username = (general.terminal_username as string) ?? '';
 	const directory = '~';
@@ -32,6 +35,9 @@
 		if (!isProcessing) {
 			const command = currentInput.trim();
 			if (command) {
+				commandHistory.push(command);
+				historyNav = -1;
+				savedInput = '';
 				executeCommand(command);
 			} else {
 				history = [...history, { command: '', output: [] }];
@@ -144,6 +150,21 @@
 			tabIndex = (tabIndex + 1) % matches.length;
 			parts[parts.length - 1] = matches[tabIndex];
 			currentInput = parts.join(' ');
+		} else if (event.key === 'ArrowUp') {
+			event.preventDefault();
+			if (commandHistory.length === 0) return;
+			if (historyNav === -1) savedInput = currentInput;
+			historyNav = Math.min(historyNav + 1, commandHistory.length - 1);
+			currentInput = commandHistory[commandHistory.length - 1 - historyNav];
+		} else if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			if (historyNav <= 0) {
+				historyNav = -1;
+				currentInput = savedInput;
+				return;
+			}
+			historyNav--;
+			currentInput = commandHistory[commandHistory.length - 1 - historyNav];
 		} else {
 			tabIndex = -1;
 			tabPrefix = '';
