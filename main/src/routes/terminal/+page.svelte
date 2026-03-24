@@ -183,6 +183,25 @@
 		}
 	});
 
+	function linkify(text: string): string {
+		return text.replace(
+			/https?:\/\/[^\s<>"')\]]+/g,
+			(url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-[#729fcf] underline hover:text-[#93b8e0]">${url}</a>`
+		);
+	}
+
+	function escapeHtml(text: string): string {
+		return text
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	}
+
+	function formatLine(line: string): string {
+		return linkify(escapeHtml(line));
+	}
+
 	function focusInput() {
 		if (inputElement && !isProcessing) {
 			inputElement.focus();
@@ -220,7 +239,7 @@
 				{#if item.output.length > 0}
 					<div class="mt-1 whitespace-pre-wrap {item.isError ? 'text-red-400' : 'text-ash-100'}">
 						{#each item.output as line}
-							<div>{line}</div>
+							<div>{@html formatLine(line)}</div>
 						{/each}
 					</div>
 				{:else if isProcessing && index === history.length - 1}
