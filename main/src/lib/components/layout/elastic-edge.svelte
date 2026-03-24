@@ -5,6 +5,7 @@
 	const VISCOSITY = 20;
 	const MOUSE_DIST = 100;
 	const DAMPING = 0.15;
+	const R = 12;
 
 	type EdgePoint = {
 		pos: number;
@@ -29,9 +30,11 @@
 
 	function createSidePoints(length: number): EdgePoint[] {
 		const pts: EdgePoint[] = [];
+		const start = R;
+		const end = length - R;
 		for (let i = 0; i <= POINTS_PER_SIDE + 1; i++) {
 			const t = i / (POINTS_PER_SIDE + 1);
-			pts.push({ pos: t * length, offset: 0, vOffset: 0 });
+			pts.push({ pos: start + t * (end - start), offset: 0, vOffset: 0 });
 		}
 		return pts;
 	}
@@ -115,49 +118,56 @@
 		const oy = pad;
 
 		ctx.beginPath();
-		ctx.moveTo(ox, oy);
+		ctx.moveTo(ox + R, oy);
 
 		drawSide(
 			ctx,
 			topPoints,
-			(pos, _off) => ox + pos,
-			(_pos, off) => oy - off,
-			ox + w,
+			(pos) => ox + pos,
+			(_, off) => oy - off,
+			ox + w - R,
 			oy
 		);
+
+		ctx.quadraticCurveTo(ox + w, oy, ox + w, oy + R);
 
 		drawSide(
 			ctx,
 			rightPoints,
-			(_pos, off) => ox + w + off,
-			(pos, _off) => oy + pos,
+			(_, off) => ox + w + off,
+			(pos) => oy + pos,
 			ox + w,
-			oy + h
+			oy + h - R
 		);
+
+		ctx.quadraticCurveTo(ox + w, oy + h, ox + w - R, oy + h);
 
 		drawSide(
 			ctx,
 			bottomPoints,
-			(pos, _off) => ox + w - pos,
-			(_pos, off) => oy + h + off,
-			ox,
+			(pos) => ox + w - pos,
+			(_, off) => oy + h + off,
+			ox + R,
 			oy + h
 		);
+
+		ctx.quadraticCurveTo(ox, oy + h, ox, oy + h - R);
 
 		drawSide(
 			ctx,
 			leftPoints,
-			(_pos, off) => ox - off,
-			(pos, _off) => oy + h - pos,
+			(_, off) => ox - off,
+			(pos) => oy + h - pos,
 			ox,
-			oy
+			oy + R
 		);
 
+		ctx.quadraticCurveTo(ox, oy, ox + R, oy);
 		ctx.closePath();
 
-		const gradient = ctx.createLinearGradient(ox, oy, ox + w, oy + h);
-		gradient.addColorStop(0, '#1c1c1c');
-		gradient.addColorStop(1, '#232323');
+		const gradient = ctx.createLinearGradient(ox, oy + h, ox + w, oy);
+		gradient.addColorStop(0, 'oklch(0.13 0 0)');
+		gradient.addColorStop(1, 'oklch(0.27 0 0)');
 		ctx.fillStyle = gradient;
 		ctx.fill();
 	}
