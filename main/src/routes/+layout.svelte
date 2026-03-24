@@ -14,6 +14,7 @@
 
 	let dragging = $state(false);
 	let isFullscreen = $state(false);
+	let isMinimized = $state(false);
 	let offset = $state({ x: 0, y: 0 });
 	let position = $state({ x: 0, y: 0 });
 	let containerElement = $state<HTMLElement | null>(null);
@@ -27,6 +28,15 @@
 			position = { x: 0, y: 0 };
 		}
 		isFullscreen = !isFullscreen;
+	}
+
+	function onMinimize() {
+		if (isMobile) return;
+		isMinimized = true;
+	}
+
+	function toggleRestore() {
+		isMinimized = !isMinimized;
 	}
 
 	function onMouseDown(e: MouseEvent) {
@@ -97,15 +107,27 @@
 	data-fullscreen={isFullscreen || isMobile}
 	class="from-ash-800 to-ash-700 z-10 flex h-dvh w-dvw flex-col overflow-hidden rounded-xl bg-linear-to-tr data-[fullscreen=true]:rounded-none lg:h-[75dvh] lg:w-[70dvw]"
 	class:container-shadow={!isFullscreen || !isMobile}
+	class:minimized={isMinimized && !isMobile}
 	style:transform="translate({position.x}px, {position.y}px)"
-	style:transition={dragging ? 'none' : 'all 0.2s ease-out'}
+	style:transition={dragging ? 'none' : 'all 0.3s ease-out'}
 >
-	<Header siteName={data.siteName} {isFullscreen} {onMouseDown} {toggleFullscreen} />
+	<Header siteName={data.siteName} {isFullscreen} {onMouseDown} {toggleFullscreen} {onMinimize} />
 	{@render children()}
 	<Navbar siteName={data.siteName} socialLinks={data.socialLinks} section={data.section} aiTerminalConfigured={data.aiTerminalConfigured} />
 </main>
 
 <div class="grid-pattern absolute top-0 left-0 h-full w-full" aria-hidden="true"></div>
+
+<div class="fixed bottom-0 left-0 z-50 hidden h-10 w-full items-center bg-[#1a1a1a]/90 px-2 backdrop-blur-sm lg:flex" aria-label="Taskbar">
+	<button
+		class="flex h-8 items-center gap-2 rounded px-2 {isMinimized ? 'bg-transparent hover:bg-white/10' : 'bg-white/10'}"
+		onclick={toggleRestore}
+		aria-label="Terminal"
+	>
+		<i class="fa-brands fa-ubuntu text-[#E95420]"></i>
+		<span class="text-ash-200 text-xs">{data.siteName}</span>
+	</button>
+</div>
 
 {#await import('$lib/components/layout/particle.svelte') then { default: Particle }}
 	<Particle />
@@ -118,6 +140,12 @@
 		background-size: 5vh 5vh;
 		background-position: center;
 		opacity: 0.2;
+	}
+
+	.minimized {
+		transform: scale(0) translateY(100vh) !important;
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.container-shadow {

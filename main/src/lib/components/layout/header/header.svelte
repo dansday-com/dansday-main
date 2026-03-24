@@ -4,9 +4,10 @@
 		isFullscreen: boolean;
 		onMouseDown: (e: MouseEvent) => void;
 		toggleFullscreen: () => void;
+		onMinimize: () => void;
 	}
 
-	let { siteName, isFullscreen, onMouseDown, toggleFullscreen }: $$Props = $props();
+	let { siteName, isFullscreen, onMouseDown, toggleFullscreen, onMinimize }: $$Props = $props();
 
 	function handleHeaderKeyDown(event: KeyboardEvent) {
 		if (event.key === 'Enter' || event.key === ' ') {
@@ -22,13 +23,13 @@
 	onmousedown={onMouseDown}
 	onkeydown={handleHeaderKeyDown}
 >
-	<p class="not-sr-only font-semibold select-none">{siteName}</p>
-	<div class="group hidden items-center lg:flex">
-		<button class="grid h-8 w-10 place-items-center transition-colors hover:bg-white/10" aria-label="Minimize">
+	<p class="not-sr-only flex items-center gap-2 font-semibold select-none"><i class="fa-brands fa-ubuntu text-[#E95420]"></i>{siteName}</p>
+	<div class="hidden items-center lg:flex">
+		<button class="group grid h-8 w-10 place-items-center hover:bg-white/10" onclick={onMinimize} aria-label="Minimize">
 			<svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor" class="text-[#898989] group-hover:text-white"><rect width="10" height="1" /></svg>
 		</button>
 		<button
-			class="grid h-8 w-10 place-items-center transition-colors hover:bg-white/10"
+			class="group grid h-8 w-10 place-items-center hover:bg-white/10"
 			onclick={toggleFullscreen}
 			aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
 		>
@@ -36,7 +37,7 @@
 				><rect x="0.5" y="0.5" width="9" height="9" /></svg
 			>
 		</button>
-		<button class="grid h-8 w-10 place-items-center transition-colors hover:bg-[#e81123]" onclick={() => window.close()} aria-label="Close">
+		<button class="group grid h-8 w-10 place-items-center hover:bg-[#e81123]" onclick={() => window.close()} aria-label="Close">
 			<svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.2" class="text-[#898989] group-hover:text-white"
 				><line x1="0" y1="0" x2="10" y2="10" /><line x1="10" y1="0" x2="0" y2="10" /></svg
 			>
