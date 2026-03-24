@@ -116,9 +116,9 @@
 	<Navbar siteName={data.siteName} socialLinks={data.socialLinks} section={data.section} aiTerminalConfigured={data.aiTerminalConfigured} />
 </main>
 
-<div class="grid-pattern absolute top-0 left-0 h-full w-full" aria-hidden="true"></div>
+<div class="desktop-bg absolute top-0 left-0 h-full w-full" aria-hidden="true"></div>
 
-<div class="fixed bottom-0 left-0 z-50 hidden h-11 w-full items-center justify-center bg-[#1a1a1a]/90 backdrop-blur-sm lg:flex" aria-label="Taskbar">
+<div class="fixed bottom-0 left-0 z-50 hidden h-11 w-full items-center justify-center border-t border-white/10 bg-[#2c2c2c]/80 backdrop-blur-xl lg:flex" aria-label="Taskbar">
 	<button
 		class="group relative grid h-10 w-10 place-items-center rounded hover:bg-white/10"
 		onclick={toggleRestore}
@@ -134,12 +134,8 @@
 {/await}
 
 <style>
-	.grid-pattern {
-		background-image:
-			linear-gradient(to right, var(--color-ash-500) 2px, transparent 2px), linear-gradient(to bottom, var(--color-ash-500) 2px, transparent 2px);
-		background-size: 5vh 5vh;
-		background-position: center;
-		opacity: 0.2;
+	.desktop-bg {
+		background: linear-gradient(135deg, #1a2332 0%, #1e3a5f 30%, #2a4a6b 50%, #1a2332 100%);
 	}
 
 	.minimized {
