@@ -24,8 +24,8 @@
 	onmousedown={onMouseDown}
 	onkeydown={handleHeaderKeyDown}
 >
-	<p class="not-sr-only flex items-center gap-2 font-semibold select-none">
-		{#if favicon}<img src={favicon} alt="" class="h-4 w-4" />{/if}{siteName}
+	<p class="not-sr-only flex items-center gap-2 font-semibold select-none max-lg:mx-auto">
+		{#if favicon}<img src={favicon} alt="" class="hidden h-4 w-4 lg:block" />{/if}{siteName}
 	</p>
 	<div class="hidden items-center lg:flex">
 		<button class="group grid h-8 w-10 place-items-center hover:bg-white/10" onclick={onMinimize} aria-label="Minimize">
