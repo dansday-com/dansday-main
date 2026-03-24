@@ -5,7 +5,6 @@
 	const VISCOSITY = 20;
 	const MOUSE_DIST = 100;
 	const DAMPING = 0.15;
-	const R = 12;
 
 	type EdgePoint = {
 		pos: number;
@@ -26,13 +25,13 @@
 	let lastMouseX = 0;
 	let lastMouseY = 0;
 	let rafId: number | null = null;
+	let lastW = 0;
 
 	function createSidePoints(length: number): EdgePoint[] {
 		const pts: EdgePoint[] = [];
-		const usable = length - 2 * R;
 		for (let i = 0; i <= POINTS_PER_SIDE + 1; i++) {
 			const t = i / (POINTS_PER_SIDE + 1);
-			pts.push({ pos: R + t * usable, offset: 0, vOffset: 0 });
+			pts.push({ pos: t * length, offset: 0, vOffset: 0 });
 		}
 		return pts;
 	}
@@ -53,6 +52,29 @@
 		}
 	}
 
+	function drawSide(
+		ctx: CanvasRenderingContext2D,
+		pts: EdgePoint[],
+		getX: (pos: number, offset: number) => number,
+		getY: (pos: number, offset: number) => number,
+		endX: number,
+		endY: number
+	) {
+		for (let i = 0; i < pts.length; i++) {
+			const p = pts[i];
+			const px = getX(p.pos, p.offset);
+			const py = getY(p.pos, p.offset);
+			if (i < pts.length - 1) {
+				const n = pts[i + 1];
+				const nx = getX(n.pos, n.offset);
+				const ny = getY(n.pos, n.offset);
+				ctx.quadraticCurveTo(px, py, (px + nx) / 2, (py + ny) / 2);
+			} else {
+				ctx.lineTo(endX, endY);
+			}
+		}
+	}
+
 	function animate() {
 		rafId = requestAnimationFrame(animate);
 		if (!container || !canvasEl) return;
@@ -68,19 +90,20 @@
 		const w = rect.width;
 		const h = rect.height;
 
-		if (!topPoints.length || Math.abs(topPoints[topPoints.length - 1].pos - (w - R)) > 10) {
+		if (!topPoints.length || Math.abs(lastW - w) > 10) {
 			topPoints = createSidePoints(w);
 			rightPoints = createSidePoints(h);
 			bottomPoints = createSidePoints(w);
 			leftPoints = createSidePoints(h);
+			lastW = w;
 		}
 
 		const relX = mouseX - rect.left;
 		const relY = mouseY - rect.top;
 
-		moveSidePoints(topPoints, relX, relY, mouseSpeedY);
+		moveSidePoints(topPoints, relX, relY, -mouseSpeedY);
 		moveSidePoints(rightPoints, relY, w - relX, mouseSpeedX);
-		moveSidePoints(bottomPoints, relX, h - relY, -mouseSpeedY);
+		moveSidePoints(bottomPoints, relX, h - relY, mouseSpeedY);
 		moveSidePoints(leftPoints, relY, relX, -mouseSpeedX);
 
 		const ctx = canvasEl.getContext('2d');
@@ -92,72 +115,44 @@
 		const oy = pad;
 
 		ctx.beginPath();
+		ctx.moveTo(ox, oy);
 
-		ctx.moveTo(ox + R, oy);
+		drawSide(
+			ctx,
+			topPoints,
+			(pos, _off) => ox + pos,
+			(_pos, off) => oy - off,
+			ox + w,
+			oy
+		);
 
-		for (let i = 0; i < topPoints.length; i++) {
-			const p = topPoints[i];
-			const px = ox + p.pos;
-			const py = oy - p.offset;
-			if (i < topPoints.length - 1) {
-				const n = topPoints[i + 1];
-				const mx = ox + (p.pos + n.pos) / 2;
-				const my = oy - (p.offset + n.offset) / 2;
-				ctx.quadraticCurveTo(px, py, mx, my);
-			} else {
-				ctx.lineTo(ox + w - R, oy);
-			}
-		}
+		drawSide(
+			ctx,
+			rightPoints,
+			(_pos, off) => ox + w + off,
+			(pos, _off) => oy + pos,
+			ox + w,
+			oy + h
+		);
 
-		ctx.quadraticCurveTo(ox + w, oy, ox + w, oy + R);
+		drawSide(
+			ctx,
+			bottomPoints,
+			(pos, _off) => ox + w - pos,
+			(_pos, off) => oy + h + off,
+			ox,
+			oy + h
+		);
 
-		for (let i = 0; i < rightPoints.length; i++) {
-			const p = rightPoints[i];
-			const px = ox + w + p.offset;
-			const py = oy + p.pos;
-			if (i < rightPoints.length - 1) {
-				const n = rightPoints[i + 1];
-				const mx = ox + w + (p.offset + n.offset) / 2;
-				const my = oy + (p.pos + n.pos) / 2;
-				ctx.quadraticCurveTo(px, py, mx, my);
-			} else {
-				ctx.lineTo(ox + w, oy + h - R);
-			}
-		}
+		drawSide(
+			ctx,
+			leftPoints,
+			(_pos, off) => ox - off,
+			(pos, _off) => oy + h - pos,
+			ox,
+			oy
+		);
 
-		ctx.quadraticCurveTo(ox + w, oy + h, ox + w - R, oy + h);
-
-		for (let i = 0; i < bottomPoints.length; i++) {
-			const p = bottomPoints[i];
-			const px = ox + w - p.pos;
-			const py = oy + h + p.offset;
-			if (i < bottomPoints.length - 1) {
-				const n = bottomPoints[i + 1];
-				const mx = ox + w - (p.pos + n.pos) / 2;
-				const my = oy + h + (p.offset + n.offset) / 2;
-				ctx.quadraticCurveTo(px, py, mx, my);
-			} else {
-				ctx.lineTo(ox + R, oy + h);
-			}
-		}
-
-		ctx.quadraticCurveTo(ox, oy + h, ox, oy + h - R);
-
-		for (let i = 0; i < leftPoints.length; i++) {
-			const p = leftPoints[i];
-			const px = ox - p.offset;
-			const py = oy + h - p.pos;
-			if (i < leftPoints.length - 1) {
-				const n = leftPoints[i + 1];
-				const mx = ox - (p.offset + n.offset) / 2;
-				const my = oy + h - (p.pos + n.pos) / 2;
-				ctx.quadraticCurveTo(px, py, mx, my);
-			} else {
-				ctx.lineTo(ox, oy + R);
-			}
-		}
-
-		ctx.quadraticCurveTo(ox, oy, ox + R, oy);
 		ctx.closePath();
 
 		const gradient = ctx.createLinearGradient(ox, oy, ox + w, oy + h);
