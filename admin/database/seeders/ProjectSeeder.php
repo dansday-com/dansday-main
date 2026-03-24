@@ -34,7 +34,7 @@ class ProjectSeeder extends Seeder
         ];
 
         foreach ($projects as $p) {
-            DB::table('project')->insert([
+            DB::table('projects')->insert([
                 'enable'      => 1,
                 'title'       => 'Lorem ipsum dolor sit amet adipiscing',
                 'short_desc'  => $short,

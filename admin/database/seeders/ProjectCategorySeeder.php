@@ -9,13 +9,13 @@ class ProjectCategorySeeder extends Seeder
 {
     public function run()
     {
-        DB::table('project_category')->insert([
+        DB::table('project_categories')->insert([
             'name'  => 'design',
         ]);
-        DB::table('project_category')->insert([
+        DB::table('project_categories')->insert([
             'name'  => 'video',
         ]);
-        DB::table('project_category')->insert([
+        DB::table('project_categories')->insert([
             'name'  => 'photography',
         ]);
     }
