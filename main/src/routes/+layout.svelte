@@ -140,7 +140,7 @@
 			></span>
 		</button>
 	</div>
-	<div class="text-ash-300 flex flex-col items-end px-3 text-xs leading-tight">
+	<div class="text-ash-300 flex flex-col items-end rounded px-3 py-1 text-xs leading-tight hover:bg-white/10">
 		<span>{clock.time}</span>
 		<span>{clock.date}</span>
 	</div>
