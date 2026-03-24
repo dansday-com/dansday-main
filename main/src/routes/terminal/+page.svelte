@@ -71,9 +71,8 @@
 				const item = history[i];
 				if (item.command) {
 					apiMessages.push({ role: 'user', content: item.command });
-					if (item.output.length > 0) {
-						apiMessages.push({ role: 'assistant', content: item.output.join('\n') });
-					}
+					const outputText = item.output.join('\n').trim();
+					apiMessages.push({ role: 'assistant', content: outputText || '(done)' });
 				}
 			}
 			apiMessages.push({ role: 'user', content: command });
@@ -184,10 +183,15 @@
 	});
 
 	function linkify(text: string): string {
-		return text.replace(
-			/https?:\/\/[^\s<>"')\]]+/g,
-			(url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-[#729fcf] underline hover:text-[#93b8e0]">${url}</a>`
-		);
+		return text
+			.replace(
+				/https?:\/\/[^\s<>"')\]]+/g,
+				(url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-[#729fcf] underline hover:text-[#93b8e0]">${url}</a>`
+			)
+			.replace(
+				/mailto:([^\s<>"')\]]+)/g,
+				(_, email) => `<a href="mailto:${email}" class="text-[#729fcf] underline hover:text-[#93b8e0]">${email}</a>`
+			);
 	}
 
 	function escapeHtml(text: string): string {
