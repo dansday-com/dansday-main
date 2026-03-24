@@ -35,7 +35,8 @@ const searchParams = {
 			description: 'Filter by data type. Omit to search all types.'
 		},
 		startDate: { type: 'string', description: 'Filter results from this date (YYYY-MM-DD).' },
-		endDate: { type: 'string', description: 'Filter results up to this date (YYYY-MM-DD).' }
+		endDate: { type: 'string', description: 'Filter results up to this date (YYYY-MM-DD).' },
+		count: { type: 'number', description: 'Max number of activity items to return. Default 50. Use higher values when the user asks for more detail (e.g. "first 200 commits").' }
 	}
 } as const;
 
@@ -63,44 +64,6 @@ function getEnabledToolNames(section: Record<string, any>): string[] {
 	return Object.entries(toolSections)
 		.filter(([, s]) => !s || section[s])
 		.map(([name]) => name);
-}
-
-function getISOWeek(dateStr: string): string {
-	const d = new Date(dateStr);
-	const jan1 = new Date(d.getFullYear(), 0, 1);
-	const week = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
-	return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
-}
-
-function buildStats(rows: Record<string, any>[], dateKey: string) {
-	const yearly = new Map<string, number>();
-	const monthly = new Map<string, number>();
-	const weekly = new Map<string, number>();
-
-	for (const row of rows) {
-		const date = String(row[dateKey] ?? '');
-		const repo = row.repo ?? 'unknown';
-		const year = date.slice(0, 4);
-		const month = date.slice(0, 7);
-		const week = getISOWeek(date);
-
-		const yk = `${year}|${repo}`;
-		yearly.set(yk, (yearly.get(yk) ?? 0) + 1);
-		const mk = `${month}|${repo}`;
-		monthly.set(mk, (monthly.get(mk) ?? 0) + 1);
-		const wk = `${week}|${repo}`;
-		weekly.set(wk, (weekly.get(wk) ?? 0) + 1);
-	}
-
-	const toArr = (map: Map<string, number>) =>
-		Array.from(map.entries())
-			.map(([key, count]) => {
-				const [period, repo] = key.split('|');
-				return { period, repo, count };
-			})
-			.sort((a, b) => b.period.localeCompare(a.period) || b.count - a.count);
-
-	return { yearly: toArr(yearly), monthly: toArr(monthly), weekly: toArr(weekly) };
 }
 
 function buildDateFilter(args: Record<string, any>): { clause: string; params: any[] } {
@@ -212,11 +175,11 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 				result.articles = articles.map((a: any) => ({ title: a.title, description: stripHtml(a.description), created_at: a.created_at }));
 			if (projects.length > 0)
 				result.projects = projects.map((p: any) => ({ title: p.title, description: stripHtml(p.description), category: catMap.get(p.category_id) }));
+			const activityLimit = Math.min(Math.max(args.count ?? 50, 1), 500);
 			if (activity.length > 0)
 				result.activity = {
 					totalCount: activity.length,
-					stats: buildStats(activity as any[], 'created_at'),
-					items: (activity as any[]).map((r: any) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
+					items: (activity as any[]).slice(0, activityLimit).map((r: any) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
 				};
 
 			return toToon(result);
