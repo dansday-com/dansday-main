@@ -118,14 +118,14 @@
 
 <div class="grid-pattern absolute top-0 left-0 h-full w-full" aria-hidden="true"></div>
 
-<div class="fixed bottom-0 left-0 z-50 hidden h-10 w-full items-center bg-[#1a1a1a]/90 px-2 backdrop-blur-sm lg:flex" aria-label="Taskbar">
+<div class="fixed bottom-0 left-0 z-50 hidden h-11 w-full items-center justify-center bg-[#1a1a1a]/90 backdrop-blur-sm lg:flex" aria-label="Taskbar">
 	<button
-		class="flex h-8 items-center gap-2 rounded px-2 {isMinimized ? 'bg-transparent hover:bg-white/10' : 'bg-white/10'}"
+		class="group relative grid h-10 w-10 place-items-center rounded hover:bg-white/10"
 		onclick={toggleRestore}
 		aria-label="Terminal"
 	>
-		<i class="fa-brands fa-ubuntu text-[#E95420]"></i>
-		<span class="text-ash-200 text-xs">{data.siteName}</span>
+		<i class="fa-brands fa-ubuntu text-lg text-[#E95420]"></i>
+		<span class="absolute bottom-0.5 h-0.5 rounded-full bg-[#4CC2FF] {isMinimized ? 'w-1.5 group-hover:w-3' : 'w-4'}"></span>
 	</button>
 </div>
 
