@@ -75,7 +75,7 @@ function cosineSimilarityWithNorm(a: number[], b: number[], normB: number): numb
 	return denom === 0 ? 0 : dot / denom;
 }
 
-async function semanticSearch(queryVector: number[], topN: number = 20, threshold: number = 0.45): Promise<SemanticResult[]> {
+async function semanticSearch(queryVector: number[], topN: number = 20, threshold: number = 0.3): Promise<SemanticResult[]> {
 	const allEmbeddings = await getEmbeddings();
 	const scored: SemanticResult[] = [];
 	for (const row of allEmbeddings) {
@@ -274,7 +274,7 @@ async function executeTool(
 				try {
 					const queryVector = await embedQuery(embedding.client, embedding.model, rawKeyword);
 					if (queryVector) {
-						semanticHits = await semanticSearch(queryVector, 20, 0.45);
+						semanticHits = await semanticSearch(queryVector, 20, 0.3);
 					}
 				} catch {}
 			}
