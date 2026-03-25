@@ -6,6 +6,7 @@ use App\Models\General;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class AiGenerateController extends Controller
@@ -85,7 +86,7 @@ class AiGenerateController extends Controller
                 ], fn($v) => $v !== null));
 
             if (! $res->successful()) {
-                \Illuminate\Support\Facades\Log::warning('AI generate HTTP failed', [
+                Log::warning('AI generate HTTP failed', [
                     'endpoint' => $endpoint,
                     'status' => $res->status(),
                     'model' => $model,
@@ -102,7 +103,7 @@ class AiGenerateController extends Controller
 
             return response()->json(['text' => $text]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('AI generate failed', [
+            Log::warning('AI generate failed', [
                 'base_url' => $baseUrl,
                 'model' => $model,
                 'message' => $e->getMessage(),

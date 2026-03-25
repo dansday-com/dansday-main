@@ -2,11 +2,48 @@ import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { fetchGeneral, fetchHome, fetchSection } from '$lib/server/data';
 import { query } from '$lib/server/db';
-import { embedQuery, semanticSearch, type SemanticResult } from '$lib/server/embedding';
 import { encode as toToon } from '@toon-format/toon';
 import OpenAI from 'openai';
 import type { RequestHandler } from './$types';
 import loggerProvider from '../../../../otel/logger.js';
+
+interface SemanticResult {
+	table_name: string;
+	row_id: number;
+	similarity: number;
+}
+
+async function embedQuery(openai: OpenAI, model: string, text: string): Promise<number[] | null> {
+	const response = await openai.embeddings.create({ model, input: text });
+	return response.data[0].embedding;
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+	let dot = 0;
+	let normA = 0;
+	let normB = 0;
+	for (let i = 0; i < a.length; i++) {
+		dot += a[i] * b[i];
+		normA += a[i] * a[i];
+		normB += b[i] * b[i];
+	}
+	const denom = Math.sqrt(normA) * Math.sqrt(normB);
+	return denom === 0 ? 0 : dot / denom;
+}
+
+async function semanticSearch(queryVector: number[], topN: number = 20, threshold: number = 0.3): Promise<SemanticResult[]> {
+	const allEmbeddings = await query<{ table_name: string; row_id: number; vector: string }>('SELECT table_name, row_id, vector FROM embeddings');
+	const scored: SemanticResult[] = [];
+	for (const row of allEmbeddings) {
+		const vector = JSON.parse(row.vector) as number[];
+		const similarity = cosineSimilarity(queryVector, vector);
+		if (similarity >= threshold) {
+			scored.push({ table_name: row.table_name, row_id: row.row_id, similarity });
+		}
+	}
+	scored.sort((a, b) => b.similarity - a.similarity);
+	return scored.slice(0, topN);
+}
 
 function stripHtml(html: string): string {
 	return html
@@ -84,7 +121,17 @@ function buildDateFilter(args: Record<string, any>): { clause: string; params: a
 	return { clause: conditions.length > 0 ? ' AND ' + conditions.join(' AND ') : '', params };
 }
 
-async function executeTool(name: string, args: Record<string, any> = {}, section: Record<string, any> = {}): Promise<string> {
+interface EmbeddingOpts {
+	client: OpenAI | null;
+	model: string;
+}
+
+async function executeTool(
+	name: string,
+	args: Record<string, any> = {},
+	section: Record<string, any> = {},
+	embedding: EmbeddingOpts = { client: null, model: '' }
+): Promise<string> {
 	switch (name) {
 		case 'search': {
 			const rawKeyword = (args.keyword ?? '').trim();
@@ -193,9 +240,9 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 			const catMap = new Map((categories as any[]).map((c: any) => [c.id, c.name]));
 
 			let semanticHits: SemanticResult[] = [];
-			if (hasKeyword) {
+			if (hasKeyword && embedding.client) {
 				try {
-					const queryVector = await embedQuery(rawKeyword);
+					const queryVector = await embedQuery(embedding.client, embedding.model, rawKeyword);
 					if (queryVector) {
 						semanticHits = await semanticSearch(queryVector, 20, 0.3);
 					}
@@ -284,6 +331,19 @@ export const POST: RequestHandler = async ({ request }) => {
 		const openaiModel = generalData.ai_model as string | null;
 		const terminalPrompt = (generalData.ai_terminal_prompt as string | null)?.trim() ?? '';
 		const terminalReasoning = (generalData.ai_terminal_reasoning as string | null) ?? 'none';
+
+		const embeddingUrl = (generalData.embedding_url as string | null)?.trim() ?? '';
+		const embeddingKey = (generalData.embedding_key as string | null)?.trim() ?? '';
+		const embeddingModel = (generalData.embedding_model as string | null)?.trim() ?? '';
+		let embeddingClient: OpenAI | null = null;
+		if (embeddingUrl && embeddingKey && embeddingModel) {
+			let embBaseUrl = embeddingUrl.replace(/\/+$/, '');
+			if (embBaseUrl.endsWith('/embeddings')) {
+				embBaseUrl = embBaseUrl.replace(/\/embeddings$/, '');
+			}
+			embeddingClient = new OpenAI({ baseURL: embBaseUrl, apiKey: embeddingKey });
+		}
+		const embeddingOpts: EmbeddingOpts = { client: embeddingClient, model: embeddingModel };
 
 		const hasUrl = Boolean(openaiUrl && openaiUrl.trim() !== '');
 		const hasKey = Boolean(openaiKey && openaiKey.trim() !== '');
@@ -377,7 +437,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const toolResults = await Promise.all(
 				message.tool_calls.map(async (tc: any) => {
 					const toolArgs = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
-					const result = await executeTool(tc.function.name, toolArgs, section);
+					const result = await executeTool(tc.function.name, toolArgs, section, embeddingOpts);
 					return {
 						role: 'tool' as const,
 						tool_call_id: tc.id,
