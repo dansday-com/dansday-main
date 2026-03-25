@@ -13,4 +13,21 @@ class EmbeddingController extends Controller
         $result = EmbeddingService::embedAll();
         return response()->json($result);
     }
+
+    public function embedAllAsync(): JsonResponse
+    {
+        $total = EmbeddingService::countPending();
+        dispatch(function () {
+            set_time_limit(300);
+            EmbeddingService::embedAll();
+        })->afterResponse();
+
+        return response()->json(['started' => true, 'total' => $total]);
+    }
+
+    public function embedStatus(): JsonResponse
+    {
+        $status = EmbeddingService::getStatus();
+        return response()->json($status);
+    }
 }

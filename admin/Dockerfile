@@ -90,8 +90,6 @@ RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'CADDYEOF'
 
     php_server {
         worker /app/public/index.php
-        read_timeout 300s
-        write_timeout 300s
     }
 
     file_server

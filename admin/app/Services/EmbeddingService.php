@@ -234,6 +234,22 @@ class EmbeddingService
         };
     }
 
+    public static function countPending(): int
+    {
+        $total = 0;
+        foreach (self::$tableQueries as $sql) {
+            $total += count(DB::select($sql));
+        }
+        return $total;
+    }
+
+    public static function getStatus(): array
+    {
+        $embedded = DB::table('embeddings')->count();
+        $total = self::countPending();
+        return ['embedded' => $embedded, 'total' => $total];
+    }
+
     private static function callApiBatch(array $config, array $texts): ?array
     {
         $baseUrl = rtrim($config['url'], '/');
