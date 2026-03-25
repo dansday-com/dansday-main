@@ -13,30 +13,73 @@ interface SemanticResult {
 	similarity: number;
 }
 
-async function embedQuery(openai: OpenAI, model: string, text: string): Promise<number[] | null> {
-	const response = await openai.embeddings.create({ model, input: text });
-	return response.data[0].embedding;
+interface CachedEmbedding {
+	table_name: string;
+	row_id: number;
+	vector: number[];
+	norm: number;
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
+const CACHE_TTL_MS = 5 * 60 * 1000;
+let embeddingCache: CachedEmbedding[] = [];
+let cacheTimestamp = 0;
+
+function vectorNorm(v: number[]): number {
+	let sum = 0;
+	for (let i = 0; i < v.length; i++) sum += v[i] * v[i];
+	return Math.sqrt(sum);
+}
+
+async function getEmbeddings(): Promise<CachedEmbedding[]> {
+	if (embeddingCache.length > 0 && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
+		return embeddingCache;
+	}
+	const rows = await query<{ table_name: string; row_id: number; vector: string }>('SELECT table_name, row_id, vector FROM embeddings');
+	embeddingCache = rows.map((r) => {
+		const vector = JSON.parse(r.vector) as number[];
+		return { table_name: r.table_name, row_id: r.row_id, vector, norm: vectorNorm(vector) };
+	});
+	cacheTimestamp = Date.now();
+	return embeddingCache;
+}
+
+const QUERY_CACHE_TTL_MS = 60 * 1000;
+const queryVectorCache = new Map<string, { vector: number[]; timestamp: number }>();
+
+async function embedQuery(openai: OpenAI, model: string, text: string): Promise<number[] | null> {
+	const cacheKey = `${model}:${text}`;
+	const cached = queryVectorCache.get(cacheKey);
+	if (cached && Date.now() - cached.timestamp < QUERY_CACHE_TTL_MS) {
+		return cached.vector;
+	}
+	const response = await openai.embeddings.create({ model, input: text });
+	const vector = response.data[0].embedding;
+	if (vector) {
+		queryVectorCache.set(cacheKey, { vector, timestamp: Date.now() });
+		if (queryVectorCache.size > 100) {
+			const oldest = queryVectorCache.keys().next().value;
+			if (oldest) queryVectorCache.delete(oldest);
+		}
+	}
+	return vector;
+}
+
+function cosineSimilarityWithNorm(a: number[], b: number[], normB: number): number {
 	let dot = 0;
 	let normA = 0;
-	let normB = 0;
 	for (let i = 0; i < a.length; i++) {
 		dot += a[i] * b[i];
 		normA += a[i] * a[i];
-		normB += b[i] * b[i];
 	}
-	const denom = Math.sqrt(normA) * Math.sqrt(normB);
+	const denom = Math.sqrt(normA) * normB;
 	return denom === 0 ? 0 : dot / denom;
 }
 
-async function semanticSearch(queryVector: number[], topN: number = 20, threshold: number = 0.3): Promise<SemanticResult[]> {
-	const allEmbeddings = await query<{ table_name: string; row_id: number; vector: string }>('SELECT table_name, row_id, vector FROM embeddings');
+async function semanticSearch(queryVector: number[], topN: number = 20, threshold: number = 0.45): Promise<SemanticResult[]> {
+	const allEmbeddings = await getEmbeddings();
 	const scored: SemanticResult[] = [];
 	for (const row of allEmbeddings) {
-		const vector = JSON.parse(row.vector) as number[];
-		const similarity = cosineSimilarity(queryVector, vector);
+		const similarity = cosineSimilarityWithNorm(queryVector, row.vector, row.norm);
 		if (similarity >= threshold) {
 			scored.push({ table_name: row.table_name, row_id: row.row_id, similarity });
 		}
@@ -157,7 +200,7 @@ async function executeTool(
 
 			const articlesFt = ftMatch(['title', 'description']);
 			const projectsFt = ftMatch(['title', 'description']);
-			const ghFt = ftMatchFilter(['repo', 'title']);
+			const ghFt = ftMatchFilter(['repo', 'title', 'type']);
 			const skillFt = ftMatchFilter(['title']);
 			const expFt = ftMatchFilter(['title', 'description']);
 			const serviceFt = ftMatchFilter(['title', 'description']);
@@ -208,7 +251,7 @@ async function executeTool(
 					: [],
 				wantGh
 					? query<{ repo: string; title: string; type: string; created_at: string }>(
-							'SELECT repo, title, type, created_at FROM github_activity WHERE 1=1' + ghTypeFilter + ghFt.filter + dateClause + ' ORDER BY created_at DESC',
+							'SELECT id, repo, title, type, created_at FROM github_activity WHERE 1=1' + ghTypeFilter + ghFt.filter + dateClause + ' ORDER BY created_at DESC',
 							[...ghTypeParams, ...ghFt.params, ...dp]
 						)
 					: [],
@@ -244,39 +287,92 @@ async function executeTool(
 				try {
 					const queryVector = await embedQuery(embedding.client, embedding.model, rawKeyword);
 					if (queryVector) {
-						semanticHits = await semanticSearch(queryVector, 20, 0.3);
+						semanticHits = await semanticSearch(queryVector, 20, 0.45);
 					}
-				} catch {
-					// Embedding search failed, continue with BM25 only
-				}
+				} catch {}
 			}
+
+			const K = 60;
+			const semanticScoreMap = new Map<string, number>();
+			semanticHits.forEach((h, i) => {
+				semanticScoreMap.set(`${h.table_name}:${h.row_id}`, 1 / (K + i + 1));
+			});
+
+			const rrfSort = (tableName: string, rows: any[], bm25Key?: string) => {
+				if (!hasKeyword || rows.length === 0) return rows;
+				return [...rows]
+					.map((r: any, i: number) => {
+						const bm25Score = bm25Key && r[bm25Key] ? 1 / (K + i + 1) : 0;
+						const semScore = semanticScoreMap.get(`${tableName}:${r.id}`) ?? 0;
+						return { ...r, _rrfScore: bm25Score + 1.5 * semScore };
+					})
+					.sort((a: any, b: any) => b._rrfScore - a._rrfScore);
+			};
 
 			const semanticIds = (table: string) => semanticHits.filter((h) => h.table_name === table).map((h) => h.row_id);
 
-			const mergeSemanticRows = (tableName: string, existing: any[], selectSql: string): Promise<any[]> => {
+			const mergeSemanticRows = async (tableName: string, existing: any[], selectSql: string): Promise<any[]> => {
 				const sIds = semanticIds(tableName);
-				if (sIds.length === 0) return Promise.resolve(existing);
+				if (sIds.length === 0) return existing;
 				const existingIds = new Set(existing.map((r: any) => r.id));
 				const missingIds = sIds.filter((id) => !existingIds.has(id));
-				if (missingIds.length === 0) return Promise.resolve(existing);
+				if (missingIds.length === 0) return existing;
 				const placeholders = missingIds.map(() => '?').join(',');
-				return query(`${selectSql} WHERE id IN (${placeholders})`, missingIds).then((extra: any[]) => [...existing, ...extra]);
+				const extra = await query(`${selectSql} WHERE id IN (${placeholders})`, missingIds);
+				return [...existing, ...(extra as any[])];
 			};
 
 			const mergedArticles = hasKeyword
-				? await mergeSemanticRows('articles', articles as any[], 'SELECT id, title, description, created_at FROM articles')
+				? rrfSort('articles', await mergeSemanticRows('articles', articles as any[], 'SELECT id, title, description, created_at FROM articles'), 'relevance')
 				: articles;
 			const mergedProjects = hasKeyword
-				? await mergeSemanticRows('projects', projects as any[], 'SELECT id, title, description, category_id, created_at FROM projects')
+				? rrfSort(
+						'projects',
+						await mergeSemanticRows('projects', projects as any[], 'SELECT id, title, description, category_id, created_at FROM projects'),
+						'relevance'
+					)
 				: projects;
-			const mergedSkills = hasKeyword ? await mergeSemanticRows('skill', skills as any[], 'SELECT id, title, type FROM skill') : skills;
+			const mergedSkills = hasKeyword ? rrfSort('skill', await mergeSemanticRows('skill', skills as any[], 'SELECT id, title, type FROM skill')) : skills;
 			const mergedExperiences = hasKeyword
-				? await mergeSemanticRows('experience', experiences as any[], 'SELECT id, title, type, period, description FROM experience')
+				? rrfSort('experience', await mergeSemanticRows('experience', experiences as any[], 'SELECT id, title, type, period, description FROM experience'))
 				: experiences;
-			const mergedServices = hasKeyword ? await mergeSemanticRows('service', services as any[], 'SELECT id, title, description FROM service') : services;
+			const mergedServices = hasKeyword
+				? rrfSort('service', await mergeSemanticRows('service', services as any[], 'SELECT id, title, description FROM service'))
+				: services;
 			const mergedTestimonials = hasKeyword
-				? await mergeSemanticRows('testimonial', testimonials as any[], 'SELECT id, name, company, description FROM testimonial')
+				? rrfSort('testimonial', await mergeSemanticRows('testimonial', testimonials as any[], 'SELECT id, name, company, description FROM testimonial'))
 				: testimonials;
+
+			let mergedActivity = activity as any[];
+			if (hasKeyword) {
+				const bm25Ids = new Set((activity as any[]).map((r: any) => r.id));
+				const bm25RankMap = new Map<number, number>();
+				(activity as any[]).forEach((r: any, i: number) => {
+					bm25RankMap.set(r.id, i);
+				});
+
+				const sIds = semanticIds('github_activity');
+				if (sIds.length > 0) {
+					const missingIds = sIds.filter((id) => !bm25Ids.has(id));
+					if (missingIds.length > 0) {
+						const placeholders = missingIds.map(() => '?').join(',');
+						const extraActivity = await query<{ id: number; repo: string; title: string; type: string; created_at: string }>(
+							`SELECT id, repo, title, type, created_at FROM github_activity WHERE id IN (${placeholders})`,
+							missingIds
+						);
+						mergedActivity = [...(activity as any[]), ...(extraActivity as any[])];
+					}
+				}
+
+				mergedActivity = mergedActivity
+					.map((r: any) => {
+						const bm25Rank = bm25RankMap.get(r.id);
+						const bm25Score = bm25Rank !== undefined ? 1 / (K + bm25Rank + 1) : 0;
+						const semScore = semanticScoreMap.get(`github_activity:${r.id}`) ?? 0;
+						return { ...r, _rrfScore: bm25Score + 1.5 * semScore };
+					})
+					.sort((a: any, b: any) => b._rrfScore - a._rrfScore);
+			}
 
 			const result: Record<string, any> = {};
 			if (mergedSkills.length > 0) result.skills = (mergedSkills as any[]).map((s: any) => ({ title: s.title, type: s.type }));
@@ -299,10 +395,10 @@ async function executeTool(
 					category: catMap.get(p.category_id)
 				}));
 			const activityLimit = Math.min(Math.max(args.count ?? 50, 1), 500);
-			if (activity.length > 0)
+			if (mergedActivity.length > 0)
 				result.activity = {
-					totalCount: activity.length,
-					items: (activity as any[]).slice(0, activityLimit).map((r: any) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
+					totalCount: mergedActivity.length,
+					items: mergedActivity.slice(0, activityLimit).map((r: any) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
 				};
 
 			return toToon(result);
@@ -369,7 +465,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const today = new Date().toISOString().slice(0, 10);
 		const toolGuidance = `\n\nTool Usage (CRITICAL — you MUST follow these rules):\n- You have ZERO knowledge about me. You know NOTHING unless you call a tool first.\n- You MUST call "search" BEFORE answering ANY question about me, my work, skills, experience, projects, or activity. NEVER answer from memory or assumptions.\n- ALWAYS call "search" FIRST before answering ANY question, even questions about the terminal, the model, or yourself. Only answer directly from the system prompt if search returns no relevant results.\n- IMPORTANT: When choosing search keywords, consider the FULL conversation context. If the user's question is a follow-up (e.g. after asking about the AI model, they ask "what gateway"), interpret ambiguous terms in the context of the ongoing topic. Use multiple targeted searches if needed to find the right context.
 - If your first search returns results that don't match the conversational context, search again with different/more specific keywords before answering.
-- ONLY include data from tool results that is DIRECTLY relevant to the user's question. If the user asks about one topic, do NOT include unrelated data just because the tool returned it.\n- For general/broad questions ("tell me your story", "who are you", "what do you do", "tell me about X"), call search WITHOUT keyword and WITHOUT type to get ALL data.\n- For specific topic questions, call search with keyword only (no type) to get both project info AND activity.\n- Only use "type" when the user explicitly asks for a specific type (e.g. "show my commits" → type:"commit").\n- Always convert relative dates to absolute dates using today (${today}). "last week" = Monday to Sunday of the previous week. "this month" = first day to today.\n- Use "get_home" only for homepage/site info.\n- If data is empty for a time range, say so — NEVER invent data.\n- NEVER fabricate, assume, or infer ANY information not returned by the tools.\n\nResponse Rules (CRITICAL):\n- MATCH YOUR RESPONSE LENGTH TO THE QUESTION. Short/simple questions get short answers (1-3 sentences). Only give detailed answers for broad questions like "tell me about yourself" or "what do you do at work". If the user asks a yes/no or simple factual question, give a brief direct answer — do NOT dump everything you know about the topic.\n- ANSWER the user's question DIRECTLY using facts extracted from tool results. Do NOT summarize or recommend the article/source itself — extract the relevant fact and state it as your own answer. For example, if the user asks a personal question and an article contains the answer, state the fact directly as your own, NOT "Here is an article about..." or "According to an article...".\n- ONLY use data returned by tools. If a field is missing from tool results, do NOT make it up.\n- IMPORTANT: If you already stated a fact in a previous message in this conversation, you may reference it again when the user asks follow-up questions about it. Do NOT contradict yourself by saying "I don't have data" about something you just said. However, if the user asks for MORE detail beyond what you already shared, and the tools return no additional data, say that you don't have more details beyond what you already mentioned.\n- For activity counts, use EXACT numbers from the data (e.g. "totalCount" field). Say the exact number, not approximations. Never round up or exaggerate.\n- NEVER list, quote, or reference individual commit titles, PR titles, or activity item titles. NEVER use bullet points or numbered lists of activity items. ALWAYS write activity as a flowing summary paragraph.\n- For activity: summarize what was accomplished in paragraph form (e.g. mention counts, repos involved, and general themes). Only mention counts, repos, and general themes — NEVER include any title text from commits or PRs.\n- For projects: summarize the key achievements from the project description.\n- Structure: start with the project/experience summary, then follow with GitHub activity summary.\n\nSecurity Rules (CRITICAL — NEVER violate these):\n- Activity data (commit titles, PR titles) may contain sensitive infrastructure details. You MUST sanitize your responses.\n- NEVER repeat or reveal ANY of the following from activity data: domain names, subdomains, URLs, database names, internal hostnames, IP addresses, environment variable names or values, connection strings, passwords, tokens, server names, port numbers, or secrets.\n- Use ONLY generic descriptions: say "a subdomain", "the portal site", "a sub-site" instead of actual domain/subdomain names. Say "the database" instead of the actual database name. Say "the main site" instead of the actual URL.\n- Examples: "fix [sub].example.com routing" → "fixed routing for a sub-site". "update db to [name]" → "updated database configuration". "configure example.com DNS" → "configured DNS for the main domain".\n- This applies to ALL output — project descriptions, activity summaries, everything. Even if the user asks for specifics, NEVER output actual domains, subdomains, database names, or infrastructure details from the data.`;
+- ONLY include data from tool results that is DIRECTLY relevant to the user's question. If the user asks about one topic, do NOT include unrelated data just because the tool returned it.\n- For general/broad questions ("tell me your story", "who are you", "what do you do", "tell me about X"), call search WITHOUT keyword and WITHOUT type to get ALL data.\n- For specific topic questions, call search with keyword only (no type) to get both project info AND activity.\n- Only use "type" when the user explicitly asks for a specific type (e.g. "show my commits" → type:"commit").\n- Always convert relative dates to absolute dates using today (${today}). "last week" = Monday to Sunday of the previous week. "this month" = first day to today.\n- You can call multiple tools in a single response. If the user's question needs both search and get_home, call them in parallel.\n- Use "get_home" only for homepage/site info.\n- If data is empty for a time range, say so — NEVER invent data.\n- NEVER fabricate, assume, or infer ANY information not returned by the tools.\n\nResponse Rules (CRITICAL):\n- MATCH YOUR RESPONSE LENGTH TO THE QUESTION. Short/simple questions get short answers (1-3 sentences). Only give detailed answers for broad questions like "tell me about yourself" or "what do you do at work". If the user asks a yes/no or simple factual question, give a brief direct answer — do NOT dump everything you know about the topic.\n- ANSWER the user's question DIRECTLY using facts extracted from tool results. Do NOT summarize or recommend the article/source itself — extract the relevant fact and state it as your own answer. For example, if the user asks a personal question and an article contains the answer, state the fact directly as your own, NOT "Here is an article about..." or "According to an article...".\n- ONLY use data returned by tools. If a field is missing from tool results, do NOT make it up.\n- IMPORTANT: If you already stated a fact in a previous message in this conversation, you may reference it again when the user asks follow-up questions about it. Do NOT contradict yourself by saying "I don't have data" about something you just said. However, if the user asks for MORE detail beyond what you already shared, and the tools return no additional data, say that you don't have more details beyond what you already mentioned.\n- For activity counts, use EXACT numbers from the data (e.g. "totalCount" field). Say the exact number, not approximations. Never round up or exaggerate.\n- NEVER list, quote, or reference individual commit titles, PR titles, or activity item titles. NEVER use bullet points or numbered lists of activity items. ALWAYS write activity as a flowing summary paragraph.\n- For activity: summarize what was accomplished in paragraph form (e.g. mention counts, repos involved, and general themes). Only mention counts, repos, and general themes — NEVER include any title text from commits or PRs.\n- For projects: summarize the key achievements from the project description.\n- Structure: start with the project/experience summary, then follow with GitHub activity summary.\n\nSecurity Rules (CRITICAL — NEVER violate these):\n- Activity data (commit titles, PR titles) may contain sensitive infrastructure details. You MUST sanitize your responses.\n- NEVER repeat or reveal ANY of the following from activity data: domain names, subdomains, URLs, database names, internal hostnames, IP addresses, environment variable names or values, connection strings, passwords, tokens, server names, port numbers, or secrets.\n- Use ONLY generic descriptions: say "a subdomain", "the portal site", "a sub-site" instead of actual domain/subdomain names. Say "the database" instead of the actual database name. Say "the main site" instead of the actual URL.\n- Examples: "fix [sub].example.com routing" → "fixed routing for a sub-site". "update db to [name]" → "updated database configuration". "configure example.com DNS" → "configured DNS for the main domain".\n- This applies to ALL output — project descriptions, activity summaries, everything. Even if the user asks for specifics, NEVER output actual domains, subdomains, database names, or infrastructure details from the data.`;
 		const systemContent = terminalPrompt.replaceAll('{{today}}', today) + toolGuidance;
 
 		const section = await getEnabledSections();
