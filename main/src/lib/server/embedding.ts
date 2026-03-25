@@ -104,10 +104,7 @@ export async function embedAllContent(): Promise<{ embedded: number; skipped: nu
 				const text = builder(row);
 				const hash = contentHash(text);
 
-				const existing = await queryOne<EmbeddingRow>(
-					'SELECT content_hash FROM embeddings WHERE table_name = ? AND row_id = ?',
-					[tableName, row.id]
-				);
+				const existing = await queryOne<EmbeddingRow>('SELECT content_hash FROM embeddings WHERE table_name = ? AND row_id = ?', [tableName, row.id]);
 
 				if (existing && existing.content_hash === hash) {
 					skipped++;
@@ -117,15 +114,19 @@ export async function embedAllContent(): Promise<{ embedded: number; skipped: nu
 				const vector = await callEmbeddingApi(config, text);
 
 				if (existing) {
-					await query(
-						'UPDATE embeddings SET vector = ?, content_hash = ?, created_at = NOW() WHERE table_name = ? AND row_id = ?',
-						[JSON.stringify(vector), hash, tableName, row.id]
-					);
+					await query('UPDATE embeddings SET vector = ?, content_hash = ?, created_at = NOW() WHERE table_name = ? AND row_id = ?', [
+						JSON.stringify(vector),
+						hash,
+						tableName,
+						row.id
+					]);
 				} else {
-					await query(
-						'INSERT INTO embeddings (table_name, row_id, content_hash, vector, created_at) VALUES (?, ?, ?, ?, NOW())',
-						[tableName, row.id, hash, JSON.stringify(vector)]
-					);
+					await query('INSERT INTO embeddings (table_name, row_id, content_hash, vector, created_at) VALUES (?, ?, ?, ?, NOW())', [
+						tableName,
+						row.id,
+						hash,
+						JSON.stringify(vector)
+					]);
 				}
 				embedded++;
 			} catch (e: any) {
@@ -136,10 +137,7 @@ export async function embedAllContent(): Promise<{ embedded: number; skipped: nu
 		const rowIds = rows.map((r: any) => r.id);
 		if (rowIds.length > 0) {
 			const placeholders = rowIds.map(() => '?').join(',');
-			await query(
-				`DELETE FROM embeddings WHERE table_name = ? AND row_id NOT IN (${placeholders})`,
-				[tableName, ...rowIds]
-			);
+			await query(`DELETE FROM embeddings WHERE table_name = ? AND row_id NOT IN (${placeholders})`, [tableName, ...rowIds]);
 		} else {
 			await query('DELETE FROM embeddings WHERE table_name = ?', [tableName]);
 		}

@@ -206,11 +206,7 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 
 			const semanticIds = (table: string) => semanticHits.filter((h) => h.table_name === table).map((h) => h.row_id);
 
-			const mergeSemanticRows = (
-				tableName: string,
-				existing: any[],
-				selectSql: string
-			): Promise<any[]> => {
+			const mergeSemanticRows = (tableName: string, existing: any[], selectSql: string): Promise<any[]> => {
 				const sIds = semanticIds(tableName);
 				if (sIds.length === 0) return Promise.resolve(existing);
 				const existingIds = new Set(existing.map((r: any) => r.id));
@@ -226,15 +222,11 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 			const mergedProjects = hasKeyword
 				? await mergeSemanticRows('projects', projects as any[], 'SELECT id, title, description, category_id, created_at FROM projects')
 				: projects;
-			const mergedSkills = hasKeyword
-				? await mergeSemanticRows('skill', skills as any[], 'SELECT id, title, type FROM skill')
-				: skills;
+			const mergedSkills = hasKeyword ? await mergeSemanticRows('skill', skills as any[], 'SELECT id, title, type FROM skill') : skills;
 			const mergedExperiences = hasKeyword
 				? await mergeSemanticRows('experience', experiences as any[], 'SELECT id, title, type, period, description FROM experience')
 				: experiences;
-			const mergedServices = hasKeyword
-				? await mergeSemanticRows('service', services as any[], 'SELECT id, title, description FROM service')
-				: services;
+			const mergedServices = hasKeyword ? await mergeSemanticRows('service', services as any[], 'SELECT id, title, description FROM service') : services;
 			const mergedTestimonials = hasKeyword
 				? await mergeSemanticRows('testimonial', testimonials as any[], 'SELECT id, name, company, description FROM testimonial')
 				: testimonials;
@@ -242,14 +234,23 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 			const result: Record<string, any> = {};
 			if (mergedSkills.length > 0) result.skills = (mergedSkills as any[]).map((s: any) => ({ title: s.title, type: s.type }));
 			if (mergedExperiences.length > 0)
-				result.experiences = (mergedExperiences as any[]).map((e: any) => ({ title: e.title, type: e.type, period: e.period, description: stripHtml(e.description) }));
+				result.experiences = (mergedExperiences as any[]).map((e: any) => ({
+					title: e.title,
+					type: e.type,
+					period: e.period,
+					description: stripHtml(e.description)
+				}));
 			if (mergedServices.length > 0) result.services = (mergedServices as any[]).map((s: any) => ({ title: s.title, description: stripHtml(s.description) }));
 			if (mergedTestimonials.length > 0)
 				result.testimonials = (mergedTestimonials as any[]).map((t: any) => ({ name: t.name, company: t.company, description: stripHtml(t.description) }));
 			if (mergedArticles.length > 0)
 				result.articles = (mergedArticles as any[]).map((a: any) => ({ title: a.title, description: stripHtml(a.description), created_at: a.created_at }));
 			if (mergedProjects.length > 0)
-				result.projects = (mergedProjects as any[]).map((p: any) => ({ title: p.title, description: stripHtml(p.description), category: catMap.get(p.category_id) }));
+				result.projects = (mergedProjects as any[]).map((p: any) => ({
+					title: p.title,
+					description: stripHtml(p.description),
+					category: catMap.get(p.category_id)
+				}));
 			const activityLimit = Math.min(Math.max(args.count ?? 50, 1), 500);
 			if (activity.length > 0)
 				result.activity = {
