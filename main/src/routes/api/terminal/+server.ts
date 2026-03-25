@@ -267,14 +267,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		const enabledToolNames = getEnabledToolNames(section);
 		const tools = enabledToolNames.map((name) => toolDefinitions[name]).filter(Boolean);
 
-		// Summarize older messages to retain context while controlling token usage
 		const maxRecent = 10;
 		let conversationMessages: OpenAI.Chat.ChatCompletionMessageParam[];
 		if (messages.length > maxRecent) {
 			const olderMessages = messages.slice(0, -maxRecent);
 			const recentMessages = messages.slice(-maxRecent);
 
-			// Extract only user/assistant text content for summarization
 			const conversationText = olderMessages
 				.filter((m: any) => (m.role === 'user' || m.role === 'assistant') && m.content)
 				.map((m: any) => `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
@@ -298,6 +296,26 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		} else {
 			conversationMessages = messages;
+		}
+
+		if (conversationMessages.length >= 3) {
+			const lastMsg = conversationMessages[conversationMessages.length - 1];
+			if (lastMsg.role === 'user' && typeof lastMsg.content === 'string' && lastMsg.content.split(/\s+/).length <= 8) {
+				const recentContext = conversationMessages.slice(-5).map((m: any) =>
+					`${m.role}: ${typeof m.content === 'string' ? m.content : ''}`
+				).join('\n');
+				const rewriteCompletion = await openai.chat.completions.create({
+					model: openaiModel!.trim(),
+					messages: [
+						{ role: 'system', content: 'You are a query rewriter. Given a short conversation and the latest user message, rewrite ONLY the last user message into a fully self-contained question that includes the necessary context from the conversation. Output ONLY the rewritten question, nothing else. If the message is already clear and self-contained, return it unchanged.' },
+						{ role: 'user', content: `Conversation:\n${recentContext}\n\nRewrite the last user message to be self-contained:` }
+					]
+				});
+				const rewritten = rewriteCompletion.choices?.[0]?.message?.content?.trim();
+				if (rewritten) {
+					conversationMessages[conversationMessages.length - 1] = { role: 'user', content: rewritten };
+				}
+			}
 		}
 
 		const loop: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }, ...conversationMessages];
