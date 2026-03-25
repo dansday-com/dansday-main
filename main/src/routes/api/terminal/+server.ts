@@ -97,11 +97,9 @@ function stripHtml(html: string): string {
 }
 
 const toolSections: Record<string, string | undefined> = {
-	search: undefined,
-	get_home: undefined
+	search: undefined
 };
 
-const noParams = { type: 'object', properties: {} } as const;
 
 const searchParams = {
 	type: 'object',
@@ -130,13 +128,9 @@ const toolDefinitions: Record<string, OpenAI.Chat.ChatCompletionTool> = {
 		function: {
 			name: 'search',
 			description:
-				'Search across all data: articles, projects, skills, experiences, services, testimonials, and GitHub activity. Supports keyword filtering and/or date filtering.',
+				'Search across all data: articles, projects, skills, experiences, services, testimonials, GitHub activity, and site info (social links, email, site URL). Supports keyword filtering and/or date filtering.',
 			parameters: searchParams
 		}
-	},
-	get_home: {
-		type: 'function',
-		function: { name: 'get_home', description: 'Get homepage title, description, site URL, and social links', parameters: noParams }
 	}
 };
 
@@ -401,12 +395,11 @@ async function executeTool(
 					items: mergedActivity.slice(0, activityLimit).map((r: any) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
 				};
 
-			return toToon(result);
-		}
-		case 'get_home': {
-			const [home, general] = await Promise.all([fetchHome(), fetchGeneral()]);
+			const [home, generalInfo] = await Promise.all([fetchHome(), fetchGeneral()]);
 			const siteUrl = (env.BASE_URL ?? '').replace(/\/+$/, '');
-			return toToon({ title: home.title, description: home.description, site_url: siteUrl, social_links: general.social_links });
+			result.site = { title: home.title, description: home.description, site_url: siteUrl, social_links: generalInfo.social_links };
+
+			return toToon(result);
 		}
 		default:
 			return '{}';
