@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class EmbeddingService
@@ -217,31 +218,22 @@ class EmbeddingService
             $baseUrl .= '/embeddings';
         }
 
-        $ch = curl_init($baseUrl);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $config['key'],
-            ],
-            CURLOPT_POSTFIELDS => json_encode([
+        $res = Http::timeout(30)
+            ->withHeaders([
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+            ])
+            ->withToken($config['key'])
+            ->post($baseUrl, [
                 'model' => $config['model'],
                 'input' => $text,
-            ]),
-            CURLOPT_TIMEOUT => 30,
-        ]);
+            ]);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 200 || !$response) {
-            Log::warning('Embedding API error: HTTP ' . $httpCode);
+        if (!$res->successful()) {
+            Log::warning('Embedding API error: HTTP ' . $res->status());
             return null;
         }
 
-        $data = json_decode($response, true);
-        return $data['data'][0]['embedding'] ?? null;
+        return data_get($res->json(), 'data.0.embedding');
     }
 }

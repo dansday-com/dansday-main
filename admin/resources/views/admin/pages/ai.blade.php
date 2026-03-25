@@ -78,7 +78,7 @@
                         <h6 class="font-weight-bold text-primary mb-3">Embedding (Optional)</h6>
                         <p class="text-muted small mb-3">Configure an embedding API for semantic search. Leave all fields empty to use keyword search only.</p>
                         <div class="mb-3">
-                            <button type="button" id="embed-all-btn" class="btn btn-outline-primary btn-sm">
+                            <button type="button" id="embed-all-btn" class="btn btn-outline-secondary btn-sm" title="Generate All Embeddings">
                                 <i class="fas fa-database me-1"></i> Generate All Embeddings
                             </button>
                             <span id="embed-all-status" class="ms-2 small text-muted"></span>
