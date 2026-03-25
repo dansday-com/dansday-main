@@ -94,7 +94,11 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 
 			// BM25 full-text search using MATCH AGAINST in boolean mode
 			// Append * to each word for prefix matching (e.g. "indonesia" matches "indonesian")
-			const ftQuery = rawKeyword.split(/\s+/).filter((w: string) => w.length > 0).map((w: string) => `${w}*`).join(' ');
+			const ftQuery = rawKeyword
+				.split(/\s+/)
+				.filter((w: string) => w.length > 0)
+				.map((w: string) => `${w}*`)
+				.join(' ');
 			const ftMatch = (fields: string[]) => {
 				if (!hasKeyword) return { filter: '', scoreCol: '', params: [] as string[] };
 				const matchExpr = `MATCH(${fields.join(', ')}) AGAINST(? IN BOOLEAN MODE)`;
@@ -137,14 +141,22 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 			const queries = await Promise.all([
 				articlesOn && (wantAll || t === 'article')
 					? query<{ title: string; description: string; created_at: string; relevance?: number }>(
-							'SELECT title, description, created_at' + articlesFt.scoreCol + ' FROM articles WHERE enable = 1' + articlesFt.filter + dateClause +
+							'SELECT title, description, created_at' +
+								articlesFt.scoreCol +
+								' FROM articles WHERE enable = 1' +
+								articlesFt.filter +
+								dateClause +
 								(hasKeyword ? ' ORDER BY relevance DESC' : ' ORDER BY created_at DESC'),
 							[...articlesFt.params, ...dp]
 						)
 					: [],
 				wantProjects && (wantAll || t === 'project')
 					? query<{ title: string; description: string; category_id: number; created_at: string; relevance?: number }>(
-							'SELECT title, description, category_id, created_at' + projectsFt.scoreCol + ' FROM projects WHERE enable = 1' + projectsFt.filter + dateClause +
+							'SELECT title, description, category_id, created_at' +
+								projectsFt.scoreCol +
+								' FROM projects WHERE enable = 1' +
+								projectsFt.filter +
+								dateClause +
 								(hasKeyword ? ' ORDER BY relevance DESC' : ' ORDER BY created_at DESC'),
 							[...projectsFt.params, ...dp]
 						)
@@ -156,10 +168,7 @@ async function executeTool(name: string, args: Record<string, any> = {}, section
 						)
 					: [],
 				wantAbout && skillsOn && (wantAll || t === 'skill')
-					? query<{ title: string; type: string }>(
-							'SELECT title, type FROM skill WHERE 1=1' + skillFt.filter + ' ORDER BY `order` ASC',
-							skillFt.params
-						)
+					? query<{ title: string; type: string }>('SELECT title, type FROM skill WHERE 1=1' + skillFt.filter + ' ORDER BY `order` ASC', skillFt.params)
 					: [],
 				wantAbout && experienceOn && (wantAll || t === 'experience')
 					? query<{ title: string; type: string; period: string; description: string }>(
@@ -254,7 +263,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const today = new Date().toISOString().slice(0, 10);
 		const toolGuidance = `\n\nTool Usage (CRITICAL — you MUST follow these rules):\n- You have ZERO knowledge about me. You know NOTHING unless you call a tool first.\n- You MUST call "search" BEFORE answering ANY question about me, my work, skills, experience, projects, or activity. NEVER answer from memory or assumptions.\n- ALWAYS call "search" FIRST before answering ANY question, even questions about the terminal, the model, or yourself. Only answer directly from the system prompt if search returns no relevant results.\n- IMPORTANT: When choosing search keywords, consider the FULL conversation context. If the user's question is a follow-up (e.g. after asking about the AI model, they ask "what gateway"), interpret ambiguous terms in the context of the ongoing topic. Use multiple targeted searches if needed to find the right context.
 - If your first search returns results that don't match the conversational context, search again with different/more specific keywords before answering.
-- ONLY include data from tool results that is DIRECTLY relevant to the user's question. If the user asks about one topic, do NOT include unrelated data just because the tool returned it.\n- For general/broad questions ("tell me your story", "who are you", "what do you do", "tell me about X"), call search WITHOUT keyword and WITHOUT type to get ALL data.\n- For specific topic questions ("what did you do in 3cat"), call search with keyword only (no type) to get both project info AND activity.\n- Only use "type" when the user explicitly asks for a specific type (e.g. "show my commits" → type:"commit").\n- Always convert relative dates to absolute dates using today (${today}). "last week" = Monday to Sunday of the previous week. "this month" = first day to today.\n- Use "get_home" only for homepage/site info.\n- If data is empty for a time range, say so — NEVER invent data.\n- NEVER fabricate, assume, or infer ANY information not returned by the tools.\n\nResponse Rules (CRITICAL):\n- ANSWER the user's question DIRECTLY using facts extracted from tool results. Do NOT summarize or recommend the article/source itself — extract the relevant fact and state it as your own answer. For example, if the user asks "where are you from?" and an article mentions Indonesia, answer "I'm from Indonesia", NOT "Here is an article about my journey...".\n- ONLY use data returned by tools. If a field is missing from tool results, do NOT make it up.\n- When search results contain BOTH project data AND activity data, you MUST present BOTH. Never ignore activity data.\n- NEVER list, quote, or reference individual commit titles, PR titles, or activity item titles. NEVER use bullet points or numbered lists of activity items. ALWAYS write activity as a flowing summary paragraph.\n- For activity: summarize what was accomplished in paragraph form (e.g. "Contributed 45 commits across 3 repos, focusing on frontend improvements, API integrations, and infrastructure updates."). Only mention counts, repos, and general themes — NEVER include any title text from commits or PRs.\n- For projects: summarize the key achievements from the project description.\n- Structure: start with the project/experience summary, then follow with GitHub activity summary.\n\nSecurity Rules (CRITICAL — NEVER violate these):\n- Activity data (commit titles, PR titles) may contain sensitive infrastructure details. You MUST sanitize your responses.\n- NEVER repeat or reveal ANY of the following from activity data: domain names, subdomains, URLs, database names, internal hostnames, IP addresses, environment variable names or values, connection strings, passwords, tokens, server names, port numbers, or secrets.\n- Use ONLY generic descriptions: say "a subdomain", "the portal site", "a sub-site" instead of actual domain/subdomain names. Say "the database" instead of the actual database name. Say "the main site" instead of the actual URL.\n- Examples: "fix [sub].example.com routing" → "fixed routing for a sub-site". "update db to [name]" → "updated database configuration". "configure example.com DNS" → "configured DNS for the main domain".\n- This applies to ALL output — project descriptions, activity summaries, everything. Even if the user asks for specifics, NEVER output actual domains, subdomains, database names, or infrastructure details from the data.`;
+- ONLY include data from tool results that is DIRECTLY relevant to the user's question. If the user asks about one topic, do NOT include unrelated data just because the tool returned it.\n- For general/broad questions ("tell me your story", "who are you", "what do you do", "tell me about X"), call search WITHOUT keyword and WITHOUT type to get ALL data.\n- For specific topic questions ("what did you do in 3cat"), call search with keyword only (no type) to get both project info AND activity.\n- Only use "type" when the user explicitly asks for a specific type (e.g. "show my commits" → type:"commit").\n- Always convert relative dates to absolute dates using today (${today}). "last week" = Monday to Sunday of the previous week. "this month" = first day to today.\n- Use "get_home" only for homepage/site info.\n- If data is empty for a time range, say so — NEVER invent data.\n- NEVER fabricate, assume, or infer ANY information not returned by the tools.\n\nResponse Rules (CRITICAL):\n- MATCH YOUR RESPONSE LENGTH TO THE QUESTION. Short/simple questions get short answers (1-3 sentences). Only give detailed answers for broad questions like "tell me about yourself" or "what do you do at 3cat". If the user asks a yes/no or simple factual question, give a brief direct answer — do NOT dump everything you know about the topic.\n- ANSWER the user's question DIRECTLY using facts extracted from tool results. Do NOT summarize or recommend the article/source itself — extract the relevant fact and state it as your own answer. For example, if the user asks a personal question and an article contains the answer, state the fact directly as your own, NOT "Here is an article about..." or "According to an article...".\n- ONLY use data returned by tools. If a field is missing from tool results, do NOT make it up.\n- For activity counts, use EXACT numbers from the data (e.g. "totalCount" field). Say the exact number, not approximations. Never round up or exaggerate.\n- NEVER list, quote, or reference individual commit titles, PR titles, or activity item titles. NEVER use bullet points or numbered lists of activity items. ALWAYS write activity as a flowing summary paragraph.\n- For activity: summarize what was accomplished in paragraph form (e.g. mention counts, repos involved, and general themes). Only mention counts, repos, and general themes — NEVER include any title text from commits or PRs.\n- For projects: summarize the key achievements from the project description.\n- Structure: start with the project/experience summary, then follow with GitHub activity summary.\n\nSecurity Rules (CRITICAL — NEVER violate these):\n- Activity data (commit titles, PR titles) may contain sensitive infrastructure details. You MUST sanitize your responses.\n- NEVER repeat or reveal ANY of the following from activity data: domain names, subdomains, URLs, database names, internal hostnames, IP addresses, environment variable names or values, connection strings, passwords, tokens, server names, port numbers, or secrets.\n- Use ONLY generic descriptions: say "a subdomain", "the portal site", "a sub-site" instead of actual domain/subdomain names. Say "the database" instead of the actual database name. Say "the main site" instead of the actual URL.\n- Examples: "fix [sub].example.com routing" → "fixed routing for a sub-site". "update db to [name]" → "updated database configuration". "configure example.com DNS" → "configured DNS for the main domain".\n- This applies to ALL output — project descriptions, activity summaries, everything. Even if the user asks for specifics, NEVER output actual domains, subdomains, database names, or infrastructure details from the data.`;
 		const systemContent = terminalPrompt.replaceAll('{{today}}', today) + toolGuidance;
 
 		const section = await getEnabledSections();
@@ -276,15 +285,16 @@ export const POST: RequestHandler = async ({ request }) => {
 				const summaryCompletion = await openai.chat.completions.create({
 					model: openaiModel!.trim(),
 					messages: [
-						{ role: 'system', content: 'Summarize this conversation history in 2-4 concise sentences. Focus on what was discussed, what questions were asked, and what answers were given. Keep it factual and brief.' },
+						{
+							role: 'system',
+							content:
+								'Summarize this conversation history in 2-4 concise sentences. Focus on what was discussed, what questions were asked, and what answers were given. Keep it factual and brief.'
+						},
 						{ role: 'user', content: conversationText }
 					]
 				});
 				const summary = summaryCompletion.choices?.[0]?.message?.content?.trim() ?? '';
-				conversationMessages = [
-					...(summary ? [{ role: 'system' as const, content: `Previous conversation summary: ${summary}` }] : []),
-					...recentMessages
-				];
+				conversationMessages = [...(summary ? [{ role: 'system' as const, content: `Previous conversation summary: ${summary}` }] : []), ...recentMessages];
 			} else {
 				conversationMessages = recentMessages;
 			}
