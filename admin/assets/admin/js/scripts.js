@@ -162,8 +162,12 @@ $(document).ready(function () {
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
         $status.text('');
 
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function () { controller.abort(); }, 300000);
+
         fetch(window.adminEmbedAllUrl || '/admin/embed-all', {
             method: 'POST',
+            signal: controller.signal,
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
@@ -183,8 +187,12 @@ $(document).ready(function () {
                     $status.removeClass('text-danger').addClass('text-success').text(msg);
                 }
             })
-            .catch(function () {
-                $status.removeClass('text-success').addClass('text-danger').text('Request failed.');
+            .catch(function (err) {
+                if (err.name === 'AbortError') {
+                    $status.removeClass('text-danger').addClass('text-warning').text('Request timed out, but embedding may have completed in the background.');
+                } else {
+                    $status.removeClass('text-success').addClass('text-danger').text('Request failed.');
+                }
             })
             .finally(function () {
                 $btn.prop('disabled', false).html(originalHtml);
