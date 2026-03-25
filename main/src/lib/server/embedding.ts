@@ -1,6 +1,7 @@
 import { query, queryOne } from './db';
 import { fetchGeneral } from './data';
 import crypto from 'crypto';
+import OpenAI from 'openai';
 
 interface EmbeddingConfig {
 	url: string;
@@ -16,7 +17,6 @@ interface EmbeddingRow {
 	vector: string;
 }
 
-/** Returns embedding config if all 3 fields are set, otherwise null */
 export async function getEmbeddingConfig(): Promise<EmbeddingConfig | null> {
 	const general = await fetchGeneral();
 	const url = (general.embedding_url as string | null)?.trim();
@@ -26,32 +26,15 @@ export async function getEmbeddingConfig(): Promise<EmbeddingConfig | null> {
 	return { url, key, model };
 }
 
-/** Call the embedding API to get a vector for the given text */
 async function callEmbeddingApi(config: EmbeddingConfig, text: string): Promise<number[]> {
 	let baseUrl = config.url.replace(/\/+$/, '');
-	if (!baseUrl.endsWith('/embeddings')) {
-		baseUrl += '/embeddings';
+	if (baseUrl.endsWith('/embeddings')) {
+		baseUrl = baseUrl.replace(/\/embeddings$/, '');
 	}
 
-	const res = await fetch(baseUrl, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${config.key}`
-		},
-		body: JSON.stringify({
-			model: config.model,
-			input: text
-		})
-	});
-
-	if (!res.ok) {
-		const body = await res.text();
-		throw new Error(`Embedding API error ${res.status}: ${body}`);
-	}
-
-	const data = await res.json();
-	return data.data[0].embedding as number[];
+	const openai = new OpenAI({ baseURL: baseUrl, apiKey: config.key });
+	const response = await openai.embeddings.create({ model: config.model, input: text });
+	return response.data[0].embedding;
 }
 
 function contentHash(text: string): string {
@@ -66,7 +49,6 @@ function stripHtml(html: string): string {
 		.trim();
 }
 
-/** Content builders for each table */
 const contentBuilders: Record<string, (row: Record<string, any>) => string> = {
 	articles: (r) => `${r.title}\n${stripHtml(r.description)}`,
 	projects: (r) => `${r.title}\n${stripHtml(r.description)}`,
@@ -76,7 +58,6 @@ const contentBuilders: Record<string, (row: Record<string, any>) => string> = {
 	testimonial: (r) => `${r.name} ${r.company}\n${stripHtml(r.description)}`
 };
 
-/** Tables to embed and their queries */
 const tableQueries: Record<string, string> = {
 	articles: 'SELECT id, title, description FROM articles WHERE enable = 1',
 	projects: 'SELECT id, title, description FROM projects WHERE enable = 1',
@@ -86,7 +67,6 @@ const tableQueries: Record<string, string> = {
 	testimonial: 'SELECT id, name, company, description FROM testimonial'
 };
 
-/** Embed all content, skipping rows whose content hasn't changed */
 export async function embedAllContent(): Promise<{ embedded: number; skipped: number; errors: string[] }> {
 	const config = await getEmbeddingConfig();
 	if (!config) return { embedded: 0, skipped: 0, errors: ['Embedding not configured'] };
@@ -146,14 +126,12 @@ export async function embedAllContent(): Promise<{ embedded: number; skipped: nu
 	return { embedded, skipped, errors };
 }
 
-/** Embed a single query and return the vector */
 export async function embedQuery(text: string): Promise<number[] | null> {
 	const config = await getEmbeddingConfig();
 	if (!config) return null;
 	return callEmbeddingApi(config, text);
 }
 
-/** Cosine similarity between two vectors */
 function cosineSimilarity(a: number[], b: number[]): number {
 	let dot = 0;
 	let normA = 0;
@@ -173,7 +151,6 @@ export interface SemanticResult {
 	similarity: number;
 }
 
-/** Search embeddings by cosine similarity, returns top N results above threshold */
 export async function semanticSearch(queryVector: number[], topN: number = 20, threshold: number = 0.3): Promise<SemanticResult[]> {
 	const allEmbeddings = await query<EmbeddingRow>('SELECT table_name, row_id, vector FROM embeddings');
 
