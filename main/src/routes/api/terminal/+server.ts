@@ -200,7 +200,7 @@ async function executeTool(
 
 			const articlesFt = ftMatch(['title', 'description']);
 			const projectsFt = ftMatch(['title', 'description']);
-			const ghFt = ftMatchFilter(['repo', 'title', 'type']);
+			const ghFt = ftMatchFilter(['repo', 'title']);
 			const skillFt = ftMatchFilter(['title']);
 			const expFt = ftMatchFilter(['title', 'description']);
 			const serviceFt = ftMatchFilter(['title', 'description']);
