@@ -514,7 +514,8 @@ export const POST: RequestHandler = async ({ request }) => {
 				messages: loop,
 				tools: tools.length > 0 ? tools : undefined,
 				tool_choice: tools.length > 0 ? 'auto' : undefined,
-				reasoning_effort: terminalReasoning === 'none' ? undefined : (terminalReasoning as any)
+				reasoning_effort: terminalReasoning === 'none' ? undefined : (terminalReasoning as any),
+				frequency_penalty: 1.2
 			});
 
 			const message = completion.choices?.[0]?.message;
