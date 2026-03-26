@@ -3,4 +3,4 @@
 <link rel="icon" type="image/svg+xml" href="{{ upload_url("$dir/favicon.svg") }}" />
 <link rel="shortcut icon" href="{{ upload_url("$dir/favicon.ico") }}" />
 <link rel="apple-touch-icon" sizes="180x180" href="{{ upload_url("$dir/apple-touch-icon.png") }}" />
-<link rel="manifest" href="{{ asset('favicon/site.webmanifest') }}" />
+<link rel="manifest" href="{{ upload_url("$dir/site.webmanifest") }}" />

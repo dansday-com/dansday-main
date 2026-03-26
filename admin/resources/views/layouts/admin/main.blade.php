@@ -7,7 +7,7 @@
     <title>{{ __('content.admin_panel') }}</title>
 
     <meta name="csrf-token" content="{{ csrf_token() }}">  
-    <x-favicon-meta />
+    <x-app-favicon />
     
     <link href="{{ asset('assets/fonts/fontawesome/css/all.min.css') }}" rel="stylesheet">
     <link href="//fonts.googleapis.com/css?family=Nunito:400,900 rel="stylesheet">

@@ -17,7 +17,7 @@ class AiGenerateService
 
         $url = trim($general->ai_url ?? '');
         $key = trim($general->ai_key ?? '');
-        $model = trim($general->ai_model ?? '') ?: 'default';
+        $model = trim($general->ai_content_model ?? '') ?: trim($general->ai_model ?? '') ?: 'default';
 
         if (!$url || !$key) {
             return ['error' => __('content.ai_unavailable')];
@@ -136,11 +136,7 @@ class AiGenerateService
 
     private static function resolveReasoning(object $general, string $type): string
     {
-        if ($type === 'project') {
-            $reasoning = trim($general->ai_project_reasoning ?? '');
-            if ($reasoning !== '') return $reasoning;
-        }
-        $reasoning = trim($general->ai_article_reasoning ?? '');
+        $reasoning = trim($general->ai_content_reasoning ?? '');
         return $reasoning !== '' ? $reasoning : 'none';
     }
 }
