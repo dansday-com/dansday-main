@@ -479,14 +479,16 @@ export const POST: RequestHandler = async ({ request }) => {
 			return {};
 		})();
 
+		const isGemini = modelLower.includes('gemini');
+
 		for (let i = 0; i < 10; i++) {
 			const completion = await openai.chat.completions.create({
 				model: openaiModel.trim(),
 				messages: loop,
 				tools: tools.length > 0 ? tools : undefined,
 				tool_choice: tools.length > 0 ? 'auto' : undefined,
-				reasoning_effort: useThinking ? (terminalReasoning as any) : undefined,
-				frequency_penalty: 1.2,
+				...(!isGemini && useThinking ? { reasoning_effort: terminalReasoning as any } : {}),
+				...(!isGemini ? { frequency_penalty: 1.2 } : {}),
 				...thinkingKwargs as any
 			});
 
