@@ -264,6 +264,10 @@
 
 <Metadata title={metaTitle} description={metaDescription} />
 
+<svelte:head>
+	<link rel="stylesheet" href="{data.adminBaseUrl}/assets/fonts/fontawesome/css/all.min.css" />
+</svelte:head>
+
 <main bind:this={mainEl} class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#080808]/80 font-mono text-sm backdrop-blur-sm md:text-base">
 	<div class="text-ash-100 flex-1 p-4 pb-12 sm:p-6">
 		<div class="mb-6">

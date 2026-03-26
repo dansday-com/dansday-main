@@ -24,9 +24,21 @@
 		socialLinks: SocialLink[];
 		section?: SectionFlags | Record<string, unknown>;
 		aiTerminalConfigured?: boolean;
+		adminBaseUrl?: string;
 	}
 
-	let { siteName, socialLinks = [], section = {}, aiTerminalConfigured = false }: $$Props = $props();
+	let { siteName, socialLinks = [], section = {}, aiTerminalConfigured = false, adminBaseUrl = '' }: $$Props = $props();
+
+	import { onMount } from 'svelte';
+
+	onMount(() => {
+		if (window.innerWidth >= 1024 && adminBaseUrl) {
+			const link = document.createElement('link');
+			link.rel = 'stylesheet';
+			link.href = `${adminBaseUrl}/assets/fonts/fontawesome/css/all.min.css`;
+			document.head.appendChild(link);
+		}
+	});
 
 	const notDisabled = (v: unknown) => v !== 0 && v !== false;
 

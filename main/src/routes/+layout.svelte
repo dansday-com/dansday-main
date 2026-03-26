@@ -103,15 +103,6 @@
 		<link rel="icon" href={data.defaultFavicon} />
 	{/if}
 	<link rel="preconnect" href={data.adminBaseUrl} crossorigin="anonymous" />
-	<link
-		rel="stylesheet"
-		href="{data.adminBaseUrl}/assets/fonts/fontawesome/css/all.min.css"
-		media="print"
-		onload={(e) => ((e.target as HTMLLinkElement).media = 'all')}
-	/>
-	<noscript>
-		<link rel="stylesheet" href="{data.adminBaseUrl}/assets/fonts/fontawesome/css/all.min.css" />
-	</noscript>
 </svelte:head>
 
 {#if trackingId}
@@ -129,7 +120,7 @@
 >
 	<Header siteName={data.siteName} favicon={data.defaultFavicon} {isFullscreen} {onMouseDown} {toggleFullscreen} {onMinimize} />
 	{@render children()}
-	<Navbar siteName={data.siteName} socialLinks={data.socialLinks} section={data.section} aiTerminalConfigured={data.aiTerminalConfigured} />
+	<Navbar siteName={data.siteName} socialLinks={data.socialLinks} section={data.section} aiTerminalConfigured={data.aiTerminalConfigured} adminBaseUrl={data.adminBaseUrl} />
 </main>
 
 <div class="desktop-bg absolute top-0 left-0 hidden h-full w-full lg:block" aria-hidden="true"></div>
