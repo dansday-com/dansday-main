@@ -90,10 +90,6 @@ const searchParams = {
 		},
 		startDate: { type: 'string', description: 'Filter results from this date (YYYY-MM-DD).' },
 		endDate: { type: 'string', description: 'Filter results up to this date (YYYY-MM-DD).' },
-		count: {
-			type: 'number',
-			description: 'Max number of activity items to return. Default 50. Use higher values when the user asks for more detail (e.g. "first 200 commits").'
-		}
 	}
 } as const;
 
@@ -217,7 +213,13 @@ async function executeTool(
 					: [],
 				wantGh
 					? query<{ repo: string; title: string; type: string; created_at: string }>(
-							'SELECT id, repo, title, type, created_at FROM github_activity WHERE 1=1' + ghTypeFilter + ghFt.filter + dateClause + ' ORDER BY created_at DESC',
+							'SELECT id, repo, title, type, created_at FROM github_activity WHERE 1=1' + ghTypeFilter + ghFt.filter + dateClause + ' ORDER BY created_at DESC LIMIT 100',
+							[...ghTypeParams, ...ghFt.params, ...dp]
+						)
+					: [],
+				wantGh
+					? query<{ cnt: number }>(
+							'SELECT COUNT(*) as cnt FROM github_activity WHERE 1=1' + ghTypeFilter + ghFt.filter + dateClause,
 							[...ghTypeParams, ...ghFt.params, ...dp]
 						)
 					: [],
@@ -242,7 +244,7 @@ async function executeTool(
 				query<{ id: number; name: string }>('SELECT id, name FROM project_categories ORDER BY id ASC')
 			]);
 
-			const [articles, projects, activity, skills, experiences, services, testimonials, categories] = queries;
+			const [articles, projects, activity, activityCount, skills, experiences, services, testimonials, categories] = queries;
 			const catMap = new Map((categories as any[]).map((c: any) => [c.id, c.name]));
 
 			let semanticHits: SemanticResult[] = [];
@@ -357,11 +359,10 @@ async function executeTool(
 					description: stripHtml(p.description),
 					category: catMap.get(p.category_id)
 				}));
-			const activityLimit = Math.min(Math.max(args.count ?? 50, 1), 500);
 			if (mergedActivity.length > 0)
 				result.activity = {
-					totalCount: mergedActivity.length,
-					items: mergedActivity.slice(0, activityLimit).map((r: any) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
+					totalCount: (activityCount as any[])?.[0]?.cnt ?? mergedActivity.length,
+					items: mergedActivity.map((r: any) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
 				};
 
 			const [home, generalInfo] = await Promise.all([fetchHome(), fetchGeneral()]);
