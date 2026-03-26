@@ -496,11 +496,11 @@ export const POST: RequestHandler = async ({ request }) => {
 			const message = completion.choices?.[0]?.message;
 			if (!message) break;
 
-			loop.push(message);
-
 			if (!message.tool_calls || message.tool_calls.length === 0) {
 				break;
 			}
+
+			loop.push(message);
 
 			const toolResults = await Promise.all(
 				message.tool_calls.map(async (tc: any) => {
@@ -520,8 +520,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		const stream = await openai.chat.completions.create({
 			...completionParams,
 			messages: loop,
-			tools: undefined,
-			tool_choice: undefined,
 			stream: true
 		} as any);
 
