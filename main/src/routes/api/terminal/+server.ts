@@ -240,7 +240,7 @@ async function executeTool(
 					: [],
 				wantGh
 					? query<{ repo: string; title: string; type: string; created_at: string }>(
-							'SELECT id, repo, title, type, created_at FROM github_activity WHERE 1=1' + ghTypeFilter + ghFt.filter + dateClause + ' ORDER BY created_at DESC',
+							'SELECT id, repo, title, type, additions, deletions, created_at FROM github_activity WHERE 1=1' + ghTypeFilter + ghFt.filter + dateClause + ' ORDER BY created_at DESC',
 							[...ghTypeParams, ...ghFt.params, ...dp]
 						)
 					: [],
@@ -343,7 +343,7 @@ async function executeTool(
 					if (missingIds.length > 0) {
 						const placeholders = missingIds.map(() => '?').join(',');
 						const extraActivity = await query<{ id: number; repo: string; title: string; type: string; created_at: string }>(
-							`SELECT id, repo, title, type, created_at FROM github_activity WHERE id IN (${placeholders})`,
+							`SELECT id, repo, title, type, additions, deletions, created_at FROM github_activity WHERE id IN (${placeholders})`,
 							missingIds
 						);
 						mergedActivity = [...(activity as any[]), ...(extraActivity as any[])];
@@ -382,7 +382,12 @@ async function executeTool(
 				}));
 			if (mergedActivity.length > 0)
 				result.activity = {
-					items: mergedActivity.map((r: any) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
+					items: mergedActivity.map((r: any) => {
+						const item: Record<string, any> = { repo: r.repo, title: r.title, type: r.type, date: r.created_at };
+						if (r.additions != null) item.additions = r.additions;
+						if (r.deletions != null) item.deletions = r.deletions;
+						return item;
+					})
 				};
 
 			const [home, generalInfo] = await Promise.all([fetchHome(), fetchGeneral()]);
