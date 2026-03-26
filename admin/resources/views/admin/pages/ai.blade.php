@@ -62,7 +62,6 @@
                                             <option value="{{ $value }}" {{ old('ai_content_reasoning', $general->ai_content_reasoning ?? 'none') === $value ? 'selected' : '' }}>{{ $label }}</option>
                                         @endforeach
                                     </select>
-                                    <div class="form-text">{{ __('content.ai_content_reasoning_desc') }}</div>
                                     @error('ai_content_reasoning')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
                             </div>

@@ -17,7 +17,6 @@ return [
     'ai_content_model'          => 'Content Generation Model',
     'ai_content_model_desc'     => 'Model for article/project generation. Leave blank to use the default AI model above.',
     'ai_content_reasoning'      => 'Content Generation Reasoning Effort',
-    'ai_content_reasoning_desc' => 'Reasoning effort for article and project generation.',
     'ai_gateway_url'            => 'AI Gateway URL',
     'ai_gateway_url_desc'       => 'Base URL for the AI API (OpenAI compatible).',
     'ai_api_key'                => 'AI API Key',

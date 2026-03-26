@@ -103,4 +103,6 @@ EXPOSE 2222
 ENV APP_ENV=production
 ENV LOG_CHANNEL=stderr
 
-CMD ["sh", "-c", "php artisan optimize:clear && php artisan migrate --force && frankenphp run --config /etc/caddy/Caddyfile --adapter caddyfile"]
+RUN cp public/uploads/img/image_default.png /tmp/image_default.png
+
+CMD ["sh", "-c", "cp -n /tmp/image_default.png public/uploads/img/image_default.png 2>/dev/null; php artisan optimize:clear && php artisan migrate --force && frankenphp run --config /etc/caddy/Caddyfile --adapter caddyfile"]
