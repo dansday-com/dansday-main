@@ -136,7 +136,15 @@ $(document).ready(function () {
             },
             body: JSON.stringify({ type: type, field: field, topic: promptContext })
         })
-            .then(function (r) { return r.json(); })
+            .then(function (r) {
+                if (!r.ok) {
+                    return r.text().then(function (t) {
+                        try { var j = JSON.parse(t); if (j.error) throw new Error(j.error); } catch (e) { if (e.message) throw e; }
+                        throw new Error('HTTP ' + r.status + ': ' + t.substring(0, 200));
+                    });
+                }
+                return r.json();
+            })
             .then(function (data) {
                 if (data.error) {
                     alert(data.error);
@@ -148,7 +156,7 @@ $(document).ready(function () {
                     $('input[name="' + inputName + '"], textarea[name="' + inputName + '"]').val(data.text || '');
                 }
             })
-            .catch(function () { alert('Request failed.'); })
+            .catch(function (e) { alert(e.message || 'Request failed.'); })
             .finally(function () {
                 $btn.prop('disabled', false).html(originalHtml);
             });

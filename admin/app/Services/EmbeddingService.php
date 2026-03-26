@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class EmbeddingService
@@ -197,7 +198,16 @@ class EmbeddingService
 
     private static function getConfig(): ?array
     {
-        return AiClientFactory::embedding();
+        $general = DB::table('page_setting')->where('id', 1)->first();
+        if (!$general) return null;
+
+        $url = trim($general->embedding_url ?? '');
+        $key = trim($general->embedding_key ?? '');
+        $model = trim($general->embedding_model ?? '');
+
+        if (!$url || !$key || !$model) return null;
+
+        return compact('url', 'key', 'model');
     }
 
     private static function stripHtml(string $html): string
@@ -242,35 +252,48 @@ class EmbeddingService
 
     private static function callApiBatch(array $config, array $texts): ?array
     {
-        try {
-            $response = $config['client']->embeddings()->create([
-                'model' => $config['model'],
-                'input' => $texts,
-            ]);
+        $endpoint = rtrim($config['url'], '/');
+        if (!str_ends_with($endpoint, '/embeddings')) {
+            $endpoint .= '/embeddings';
+        }
 
-            $vectors = [];
-            foreach ($response->embeddings as $embedding) {
-                $vectors[] = $embedding->embedding;
-            }
-            return $vectors;
-        } catch (\Throwable $e) {
-            Log::warning('Embedding batch API error: ' . $e->getMessage());
+        $res = Http::timeout(60)
+            ->withHeaders(['Accept' => 'application/json', 'Content-Type' => 'application/json'])
+            ->withToken($config['key'])
+            ->post($endpoint, ['model' => $config['model'], 'input' => $texts]);
+
+        if (!$res->successful()) {
+            Log::warning('Embedding batch API error: HTTP ' . $res->status());
             return null;
         }
+
+        $data = $res->json('data');
+        if (!is_array($data)) return null;
+
+        $vectors = [];
+        foreach ($data as $item) {
+            $vectors[] = $item['embedding'] ?? null;
+        }
+        return $vectors;
     }
 
     private static function callApi(array $config, string $text): ?array
     {
-        try {
-            $response = $config['client']->embeddings()->create([
-                'model' => $config['model'],
-                'input' => $text,
-            ]);
+        $endpoint = rtrim($config['url'], '/');
+        if (!str_ends_with($endpoint, '/embeddings')) {
+            $endpoint .= '/embeddings';
+        }
 
-            return $response->embeddings[0]->embedding ?? null;
-        } catch (\Throwable $e) {
-            Log::warning('Embedding API error: ' . $e->getMessage());
+        $res = Http::timeout(30)
+            ->withHeaders(['Accept' => 'application/json', 'Content-Type' => 'application/json'])
+            ->withToken($config['key'])
+            ->post($endpoint, ['model' => $config['model'], 'input' => $text]);
+
+        if (!$res->successful()) {
+            Log::warning('Embedding API error: HTTP ' . $res->status());
             return null;
         }
+
+        return data_get($res->json(), 'data.0.embedding');
     }
 }

@@ -2,20 +2,26 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class AiGenerateService
 {
     public static function generate(string $type, string $topic): array
     {
-        $config = AiClientFactory::chat();
-        if (!$config) {
+        $general = DB::table('page_setting')->where('id', 1)->first();
+        if (!$general) {
             return ['error' => __('content.ai_unavailable')];
         }
 
-        $client = $config['client'];
-        $model = $config['model'];
-        $general = $config['general'];
+        $url = trim($general->ai_url ?? '');
+        $key = trim($general->ai_key ?? '');
+        $model = trim($general->ai_model ?? '') ?: 'default';
+
+        if (!$url || !$key) {
+            return ['error' => __('content.ai_unavailable')];
+        }
 
         $context = trim($topic);
         $prompt = $context !== '' ? $context : 'Generate content.';
@@ -42,20 +48,47 @@ class AiGenerateService
             }
             $messages[] = ['role' => 'user', 'content' => $prompt];
 
-            $params = [
+            $body = array_filter([
                 'model' => $model,
                 'messages' => $messages,
                 ...self::buildModelParams($model, $reasoning),
-            ];
+            ], fn($v) => $v !== null);
 
-            $response = $client->chat()->create($params);
-            $text = trim($response->choices[0]->message->content ?? '');
+            $endpoint = rtrim($url, '/');
+            if (!str_ends_with($endpoint, '/chat/completions')) {
+                $endpoint .= '/chat/completions';
+            }
+
+            $res = Http::timeout(60)
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])
+                ->withToken($key)
+                ->post($endpoint, $body);
+
+            if (!$res->successful()) {
+                Log::error('AI generate HTTP failed', [
+                    'endpoint' => $endpoint,
+                    'status' => $res->status(),
+                    'model' => $model,
+                    'body' => substr($res->body(), 0, 500),
+                ]);
+                return ['error' => __('content.ai_unavailable')];
+            }
+
+            $json = $res->json();
+            $text = trim((string) data_get($json, 'choices.0.message.content', ''));
+            if ($text === '') {
+                $text = trim((string) data_get($json, 'choices.0.text', ''));
+            }
 
             return ['text' => $text];
         } catch (\Throwable $e) {
-            Log::warning('AI generate failed', [
+            Log::error('AI generate failed', [
                 'model' => $model,
                 'message' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
             ]);
             return ['error' => __('content.ai_unavailable')];
         }

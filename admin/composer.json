@@ -15,7 +15,6 @@
         "open-telemetry/exporter-otlp": "*",
         "open-telemetry/opentelemetry-auto-laravel": "*",
         "open-telemetry/sdk": "*",
-        "openai-php/laravel": "^0.19.1",
         "php-http/guzzle7-adapter": "*"
     },
     "require-dev": {

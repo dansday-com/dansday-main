@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class SimilarContentService
@@ -97,16 +98,28 @@ class SimilarContentService
     private static function semanticSearchAll(string $text): array
     {
         try {
-            $config = AiClientFactory::embedding();
-            if (!$config) return [];
+            $general = DB::table('page_setting')->where('id', 1)->first();
+            if (!$general) return [];
 
-            $response = $config['client']->embeddings()->create([
-                'model' => $config['model'],
-                'input' => $text,
-            ]);
+            $url = trim($general->embedding_url ?? '');
+            $key = trim($general->embedding_key ?? '');
+            $model = trim($general->embedding_model ?? '');
+            if (!$url || !$key || !$model) return [];
 
-            $queryVector = $response->embeddings[0]->embedding ?? null;
-            if (!$queryVector) return [];
+            $endpoint = rtrim($url, '/');
+            if (!str_ends_with($endpoint, '/embeddings')) {
+                $endpoint .= '/embeddings';
+            }
+
+            $res = Http::timeout(15)
+                ->withHeaders(['Accept' => 'application/json', 'Content-Type' => 'application/json'])
+                ->withToken($key)
+                ->post($endpoint, ['model' => $model, 'input' => $text]);
+
+            if (!$res->successful()) return [];
+
+            $queryVector = data_get($res->json(), 'data.0.embedding');
+            if (!$queryVector || !is_array($queryVector)) return [];
 
             $embeddings = DB::select('SELECT table_name, row_id, vector FROM embeddings');
 
