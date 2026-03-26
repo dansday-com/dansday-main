@@ -466,8 +466,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		conversationMessages = conversationMessages.filter((m: any) => m.role !== 'system');
 		const loop: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: 'system', content: systemContent }, ...conversationMessages];
 
-		let aiReply = '';
-
 		const useThinking = terminalReasoning !== 'none';
 		const modelLower = (openaiModel ?? '').toLowerCase();
 		const thinkingKwargs = (() => {
@@ -480,16 +478,19 @@ export const POST: RequestHandler = async ({ request }) => {
 		})();
 
 		const isGemini = modelLower.includes('gemini');
+		const completionParams = {
+			model: openaiModel!.trim(),
+			tools: tools.length > 0 ? tools : undefined,
+			tool_choice: tools.length > 0 ? ('auto' as const) : undefined,
+			...(useThinking ? { reasoning_effort: (isGemini && terminalReasoning === 'xhigh' ? 'high' : terminalReasoning) as any } : {}),
+			...(!isGemini ? { frequency_penalty: 1.2 } : {}),
+			...thinkingKwargs as any
+		};
 
 		for (let i = 0; i < 10; i++) {
 			const completion = await openai.chat.completions.create({
-				model: openaiModel.trim(),
-				messages: loop,
-				tools: tools.length > 0 ? tools : undefined,
-				tool_choice: tools.length > 0 ? 'auto' : undefined,
-				...(!isGemini && useThinking ? { reasoning_effort: terminalReasoning as any } : {}),
-				...(!isGemini ? { frequency_penalty: 1.2 } : {}),
-				...thinkingKwargs as any
+				...completionParams,
+				messages: loop
 			});
 
 			const message = completion.choices?.[0]?.message;
@@ -498,11 +499,6 @@ export const POST: RequestHandler = async ({ request }) => {
 			loop.push(message);
 
 			if (!message.tool_calls || message.tool_calls.length === 0) {
-				aiReply = (message.content || '')
-					.replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
-					.replace(/<think>[\s\S]*?<\/think>/gi, '')
-					.replace(/\(no output\)\s*/g, '')
-					.trim();
 				break;
 			}
 
@@ -521,20 +517,60 @@ export const POST: RequestHandler = async ({ request }) => {
 			loop.push(...toolResults);
 		}
 
-		if (loggerProvider) {
-			const logger = loggerProvider.getLogger('terminal');
-			const userMessage = messages[messages.length - 1]?.content ?? '';
-			logger.emit({
-				body: 'AI Terminal Interaction',
-				attributes: {
-					'terminal.user_input': userMessage,
-					'terminal.system_prompt': systemContent,
-					'terminal.ai_response': aiReply
-				}
-			});
-		}
+		const stream = await openai.chat.completions.create({
+			...completionParams,
+			messages: loop,
+			tools: undefined,
+			tool_choice: undefined,
+			stream: true
+		} as any);
 
-		return json({ response: aiReply });
+		const encoder = new TextEncoder();
+		let fullResponse = '';
+		const readable = new ReadableStream({
+			async start(controller) {
+				try {
+					for await (const chunk of stream as any) {
+						const content = (chunk as any).choices?.[0]?.delta?.content ?? '';
+						if (content) {
+							fullResponse += content;
+							controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+						}
+					}
+					controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+					controller.close();
+
+					if (loggerProvider) {
+						const logger = loggerProvider.getLogger('terminal');
+						const userMessage = messages[messages.length - 1]?.content ?? '';
+						const cleaned = fullResponse
+							.replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+							.replace(/<think>[\s\S]*?<\/think>/gi, '')
+							.replace(/\(no output\)\s*/g, '')
+							.trim();
+						logger.emit({
+							body: 'AI Terminal Interaction',
+							attributes: {
+								'terminal.user_input': userMessage,
+								'terminal.system_prompt': systemContent,
+								'terminal.ai_response': cleaned
+							}
+						});
+					}
+				} catch (err) {
+					controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`));
+					controller.close();
+				}
+			}
+		});
+
+		return new Response(readable, {
+			headers: {
+				'Content-Type': 'text/event-stream',
+				'Cache-Control': 'no-cache',
+				'Connection': 'keep-alive'
+			}
+		});
 	} catch (error: any) {
 		console.error('Terminal API Error:', error);
 		return json({ response: `Error: ${error.message}` });

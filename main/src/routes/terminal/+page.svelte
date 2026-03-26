@@ -89,10 +89,51 @@
 				throw new Error('API request failed');
 			}
 
-			const data = await response.json();
-			const fullText = data.response || '';
+			let fullText = '';
+			const reader = response.body?.getReader();
+			const decoder = new TextDecoder();
 
-			const outputLines = fullText.split('\n');
+			if (reader) {
+				let buffer = '';
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					buffer += decoder.decode(value, { stream: true });
+					const lines = buffer.split('\n');
+					buffer = lines.pop() ?? '';
+					for (const line of lines) {
+						if (!line.startsWith('data: ')) continue;
+						const payload = line.slice(6);
+						if (payload === '[DONE]') break;
+						try {
+							const parsed = JSON.parse(payload);
+							if (parsed.content) {
+								fullText += parsed.content;
+								const cleaned = fullText
+									.replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+									.replace(/<think>[\s\S]*?<\/think>/gi, '')
+									.replace(/\(no output\)\s*/g, '')
+									.trim();
+								const outputLines = cleaned.split('\n');
+								const updatedHistory = [...history];
+								updatedHistory[historyIndex] = {
+									...updatedHistory[historyIndex],
+									output: outputLines
+								};
+								history = updatedHistory;
+								scrollToBottom();
+							}
+						} catch {}
+					}
+				}
+			}
+
+			const cleaned = fullText
+				.replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+				.replace(/<think>[\s\S]*?<\/think>/gi, '')
+				.replace(/\(no output\)\s*/g, '')
+				.trim();
+			const outputLines = cleaned.split('\n');
 			const updatedHistory = [...history];
 			updatedHistory[historyIndex] = {
 				...updatedHistory[historyIndex],
