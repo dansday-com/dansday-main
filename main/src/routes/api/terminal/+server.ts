@@ -359,11 +359,15 @@ async function executeTool(
 					description: stripHtml(p.description),
 					category: catMap.get(p.category_id)
 				}));
-			if (mergedActivity.length > 0)
+			if (mergedActivity.length > 0) {
+				const total = (activityCount as any[])?.[0]?.cnt ?? mergedActivity.length;
 				result.activity = {
-					totalCount: (activityCount as any[])?.[0]?.cnt ?? mergedActivity.length,
+					totalCount: total,
+					showing: mergedActivity.length,
+					note: total > mergedActivity.length ? `Only showing ${mergedActivity.length} of ${total} total results` : undefined,
 					items: mergedActivity.map((r: any) => ({ repo: r.repo, title: r.title, type: r.type, date: r.created_at }))
 				};
+			}
 
 			const [home, generalInfo] = await Promise.all([fetchHome(), fetchGeneral()]);
 			const siteUrl = (env.BASE_URL ?? '').replace(/\/+$/, '');
