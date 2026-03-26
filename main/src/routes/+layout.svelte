@@ -107,10 +107,12 @@
 		rel="stylesheet"
 		href="{data.adminBaseUrl}/assets/fonts/fontawesome/css/all.min.css"
 		media="print"
-		onload={(e) => ((e.target as HTMLLinkElement).media = 'all')}
+		onload={(e) => {
+			if (window.innerWidth >= 768) (e.target as HTMLLinkElement).media = 'all';
+		}}
 	/>
 	<noscript>
-		<link rel="stylesheet" href="{data.adminBaseUrl}/assets/fonts/fontawesome/css/all.min.css" />
+		<link rel="stylesheet" href="{data.adminBaseUrl}/assets/fonts/fontawesome/css/all.min.css" media="(min-width: 768px)" />
 	</noscript>
 </svelte:head>
 
