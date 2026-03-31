@@ -600,16 +600,18 @@ export const POST: RequestHandler = async ({ request }) => {
 			...thinkingKwargs as any
 		};
 
+		let fullResponse = '';
 		for (let i = 0; i < 10; i++) {
 			const completion = await openai.chat.completions.create({
 				...completionParams,
 				messages: loop
-			});
+			} as any);
 
 			const message = completion.choices?.[0]?.message;
 			if (!message) break;
 
 			if (!message.tool_calls || message.tool_calls.length === 0) {
+				fullResponse = message.content ?? '';
 				break;
 			}
 
@@ -629,13 +631,6 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			loop.push(...toolResults);
 		}
-
-		const completion = await openai.chat.completions.create({
-			...completionParams,
-			messages: loop
-		} as any);
-
-		const fullResponse = completion.choices?.[0]?.message?.content ?? '';
 
 		if (loggerProvider) {
 			const logger = loggerProvider.getLogger('terminal');
