@@ -19,9 +19,10 @@ return new class extends Migration
             \Illuminate\Support\Facades\DB::statement("ALTER TABLE `embeddings` DROP INDEX `embeddings_table_name_row_id_unique`");
         }
 
-        if (!in_array('embeddings_table_name_row_id_chunk_index_unique', $indexes)) {
-            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `embeddings` ADD UNIQUE KEY `embeddings_table_name_row_id_chunk_index_unique` (`table_name`, `row_id`, `chunk_index`)");
+        if (in_array('embeddings_table_name_row_id_chunk_index_unique', $indexes)) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `embeddings` DROP INDEX `embeddings_table_name_row_id_chunk_index_unique`");
         }
+        \Illuminate\Support\Facades\DB::statement("ALTER TABLE `embeddings` ADD UNIQUE KEY `embeddings_table_name_row_id_chunk_index_unique` (`table_name`, `row_id`, `chunk_index`)");
 
         if (!in_array('embeddings_table_name_row_id_index', $indexes)) {
             \Illuminate\Support\Facades\DB::statement("ALTER TABLE `embeddings` ADD INDEX `embeddings_table_name_row_id_index` (`table_name`, `row_id`)");
