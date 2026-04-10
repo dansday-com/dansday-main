@@ -252,27 +252,40 @@
 		}
 	});
 
+	let loadingMore = $state(false);
+	let sentinelEl = $state<HTMLElement | null>(null);
+
 	async function loadMore() {
-		if (!githubData || !githubData.activity.hasMore) return;
+		if (!githubData || !githubData.activity.hasMore || loadingMore) return;
+		loadingMore = true;
 		currentPage++;
 		const res = await fetch(`/api/github?page=${currentPage}`);
-		if (!res.ok) return;
-		const page: { items: ActivityItem[]; hasMore: boolean } = await res.json();
-
-		const prevLen = githubData.activity.items.length;
-		githubData.activity.items = [...githubData.activity.items, ...page.items];
-		githubData.activity.hasMore = page.hasMore;
-
-		let i = prevLen;
-		const total = githubData.activity.items.length;
-		const tick = () => {
-			if (i < total) {
-				visibleCount = ++i;
-				setTimeout(tick, 80);
-			}
-		};
-		tick();
+		if (res.ok) {
+			const page: { items: ActivityItem[]; hasMore: boolean } = await res.json();
+			const prevLen = githubData.activity.items.length;
+			githubData.activity.items = [...githubData.activity.items, ...page.items];
+			githubData.activity.hasMore = page.hasMore;
+			let i = prevLen;
+			const total = githubData.activity.items.length;
+			const tick = () => {
+				if (i < total) {
+					visibleCount = ++i;
+					setTimeout(tick, 80);
+				}
+			};
+			tick();
+		}
+		loadingMore = false;
 	}
+
+	$effect(() => {
+		if (!sentinelEl) return;
+		const observer = new IntersectionObserver((entries) => {
+			if (entries[0].isIntersecting) loadMore();
+		}, { root: mainEl, threshold: 0.1 });
+		observer.observe(sentinelEl);
+		return () => observer.disconnect();
+	});
 </script>
 
 <Metadata title={metaTitle} description={metaDescription} />
@@ -497,12 +510,11 @@
 						</div>
 					{/each}
 					{#if githubData.activity.hasMore}
-						<button
-							onclick={loadMore}
-							class="mt-1 cursor-pointer rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2 text-xs text-[#58a6ff] transition-colors hover:text-white"
-						>
-							Load more
-						</button>
+						<div bind:this={sentinelEl} class="flex items-center justify-center py-3 text-xs text-[#8b949e]">
+							{#if loadingMore}
+								<span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[#238636] border-t-transparent"></span>
+							{/if}
+						</div>
 					{/if}
 				</div>
 			</div>
