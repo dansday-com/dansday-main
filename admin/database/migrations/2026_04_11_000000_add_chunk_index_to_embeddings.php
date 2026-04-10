@@ -8,24 +8,24 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('embeddings', function (Blueprint $table) {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('embeddings', 'chunk_index')) {
-                $table->unsignedSmallInteger('chunk_index')->default(0)->after('row_id');
-            }
+        $indexes = collect(\Illuminate\Support\Facades\DB::select("SHOW INDEX FROM `embeddings`"))->pluck('Key_name')->unique()->toArray();
+        $hasChunkCol = \Illuminate\Support\Facades\Schema::hasColumn('embeddings', 'chunk_index');
 
-            $sm = \Illuminate\Support\Facades\DB::getDoctrineSchemaManager();
-            $indexes = array_keys($sm->listTableIndexes('embeddings'));
+        if (!$hasChunkCol) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `embeddings` ADD COLUMN `chunk_index` SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER `row_id`");
+        }
 
-            if (in_array('embeddings_table_name_row_id_unique', $indexes)) {
-                $table->dropUnique(['table_name', 'row_id']);
-            }
-            if (!in_array('embeddings_table_name_row_id_chunk_index_unique', $indexes)) {
-                $table->unique(['table_name', 'row_id', 'chunk_index']);
-            }
-            if (!in_array('embeddings_table_name_row_id_index', $indexes)) {
-                $table->index(['table_name', 'row_id']);
-            }
-        });
+        if (in_array('embeddings_table_name_row_id_unique', $indexes)) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `embeddings` DROP INDEX `embeddings_table_name_row_id_unique`");
+        }
+
+        if (!in_array('embeddings_table_name_row_id_chunk_index_unique', $indexes)) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `embeddings` ADD UNIQUE KEY `embeddings_table_name_row_id_chunk_index_unique` (`table_name`, `row_id`, `chunk_index`)");
+        }
+
+        if (!in_array('embeddings_table_name_row_id_index', $indexes)) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `embeddings` ADD INDEX `embeddings_table_name_row_id_index` (`table_name`, `row_id`)");
+        }
     }
 
     public function down(): void
