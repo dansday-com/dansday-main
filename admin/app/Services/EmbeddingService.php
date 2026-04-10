@@ -22,36 +22,30 @@ class EmbeddingService
 
             $hash = hash('sha256', $text);
 
-            $existing = DB::table('embeddings')
+            $existingHash = DB::table('embeddings')
                 ->where('table_name', $table)
                 ->where('row_id', $rowId)
-                ->first();
+                ->where('chunk_index', 0)
+                ->value('content_hash');
 
-            if ($existing && $existing->content_hash === $hash) {
-                return;
-            }
+            if ($existingHash === $hash) return;
 
-            $vector = self::callApi($config, $text);
-            if (!$vector) return;
+            DB::table('embeddings')
+                ->where('table_name', $table)
+                ->where('row_id', $rowId)
+                ->delete();
 
-            $vectorJson = json_encode($vector);
-
-            if ($existing) {
-                DB::table('embeddings')
-                    ->where('table_name', $table)
-                    ->where('row_id', $rowId)
-                    ->update([
-                        'vector' => $vectorJson,
-                        'content_hash' => $hash,
-                        'created_at' => now(),
-                    ]);
-            } else {
+            $chunks = self::chunkText($text);
+            foreach ($chunks as $index => $chunk) {
+                $vector = self::callApi($config, $chunk);
+                if (!$vector) continue;
                 DB::table('embeddings')->insert([
-                    'table_name' => $table,
-                    'row_id' => $rowId,
+                    'table_name'  => $table,
+                    'row_id'      => $rowId,
+                    'chunk_index' => $index,
                     'content_hash' => $hash,
-                    'vector' => $vectorJson,
-                    'created_at' => now(),
+                    'vector'      => json_encode($vector),
+                    'created_at'  => now(),
                 ]);
             }
         } catch (\Throwable $e) {
@@ -82,13 +76,13 @@ class EmbeddingService
     ];
 
     private static array $tableMissingQueries = [
-        'articles' => "SELECT a.id, a.title, a.description FROM articles a LEFT JOIN embeddings e ON e.table_name = 'articles' AND e.row_id = a.id WHERE a.enable = 1 AND e.id IS NULL",
-        'projects' => "SELECT p.id, p.title, p.description FROM projects p LEFT JOIN embeddings e ON e.table_name = 'projects' AND e.row_id = p.id WHERE p.enable = 1 AND e.id IS NULL",
-        'experience' => "SELECT x.id, x.title, x.period, x.description FROM experience x LEFT JOIN embeddings e ON e.table_name = 'experience' AND e.row_id = x.id WHERE e.id IS NULL",
-        'service' => "SELECT s.id, s.title, s.description FROM service s LEFT JOIN embeddings e ON e.table_name = 'service' AND e.row_id = s.id WHERE e.id IS NULL",
-        'skill' => "SELECT s.id, s.title, s.type FROM skill s LEFT JOIN embeddings e ON e.table_name = 'skill' AND e.row_id = s.id WHERE e.id IS NULL",
-        'testimonial' => "SELECT t.id, t.name, t.company, t.description FROM testimonial t LEFT JOIN embeddings e ON e.table_name = 'testimonial' AND e.row_id = t.id WHERE e.id IS NULL",
-        'github_activity' => "SELECT g.id, g.repo, g.title, g.type FROM github_activity g LEFT JOIN embeddings e ON e.table_name = 'github_activity' AND e.row_id = g.id WHERE e.id IS NULL",
+        'articles' => "SELECT a.id, a.title, a.description FROM articles a LEFT JOIN embeddings e ON e.table_name = 'articles' AND e.row_id = a.id AND e.chunk_index = 0 WHERE a.enable = 1 AND e.id IS NULL",
+        'projects' => "SELECT p.id, p.title, p.description FROM projects p LEFT JOIN embeddings e ON e.table_name = 'projects' AND e.row_id = p.id AND e.chunk_index = 0 WHERE p.enable = 1 AND e.id IS NULL",
+        'experience' => "SELECT x.id, x.title, x.period, x.description FROM experience x LEFT JOIN embeddings e ON e.table_name = 'experience' AND e.row_id = x.id AND e.chunk_index = 0 WHERE e.id IS NULL",
+        'service' => "SELECT s.id, s.title, s.description FROM service s LEFT JOIN embeddings e ON e.table_name = 'service' AND e.row_id = s.id AND e.chunk_index = 0 WHERE e.id IS NULL",
+        'skill' => "SELECT s.id, s.title, s.type FROM skill s LEFT JOIN embeddings e ON e.table_name = 'skill' AND e.row_id = s.id AND e.chunk_index = 0 WHERE e.id IS NULL",
+        'testimonial' => "SELECT t.id, t.name, t.company, t.description FROM testimonial t LEFT JOIN embeddings e ON e.table_name = 'testimonial' AND e.row_id = t.id AND e.chunk_index = 0 WHERE e.id IS NULL",
+        'github_activity' => "SELECT g.id, g.repo, g.title, g.type FROM github_activity g LEFT JOIN embeddings e ON e.table_name = 'github_activity' AND e.row_id = g.id AND e.chunk_index = 0 WHERE e.id IS NULL",
     ];
 
     public static function embedAll(): array
@@ -115,20 +109,29 @@ class EmbeddingService
                     $hash = hash('sha256', $text);
                     $rowId = $rowArr['id'];
 
-                    $existing = DB::table('embeddings')
+                    $existingHash = DB::table('embeddings')
                         ->where('table_name', $table)
                         ->where('row_id', $rowId)
-                        ->first();
+                        ->where('chunk_index', 0)
+                        ->value('content_hash');
 
-                    if ($existing && $existing->content_hash === $hash) {
+                    if ($existingHash === $hash) {
                         $skipped++;
                         continue;
                     }
 
-                    $pending[] = ['rowId' => $rowId, 'text' => $text, 'hash' => $hash, 'existing' => $existing];
+                    $chunks = self::chunkText($text);
+                    foreach ($chunks as $chunkIndex => $chunk) {
+                        $pending[] = ['rowId' => $rowId, 'chunkIndex' => $chunkIndex, 'text' => $chunk, 'hash' => $hash, 'isFirst' => $chunkIndex === 0];
+                    }
                 } catch (\Throwable $e) {
                     $errors[] = "$table:{$rowArr['id']}: {$e->getMessage()}";
                 }
+            }
+
+            $rowIdsToDelete = array_unique(array_map(fn($item) => $item['rowId'], array_filter($pending, fn($item) => $item['isFirst'])));
+            if ($rowIdsToDelete) {
+                DB::table('embeddings')->where('table_name', $table)->whereIn('row_id', $rowIdsToDelete)->delete();
             }
 
             $batchSize = 20;
@@ -150,25 +153,14 @@ class EmbeddingService
                             continue;
                         }
 
-                        $vectorJson = json_encode($vector);
-                        if ($item['existing']) {
-                            DB::table('embeddings')
-                                ->where('table_name', $table)
-                                ->where('row_id', $item['rowId'])
-                                ->update([
-                                    'vector' => $vectorJson,
-                                    'content_hash' => $item['hash'],
-                                    'created_at' => now(),
-                                ]);
-                        } else {
-                            DB::table('embeddings')->insert([
-                                'table_name' => $table,
-                                'row_id' => $item['rowId'],
-                                'content_hash' => $item['hash'],
-                                'vector' => $vectorJson,
-                                'created_at' => now(),
-                            ]);
-                        }
+                        DB::table('embeddings')->insert([
+                            'table_name'   => $table,
+                            'row_id'       => $item['rowId'],
+                            'chunk_index'  => $item['chunkIndex'],
+                            'content_hash' => $item['hash'],
+                            'vector'       => json_encode($vector),
+                            'created_at'   => now(),
+                        ]);
                         $embedded++;
                     }
                 } catch (\Throwable $e) {
@@ -235,22 +227,28 @@ class EmbeddingService
                         continue;
                     }
 
-                    $vector = self::callApi($config, $text);
-                    if (! $vector) {
-                        $errors[] = "{$table}:{$rowId}: No vector returned";
-                        continue;
+                    $chunks = self::chunkText($text);
+                    $allOk = true;
+                    foreach ($chunks as $chunkIndex => $chunk) {
+                        $vector = self::callApi($config, $chunk);
+                        if (! $vector) {
+                            $errors[] = "{$table}:{$rowId}: No vector returned for chunk {$chunkIndex}";
+                            $allOk = false;
+                            break;
+                        }
+                        DB::table('embeddings')->insert([
+                            'table_name'   => $table,
+                            'row_id'       => $rowId,
+                            'chunk_index'  => $chunkIndex,
+                            'content_hash' => $hash,
+                            'vector'       => json_encode($vector),
+                            'created_at'   => now(),
+                        ]);
                     }
-
-                    $vectorJson = json_encode($vector);
-                    DB::table('embeddings')->insert([
-                        'table_name' => $table,
-                        'row_id' => $rowId,
-                        'content_hash' => $hash,
-                        'vector' => $vectorJson,
-                        'created_at' => now(),
-                    ]);
-                    $embedded++;
-                    $remaining--;
+                    if ($allOk) {
+                        $embedded++;
+                        $remaining--;
+                    }
                 } catch (\Throwable $e) {
                     $errors[] = $table.':'.($rowArr['id'] ?? '?').': '.$e->getMessage();
                 }
@@ -318,6 +316,22 @@ class EmbeddingService
             'github_activity' => "GitHub " . $s('type') . " in " . $s('repo') . ": " . $s('title'),
             default           => '',
         };
+    }
+
+    private static function chunkText(string $text, int $chunkSize = 2048, int $overlap = 256): array
+    {
+        if (mb_strlen($text) <= $chunkSize) {
+            return [$text];
+        }
+
+        $chunks = [];
+        $len = mb_strlen($text);
+        $step = $chunkSize - $overlap;
+        for ($i = 0; $i < $len; $i += $step) {
+            $chunks[] = mb_substr($text, $i, $chunkSize);
+            if ($i + $chunkSize >= $len) break;
+        }
+        return $chunks;
     }
 
     public static function countPending(): int

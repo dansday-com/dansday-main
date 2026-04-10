@@ -122,28 +122,31 @@ class SimilarContentService
             if (!$queryVector || !is_array($queryVector)) return [];
 
             $tableNames = array_keys(self::$searchTables);
-            $scored = [];
+            $best = [];
             DB::table('embeddings')
                 ->whereIn('table_name', $tableNames)
                 ->select('table_name', 'row_id', 'vector')
                 ->orderBy('id')
-                ->chunk(100, function ($rows) use ($queryVector, &$scored) {
+                ->chunk(100, function ($rows) use ($queryVector, &$best) {
                     foreach ($rows as $emb) {
                         $vector = json_decode($emb->vector, true);
                         if (!$vector) continue;
                         $similarity = self::cosineSimilarity($queryVector, $vector);
-                        if ($similarity >= 0.3) {
-                            $scored[] = [
+                        if ($similarity < 0.5) continue;
+                        $key = $emb->table_name . ':' . $emb->row_id;
+                        if (!isset($best[$key]) || $similarity > $best[$key]['similarity']) {
+                            $best[$key] = [
                                 'table_name' => $emb->table_name,
-                                'row_id' => $emb->row_id,
+                                'row_id'     => $emb->row_id,
                                 'similarity' => $similarity,
                             ];
                         }
                     }
                 });
 
+            $scored = array_values($best);
             usort($scored, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
-            $scored = array_slice($scored, 0, 20);
+            $scored = array_slice($scored, 0, 50);
 
             $byTable = [];
             foreach ($scored as $s) {
@@ -193,7 +196,7 @@ class SimilarContentService
 
     private static function rrfMerge(array $bm25Results, array $semanticResults): array
     {
-        $K = 60;
+        $K = 40;
         $scores = [];
         $data = [];
 
@@ -205,7 +208,7 @@ class SimilarContentService
 
         foreach ($semanticResults as $rank => $row) {
             $key = $row['id'];
-            $scores[$key] = ($scores[$key] ?? 0) + 1.5 * (1 / ($K + $rank + 1));
+            $scores[$key] = ($scores[$key] ?? 0) + 2.0 * (1 / ($K + $rank + 1));
             if (!isset($data[$key])) {
                 $data[$key] = $row;
             }

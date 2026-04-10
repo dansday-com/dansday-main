@@ -50,15 +50,20 @@ function cosineSimilarityWithNorm(a: number[], b: number[], normB: number): numb
 	return denom === 0 ? 0 : dot / denom;
 }
 
-async function semanticSearch(queryVector: number[], topN: number = 20, threshold: number = 0.3): Promise<SemanticResult[]> {
+async function semanticSearch(queryVector: number[], topN: number = 50, threshold: number = 0.5, allowedTables?: string[]): Promise<SemanticResult[]> {
 	const allEmbeddings = await getEmbeddings();
-	const scored: SemanticResult[] = [];
+	const best = new Map<string, SemanticResult>();
 	for (const row of allEmbeddings) {
+		if (allowedTables && !allowedTables.includes(row.table_name)) continue;
 		const similarity = cosineSimilarityWithNorm(queryVector, row.vector, row.norm);
-		if (similarity >= threshold) {
-			scored.push({ table_name: row.table_name, row_id: row.row_id, similarity });
+		if (similarity < threshold) continue;
+		const key = `${row.table_name}:${row.row_id}`;
+		const existing = best.get(key);
+		if (!existing || similarity > existing.similarity) {
+			best.set(key, { table_name: row.table_name, row_id: row.row_id, similarity });
 		}
 	}
+	const scored = [...best.values()];
 	scored.sort((a, b) => b.similarity - a.similarity);
 	return scored.slice(0, topN);
 }
@@ -76,7 +81,6 @@ const toolSections: Record<string, string | undefined> = {
 	count: undefined
 };
 
-
 const searchParams = {
 	type: 'object',
 	properties: {
@@ -90,7 +94,7 @@ const searchParams = {
 			description: 'Filter by data type. Omit to search all types.'
 		},
 		startDate: { type: 'string', description: 'Filter results from this date (YYYY-MM-DD).' },
-		endDate: { type: 'string', description: 'Filter results up to this date (YYYY-MM-DD).' },
+		endDate: { type: 'string', description: 'Filter results up to this date (YYYY-MM-DD).' }
 	}
 } as const;
 
@@ -161,11 +165,40 @@ interface EmbeddingOpts {
 	model: string;
 }
 
+interface LlmOpts {
+	client: OpenAI | null;
+	model: string;
+}
+
+async function expandQuery(llm: LlmOpts, query: string): Promise<string[]> {
+	if (!llm.client || !query) return [query];
+	try {
+		const res = await llm.client.chat.completions.create({
+			model: llm.model,
+			messages: [
+				{
+					role: 'user',
+					content: `Generate 3-5 short search query variants for a portfolio site search. Return only the variants as a JSON array of strings, nothing else.\nOriginal query: "${query}"`
+				}
+			],
+			max_tokens: 100
+		});
+		const text = res.choices?.[0]?.message?.content?.trim() ?? '';
+		const match = text.match(/\[[\s\S]*\]/);
+		if (match) {
+			const parsed = JSON.parse(match[0]);
+			if (Array.isArray(parsed)) return [query, ...parsed.filter((s: any) => typeof s === 'string')];
+		}
+	} catch {}
+	return [query];
+}
+
 async function executeTool(
 	name: string,
 	args: Record<string, any> = {},
 	section: Record<string, any> = {},
-	embedding: EmbeddingOpts = { client: null, model: '' }
+	embedding: EmbeddingOpts = { client: null, model: '' },
+	llm: LlmOpts = { client: null, model: '' }
 ): Promise<string> {
 	switch (name) {
 		case 'search': {
@@ -174,12 +207,17 @@ async function executeTool(
 			const df = buildDateFilter(args);
 			const dateClause = df.clause;
 			const dp = df.params;
-			const ftQuery = rawKeyword
-				.split(/[\s\-]+/)
-				.map((w: string) => w.replace(/[+><~*"@()]/g, ''))
-				.filter((w: string) => w.length > 0)
-				.map((w: string) => `${w}*`)
-				.join(' ');
+			const queryVariants = hasKeyword ? await expandQuery(llm, rawKeyword) : [rawKeyword];
+			const allQueryWords = [
+				...new Set(
+					queryVariants
+						.flatMap((v) => v.split(/[\s\-]+/))
+						.map((w) => w.replace(/[+><~*"@()]/g, ''))
+						.filter((w) => w.length > 0)
+						.slice(0, 30)
+				)
+			];
+			const ftQuery = allQueryWords.map((w) => `${w}*`).join(' ');
 			const ftMatch = (fields: string[]) => {
 				if (!hasKeyword) return { filter: '', scoreCol: '', params: [] as string[] };
 				const matchExpr = `MATCH(${fields.join(', ')}) AGAINST(? IN BOOLEAN MODE)`;
@@ -240,27 +278,23 @@ async function executeTool(
 					: [],
 				wantGh
 					? query<{ repo: string; title: string; type: string; created_at: string }>(
-							'SELECT id, repo, title, type, additions, deletions, created_at FROM github_activity WHERE 1=1' + ghTypeFilter + ghFt.filter + dateClause + ' ORDER BY created_at DESC',
+							'SELECT id, repo, title, type, additions, deletions, created_at FROM github_activity WHERE 1=1' +
+								ghTypeFilter +
+								ghFt.filter +
+								dateClause +
+								' ORDER BY created_at DESC',
 							[...ghTypeParams, ...ghFt.params, ...dp]
 						)
 					: [],
-				wantAbout && skillsOn
-					? query<{ title: string; type: string }>('SELECT id, title, type FROM skill ORDER BY `order` ASC')
-					: [],
+				wantAbout && skillsOn ? query<{ title: string; type: string }>('SELECT id, title, type FROM skill ORDER BY `order` ASC') : [],
 				wantAbout && experienceOn
 					? query<{ title: string; type: string; period: string; description: string }>(
 							'SELECT id, title, type, period, description FROM experience ORDER BY `order` ASC'
 						)
 					: [],
-				wantAbout && servicesOn
-					? query<{ title: string; description: string }>(
-							'SELECT id, title, description FROM service ORDER BY `order` ASC'
-						)
-					: [],
+				wantAbout && servicesOn ? query<{ title: string; description: string }>('SELECT id, title, description FROM service ORDER BY `order` ASC') : [],
 				wantAbout && testimonialOn
-					? query<{ name: string; company: string; description: string }>(
-							'SELECT id, name, company, description FROM testimonial ORDER BY `order` ASC'
-						)
+					? query<{ name: string; company: string; description: string }>('SELECT id, name, company, description FROM testimonial ORDER BY `order` ASC')
 					: [],
 				query<{ id: number; name: string }>('SELECT id, name FROM project_categories ORDER BY id ASC')
 			]);
@@ -271,14 +305,36 @@ async function executeTool(
 			let semanticHits: SemanticResult[] = [];
 			if (hasKeyword && embedding.client) {
 				try {
-					const queryVector = await embedQuery(embedding.client, embedding.model, rawKeyword);
+					const hydePrompt = `Write a short portfolio item (1–2 sentences) that would be a perfect answer to: "${rawKeyword}"`;
+					const hydeCompletion = await embedding.client.chat.completions
+						.create({
+							model: embedding.model,
+							messages: [{ role: 'user', content: hydePrompt }],
+							max_tokens: 80
+						})
+						.catch(() => null);
+					const hydeText = hydeCompletion?.choices?.[0]?.message?.content?.trim() ?? rawKeyword;
+					const queryVector = await embedQuery(embedding.client, embedding.model, hydeText);
 					if (queryVector) {
-						semanticHits = await semanticSearch(queryVector, 20, 0.3);
+						const typeToTable: Record<string, string> = {
+							article: 'articles',
+							project: 'projects',
+							commit: 'github_activity',
+							pr: 'github_activity',
+							review: 'github_activity',
+							issue: 'github_activity',
+							skill: 'skill',
+							experience: 'experience',
+							service: 'service',
+							testimonial: 'testimonial'
+						};
+						const allowedTables = args.type ? [typeToTable[args.type]].filter(Boolean) : undefined;
+						semanticHits = await semanticSearch(queryVector, 50, 0.5, allowedTables);
 					}
 				} catch {}
 			}
 
-			const K = 60;
+			const K = 40;
 			const semanticScoreMap = new Map<string, number>();
 			semanticHits.forEach((h, i) => {
 				semanticScoreMap.set(`${h.table_name}:${h.row_id}`, 1 / (K + i + 1));
@@ -290,7 +346,7 @@ async function executeTool(
 					.map((r: any, i: number) => {
 						const bm25Score = bm25Key && r[bm25Key] ? 1 / (K + i + 1) : 0;
 						const semScore = semanticScoreMap.get(`${tableName}:${r.id}`) ?? 0;
-						return { ...r, _rrfScore: bm25Score + 1.5 * semScore };
+						return { ...r, _rrfScore: bm25Score + 2.0 * semScore };
 					})
 					.sort((a: any, b: any) => b._rrfScore - a._rrfScore);
 			};
@@ -355,7 +411,7 @@ async function executeTool(
 						const bm25Rank = bm25RankMap.get(r.id);
 						const bm25Score = bm25Rank !== undefined ? 1 / (K + bm25Rank + 1) : 0;
 						const semScore = semanticScoreMap.get(`github_activity:${r.id}`) ?? 0;
-						return { ...r, _rrfScore: bm25Score + 1.5 * semScore };
+						return { ...r, _rrfScore: bm25Score + 2.0 * semScore };
 					})
 					.sort((a: any, b: any) => b._rrfScore - a._rrfScore);
 			}
@@ -460,16 +516,21 @@ async function executeTool(
 					const typeFilter = !wantAll && t ? ' AND type = ?' : '';
 					const typeParams = !wantAll && t ? [t] : [];
 					const [totalRows, byTypeRows, byRepoRows] = await Promise.all([
-						query<{ cnt: number }>(
-							'SELECT COUNT(*) as cnt FROM github_activity WHERE 1=1' + typeFilter + ghFtFilter + dateClause,
-							[...typeParams, ...ghFtParams, ...dp]
-						),
+						query<{ cnt: number }>('SELECT COUNT(*) as cnt FROM github_activity WHERE 1=1' + typeFilter + ghFtFilter + dateClause, [
+							...typeParams,
+							...ghFtParams,
+							...dp
+						]),
 						query<{ type: string; cnt: number }>(
 							'SELECT type, COUNT(*) as cnt FROM github_activity WHERE 1=1' + typeFilter + ghFtFilter + dateClause + ' GROUP BY type ORDER BY cnt DESC',
 							[...typeParams, ...ghFtParams, ...dp]
 						),
 						query<{ repo: string; cnt: number }>(
-							'SELECT repo, COUNT(*) as cnt FROM github_activity WHERE 1=1' + typeFilter + ghFtFilter + dateClause + ' GROUP BY repo ORDER BY cnt DESC LIMIT 10',
+							'SELECT repo, COUNT(*) as cnt FROM github_activity WHERE 1=1' +
+								typeFilter +
+								ghFtFilter +
+								dateClause +
+								' GROUP BY repo ORDER BY cnt DESC LIMIT 10',
 							[...typeParams, ...ghFtParams, ...dp]
 						)
 					]);
@@ -515,6 +576,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			embeddingClient = new OpenAI({ baseURL: embBaseUrl, apiKey: embeddingKey });
 		}
 		const embeddingOpts: EmbeddingOpts = { client: embeddingClient, model: embeddingModel };
+		let llmOpts: LlmOpts = { client: null, model: '' };
 
 		const hasUrl = Boolean(openaiUrl && openaiUrl.trim() !== '');
 		const hasKey = Boolean(openaiKey && openaiKey.trim() !== '');
@@ -536,6 +598,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			baseURL: baseURL,
 			apiKey: (openaiKey as string).trim()
 		});
+		llmOpts = { client: openai, model: openaiModel!.trim() };
 
 		const today = new Date().toISOString().slice(0, 10);
 		const systemContent = terminalPrompt.replaceAll('{{today}}', today);
@@ -568,7 +631,15 @@ export const POST: RequestHandler = async ({ request }) => {
 					]
 				});
 				const summary = summaryCompletion.choices?.[0]?.message?.content?.trim() ?? '';
-				conversationMessages = [...(summary ? [{ role: 'user' as const, content: `[Previous conversation summary: ${summary}]` }, { role: 'assistant' as const, content: 'Understood.' }] : []), ...recentMessages];
+				conversationMessages = [
+					...(summary
+						? [
+								{ role: 'user' as const, content: `[Previous conversation summary: ${summary}]` },
+								{ role: 'assistant' as const, content: 'Understood.' }
+							]
+						: []),
+					...recentMessages
+				];
 			} else {
 				conversationMessages = recentMessages;
 			}
@@ -597,7 +668,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			tool_choice: tools.length > 0 ? ('auto' as const) : undefined,
 			...(useThinking ? { reasoning_effort: (isGemini && terminalReasoning === 'xhigh' ? 'high' : terminalReasoning) as any } : {}),
 			...(!isGemini ? { frequency_penalty: 1.2 } : {}),
-			...thinkingKwargs as any
+			...(thinkingKwargs as any)
 		};
 
 		let fullResponse = '';
@@ -620,7 +691,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			const toolResults = await Promise.all(
 				message.tool_calls.map(async (tc: any) => {
 					const toolArgs = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
-					const result = await executeTool(tc.function.name, toolArgs, section, embeddingOpts);
+					const result = await executeTool(tc.function.name, toolArgs, section, embeddingOpts, llmOpts);
 					return {
 						role: 'tool' as const,
 						tool_call_id: tc.id,

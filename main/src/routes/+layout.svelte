@@ -120,7 +120,13 @@
 >
 	<Header siteName={data.siteName} favicon={data.defaultFavicon} {isFullscreen} {onMouseDown} {toggleFullscreen} {onMinimize} />
 	{@render children()}
-	<Navbar siteName={data.siteName} socialLinks={data.socialLinks} section={data.section} aiTerminalConfigured={data.aiTerminalConfigured} adminBaseUrl={data.adminBaseUrl} />
+	<Navbar
+		siteName={data.siteName}
+		socialLinks={data.socialLinks}
+		section={data.section}
+		aiTerminalConfigured={data.aiTerminalConfigured}
+		adminBaseUrl={data.adminBaseUrl}
+	/>
 </main>
 
 <div class="desktop-bg absolute top-0 left-0 hidden h-full w-full lg:block" aria-hidden="true"></div>
