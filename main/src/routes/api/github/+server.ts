@@ -25,7 +25,16 @@ async function graphql(token: string, q: string, variables?: Record<string, any>
 	return res.json();
 }
 
-async function getActivityFromDb(offset: number, limit: number) {
+const sortOrders: Record<string, string> = {
+	newest: 'created_at DESC',
+	oldest: 'created_at ASC',
+	name: 'repo ASC',
+	impact_desc: '(COALESCE(additions,0) + COALESCE(deletions,0)) DESC',
+	impact_asc: '(COALESCE(additions,0) + COALESCE(deletions,0)) ASC'
+};
+
+async function getActivityFromDb(offset: number, limit: number, sort = 'newest') {
+	const order = sortOrders[sort] ?? sortOrders.newest;
 	const rows = await query<{
 		repo: string;
 		title: string;
@@ -34,10 +43,7 @@ async function getActivityFromDb(offset: number, limit: number) {
 		is_private: number;
 		additions: number | null;
 		deletions: number | null;
-	}>('SELECT repo, title, type, created_at, is_private, additions, deletions FROM github_activity ORDER BY created_at DESC LIMIT ? OFFSET ?', [
-		limit + 1,
-		offset
-	]);
+	}>(`SELECT repo, title, type, created_at, is_private, additions, deletions FROM github_activity ORDER BY ${order} LIMIT ? OFFSET ?`, [limit + 1, offset]);
 	const hasMore = rows.length > limit;
 	const items = rows.slice(0, limit).map((r) => {
 		const isPrivate = !!r.is_private;
@@ -634,6 +640,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const page = parseInt(url.searchParams.get('page') ?? '1', 10);
 	const calendarYear = url.searchParams.get('calendarYear');
+	const sort = url.searchParams.get('sort') ?? 'newest';
 	const limit = 10;
 	const offset = (page - 1) * limit;
 
@@ -654,12 +661,12 @@ export const GET: RequestHandler = async ({ url }) => {
 		}
 
 		if (page > 1) {
-			const activity = await getActivityFromDb(offset, limit);
+			const activity = await getActivityFromDb(offset, limit, sort);
 			return json(activity);
 		}
 
 		const cached = await getCachedStats();
-		const activity = await getActivityFromDb(offset, limit);
+		const activity = await getActivityFromDb(offset, limit, sort);
 
 		if (cached) {
 			return json({ ...cached, activity });

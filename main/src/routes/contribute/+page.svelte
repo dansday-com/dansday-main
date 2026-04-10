@@ -51,17 +51,25 @@
 	type SortKey = 'newest' | 'oldest' | 'name' | 'impact_desc' | 'impact_asc';
 	let sortKey = $state<SortKey>('newest');
 
-	const sortedActivity = $derived.by(() => {
-		const items = githubData?.activity?.items ?? [];
-		const copy = [...items];
-		if (sortKey === 'newest') return copy.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-		if (sortKey === 'oldest') return copy.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-		if (sortKey === 'name') return copy.sort((a, b) => a.repo.localeCompare(b.repo));
-		const impact = (i: ActivityItem) => (i.additions ?? 0) + (i.deletions ?? 0);
-		if (sortKey === 'impact_desc') return copy.sort((a, b) => impact(b) - impact(a));
-		if (sortKey === 'impact_asc') return copy.sort((a, b) => impact(a) - impact(b));
-		return copy;
-	});
+	async function changeSort(key: SortKey) {
+		if (!githubData || key === sortKey) return;
+		sortKey = key;
+		currentPage = 1;
+		visibleCount = 0;
+		const res = await fetch(`/api/github?sort=${key}`);
+		if (!res.ok) return;
+		const fresh = await res.json();
+		githubData.activity = fresh.activity;
+		const total = githubData.activity.items.length;
+		let i = 0;
+		const tick = () => {
+			if (i < total) {
+				visibleCount = ++i;
+				setTimeout(tick, 80);
+			}
+		};
+		tick();
+	}
 
 	let githubData = $state<GithubData | null>(null);
 	let loading = $state(true);
@@ -259,7 +267,7 @@
 		if (!githubData || !githubData.activity.hasMore || loadingMore) return;
 		loadingMore = true;
 		currentPage++;
-		const res = await fetch(`/api/github?page=${currentPage}`);
+		const res = await fetch(`/api/github?page=${currentPage}&sort=${sortKey}`);
 		if (res.ok) {
 			const page: { items: ActivityItem[]; hasMore: boolean } = await res.json();
 			const prevLen = githubData.activity.items.length;
@@ -280,9 +288,12 @@
 
 	$effect(() => {
 		if (!sentinelEl) return;
-		const observer = new IntersectionObserver((entries) => {
-			if (entries[0].isIntersecting) loadMore();
-		}, { root: mainEl, threshold: 0.1 });
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0].isIntersecting) loadMore();
+			},
+			{ root: mainEl, threshold: 0.1 }
+		);
 		observer.observe(sentinelEl);
 		return () => observer.disconnect();
 	});
@@ -473,7 +484,7 @@
 					<div class="ml-auto flex flex-wrap gap-1">
 						{#each [{ key: 'name', label: 'Name' }, { key: 'newest', label: 'Newest' }, { key: 'oldest', label: 'Oldest' }, { key: 'impact_desc', label: 'Impact ↑' }, { key: 'impact_asc', label: 'Impact ↓' }] as btn}
 							<button
-								onclick={() => (sortKey = btn.key as SortKey)}
+								onclick={() => changeSort(btn.key as SortKey)}
 								class="rounded border px-2 py-0.5 text-xs transition-colors {sortKey === btn.key
 									? 'border-[#238636] bg-[#238636] text-white'
 									: 'border-[#30363d] text-[#8b949e] hover:border-[#8b949e] hover:text-white'}">{btn.label}</button
@@ -482,7 +493,7 @@
 					</div>
 				</div>
 				<div class="flex flex-col gap-1">
-					{#each sortedActivity.slice(0, visibleCount) as item}
+					{#each githubData.activity.items.slice(0, visibleCount) as item}
 						<div class="activity-item flex items-start gap-2 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
 							<i
 								class="fas {item.type === 'pr'
