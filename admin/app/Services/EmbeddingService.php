@@ -318,7 +318,7 @@ class EmbeddingService
         };
     }
 
-    private static function chunkText(string $text, int $chunkSize = 2048, int $overlap = 256): array
+    private static function chunkText(string $text, int $chunkSize = 500, int $overlap = 50): array
     {
         if (mb_strlen($text) <= $chunkSize) {
             return [$text];
