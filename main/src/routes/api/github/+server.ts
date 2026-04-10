@@ -597,31 +597,10 @@ async function syncAllActivity(username: string, token: string, repos: any[], cr
 	await setLastSyncTime();
 }
 
-async function getTopRepos() {
-	return query<{ repo: string; commits: number }>(
-		'SELECT repo, COUNT(*) as commits FROM github_activity WHERE type = "commit" GROUP BY repo ORDER BY commits DESC LIMIT 10'
-	);
-}
-
-async function getTopPRs() {
-	return query<{ repo: string; title: string; additions: number; deletions: number; created_at: string; is_private: number }>(
-		'SELECT repo, title, additions, deletions, created_at, is_private FROM github_activity WHERE type = "pr" ORDER BY (additions + deletions) DESC LIMIT 10'
-	);
-}
-
 async function fetchAndCacheStats(username: string, token: string) {
 	const stats = await fetchContributionStats(username, token);
 	const repos = await fetchMyRepos(username, token, stats.createdYear);
-	const [topRepos, topPRsRaw] = await Promise.all([getTopRepos(), getTopPRs()]);
-	const topPRs = topPRsRaw.map((r) => ({
-		repo: r.repo,
-		title: r.title,
-		additions: r.additions,
-		deletions: r.deletions,
-		mergedAt: r.created_at,
-		private: !!r.is_private
-	}));
-	const data = { username, ...stats, topRepos, topPRs };
+	const data = { username, ...stats };
 	await setCachedStats(data);
 	return { data, repos, createdYear: stats.createdYear };
 }
@@ -711,8 +690,6 @@ export const GET: RequestHandler = async ({ url }) => {
 				calendar: [],
 				createdYear: new Date().getFullYear(),
 				currentYear: new Date().getFullYear(),
-				topRepos: [],
-				topPRs: [],
 				activity
 			});
 		}

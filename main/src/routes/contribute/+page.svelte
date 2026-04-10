@@ -45,10 +45,23 @@
 		createdYear: number;
 		currentYear: number;
 		activity: { items: ActivityItem[]; hasMore: boolean };
-		topRepos: { repo: string; commits: number }[];
-		topPRs: { repo: string; prNumber: number; title: string; additions: number; deletions: number; mergedAt: string; private: boolean }[];
 		yearTotals: Record<number, number>;
 	}
+
+	type SortKey = 'newest' | 'oldest' | 'name' | 'impact_desc' | 'impact_asc';
+	let sortKey = $state<SortKey>('newest');
+
+	const sortedActivity = $derived.by(() => {
+		const items = githubData?.activity?.items ?? [];
+		const copy = [...items];
+		if (sortKey === 'newest') return copy.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+		if (sortKey === 'oldest') return copy.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+		if (sortKey === 'name') return copy.sort((a, b) => a.repo.localeCompare(b.repo));
+		const impact = (i: ActivityItem) => (i.additions ?? 0) + (i.deletions ?? 0);
+		if (sortKey === 'impact_desc') return copy.sort((a, b) => impact(b) - impact(a));
+		if (sortKey === 'impact_asc') return copy.sort((a, b) => impact(a) - impact(b));
+		return copy;
+	});
 
 	let githubData = $state<GithubData | null>(null);
 	let loading = $state(true);
@@ -439,12 +452,24 @@
 			</div>
 
 			<div class="mb-5">
-				<div class="mb-2 flex items-center gap-2 text-xs tracking-wider text-[#8b949e] uppercase">
-					Live activity
-					<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#39d353]"></span>
+				<div class="mb-2 flex items-center justify-between gap-2">
+					<div class="flex items-center gap-2 text-xs tracking-wider text-[#8b949e] uppercase">
+						Live activity
+						<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#39d353]"></span>
+					</div>
+					<div class="ml-auto flex flex-wrap gap-1">
+						{#each [{ key: 'name', label: 'Name' }, { key: 'newest', label: 'Newest' }, { key: 'oldest', label: 'Oldest' }, { key: 'impact_desc', label: 'Impact ↑' }, { key: 'impact_asc', label: 'Impact ↓' }] as btn}
+							<button
+								onclick={() => (sortKey = btn.key as SortKey)}
+								class="rounded border px-2 py-0.5 text-xs transition-colors {sortKey === btn.key
+									? 'border-[#238636] bg-[#238636] text-white'
+									: 'border-[#30363d] text-[#8b949e] hover:border-[#8b949e] hover:text-white'}">{btn.label}</button
+							>
+						{/each}
+					</div>
 				</div>
 				<div class="flex flex-col gap-1">
-					{#each githubData.activity.items.slice(0, visibleCount) as item}
+					{#each sortedActivity.slice(0, visibleCount) as item}
 						<div class="activity-item flex items-start gap-2 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
 							<i
 								class="fas {item.type === 'pr'
@@ -480,49 +505,6 @@
 						</button>
 					{/if}
 				</div>
-			</div>
-
-			<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-				{#if githubData.topPRs?.length > 0}
-					<div>
-						<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top pull requests</div>
-						<div class="flex flex-col gap-1">
-							{#each githubData.topPRs as pr}
-								<div class="flex items-center gap-3 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
-									<i class="fas fa-code-pull-request shrink-0 text-xs text-[#bc8cff]"></i>
-									<div class="min-w-0 flex-1">
-										<div class="flex flex-wrap items-center gap-1.5">
-											<span class="shrink-0 text-xs font-medium text-[#58a6ff]">{pr.repo}</span>
-											{#if pr.private}
-												<span class="rounded border border-[#30363d] px-1 text-xs text-[#8b949e]">private</span>
-											{/if}
-										</div>
-										<span class="mt-0.5 line-clamp-1 block text-xs text-[#c9d1d9]">{pr.title}</span>
-									</div>
-									<div class="flex shrink-0 items-center gap-2 text-xs">
-										<span class="text-[#3fb950]">+{(pr.additions ?? 0).toLocaleString()}</span>
-										<span class="text-[#f85149]">-{(pr.deletions ?? 0).toLocaleString()}</span>
-									</div>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				{#if githubData.topRepos?.length > 0}
-					<div>
-						<div class="mb-2 text-xs tracking-wider text-[#8b949e] uppercase">Top repositories</div>
-						<div class="flex flex-col gap-1">
-							{#each githubData.topRepos as repo}
-								<div class="flex items-center gap-3 rounded border border-[#30363d] bg-[#161b22]/60 px-3 py-2">
-									<i class="fas fa-code-branch shrink-0 text-xs text-[#8b949e]"></i>
-									<span class="min-w-0 flex-1 truncate text-xs font-medium text-[#58a6ff]">{repo.repo}</span>
-									<span class="shrink-0 text-xs text-[#8b949e]">{repo.commits} commits</span>
-								</div>
-							{/each}
-						</div>
-					</div>
-				{/if}
 			</div>
 		{/if}
 	</div>
