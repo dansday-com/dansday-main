@@ -1,4 +1,3 @@
-# ── Stage 1: Frontend Build ──────────────────────────────────────
 FROM node:25.8.1-alpine AS frontend
 
 WORKDIR /app
@@ -9,7 +8,6 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ── Stage 2: PHP Dependencies ────────────────────────────────────
 FROM composer:2 AS vendor
 
 WORKDIR /app
@@ -26,7 +24,6 @@ RUN composer install \
 COPY . .
 RUN composer run-script post-autoload-dump || true
 
-# ── Stage 3: Runtime ─────────────────────────────────────────────
 FROM dunglas/frankenphp:1.12.1-php8.5-alpine AS runner
 
 RUN apk add --no-cache \
@@ -35,7 +32,8 @@ RUN apk add --no-cache \
     libpng-dev \
     libxml2-dev \
     oniguruma-dev \
-    linux-headers
+    linux-headers \
+    supervisor
 
 RUN install-php-extensions \
     pdo_mysql \
@@ -57,7 +55,6 @@ COPY --from=frontend /app/public/assets ./public/assets
 
 RUN if [ -d assets ]; then cp -r assets/* public/assets/; fi
 
-# Write Caddyfile inline
 RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'CADDYEOF'
 {
     frankenphp
@@ -98,11 +95,18 @@ CADDYEOF
 
 RUN printf "memory_limit=512M\nmax_execution_time=600\n" > /usr/local/etc/php/conf.d/custom.ini
 
+COPY docker/supervisord.conf /etc/supervisord.conf
+COPY docker/admin-entrypoint.sh /usr/local/bin/admin-entrypoint.sh
+RUN chmod +x /usr/local/bin/admin-entrypoint.sh
+
 EXPOSE 2222
 
 ENV APP_ENV=production
 ENV LOG_CHANNEL=stderr
+ENV EMBEDDING_WORKER_SLEEP=1
+ENV EMBEDDING_WORKER_IDLE=5
+ENV EMBEDDING_WORKER_PRUNE_SECONDS=300
 
 RUN cp public/uploads/img/image_default.png /tmp/image_default.png
 
-CMD ["sh", "-c", "mkdir -p public/uploads/img && cp -n /tmp/image_default.png public/uploads/img/image_default.png; php artisan optimize:clear && php artisan migrate --force && frankenphp run --config /etc/caddy/Caddyfile --adapter caddyfile"]
+CMD ["/usr/local/bin/admin-entrypoint.sh"]

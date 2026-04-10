@@ -89,6 +89,7 @@
                         <hr class="my-4">
                         <h6 class="font-weight-bold text-primary mb-3">Embedding (Optional)</h6>
                         <p class="text-muted small mb-3">Configure an embedding API for semantic search. Leave all fields empty to use keyword search only.</p>
+                        <p class="text-muted small mb-3">New content (including synced GitHub activity) is picked up by the embedding worker (<code class="small">php artisan embeddings:work</code>), which processes <strong>one missing row at a time</strong> with pauses—not once per minute on a timer. It runs in Docker via supervisord next to the web server. Use “Generate All Embeddings” for a full refresh or when text changed.</p>
                         <div class="mb-3">
                             <button type="button" id="embed-all-btn" class="btn btn-outline-secondary btn-sm" title="Generate All Embeddings">
                                 <i class="fas fa-database me-1"></i> Generate All Embeddings

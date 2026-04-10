@@ -8,10 +8,6 @@ use Illuminate\Support\Facades\Log;
 
 class EmbeddingService
 {
-    /**
-     * Embed a single row after create/update.
-     * Runs in background-safe way — silently fails if embedding is not configured.
-     */
     public static function embedRow(string $table, int $rowId): void
     {
         try {
@@ -32,7 +28,7 @@ class EmbeddingService
                 ->first();
 
             if ($existing && $existing->content_hash === $hash) {
-                return; // Content unchanged
+                return;
             }
 
             $vector = self::callApi($config, $text);
@@ -63,9 +59,6 @@ class EmbeddingService
         }
     }
 
-    /**
-     * Remove embedding for a deleted row.
-     */
     public static function deleteRow(string $table, int $rowId): void
     {
         try {
@@ -78,7 +71,6 @@ class EmbeddingService
         }
     }
 
-    /** Queries to fetch all embeddable rows per table */
     private static array $tableQueries = [
         'articles'        => 'SELECT id, title, description FROM articles WHERE enable = 1',
         'projects'        => 'SELECT id, title, description FROM projects WHERE enable = 1',
@@ -89,10 +81,16 @@ class EmbeddingService
         'github_activity' => 'SELECT id, repo, title, type FROM github_activity',
     ];
 
-    /**
-     * Embed all content across all tables.
-     * Returns stats: embedded, skipped, errors.
-     */
+    private static array $tableMissingQueries = [
+        'articles' => "SELECT a.id, a.title, a.description FROM articles a LEFT JOIN embeddings e ON e.table_name = 'articles' AND e.row_id = a.id WHERE a.enable = 1 AND e.id IS NULL",
+        'projects' => "SELECT p.id, p.title, p.description FROM projects p LEFT JOIN embeddings e ON e.table_name = 'projects' AND e.row_id = p.id WHERE p.enable = 1 AND e.id IS NULL",
+        'experience' => "SELECT x.id, x.title, x.period, x.description FROM experience x LEFT JOIN embeddings e ON e.table_name = 'experience' AND e.row_id = x.id WHERE e.id IS NULL",
+        'service' => "SELECT s.id, s.title, s.description FROM service s LEFT JOIN embeddings e ON e.table_name = 'service' AND e.row_id = s.id WHERE e.id IS NULL",
+        'skill' => "SELECT s.id, s.title, s.type FROM skill s LEFT JOIN embeddings e ON e.table_name = 'skill' AND e.row_id = s.id WHERE e.id IS NULL",
+        'testimonial' => "SELECT t.id, t.name, t.company, t.description FROM testimonial t LEFT JOIN embeddings e ON e.table_name = 'testimonial' AND e.row_id = t.id WHERE e.id IS NULL",
+        'github_activity' => "SELECT g.id, g.repo, g.title, g.type FROM github_activity g LEFT JOIN embeddings e ON e.table_name = 'github_activity' AND e.row_id = g.id WHERE e.id IS NULL",
+    ];
+
     public static function embedAll(): array
     {
         $config = self::getConfig();
@@ -194,6 +192,94 @@ class EmbeddingService
         }
 
         return compact('embedded', 'skipped', 'errors');
+    }
+
+    public static function embedMissing(int $maxRows = 1, bool $pruneOrphans = true): array
+    {
+        $config = self::getConfig();
+        if (!$config) {
+            return ['embedded' => 0, 'errors' => []];
+        }
+
+        $embedded = 0;
+        $errors = [];
+        $remaining = max(0, $maxRows);
+
+        foreach (self::$tableMissingQueries as $table => $sql) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            try {
+                $rows = DB::select($sql.' LIMIT ?', [$remaining]);
+            } catch (\Throwable $e) {
+                $errors[] = "{$table}: query failed – {$e->getMessage()}";
+
+                continue;
+            }
+
+            foreach ($rows as $row) {
+                if ($remaining <= 0) {
+                    break;
+                }
+
+                $rowArr = (array) $row;
+                try {
+                    $text = self::buildContent($table, $rowArr);
+                    if (! $text) {
+                        continue;
+                    }
+                    $hash = hash('sha256', $text);
+                    $rowId = (int) ($rowArr['id'] ?? 0);
+                    if ($rowId <= 0) {
+                        continue;
+                    }
+
+                    $vector = self::callApi($config, $text);
+                    if (! $vector) {
+                        $errors[] = "{$table}:{$rowId}: No vector returned";
+                        continue;
+                    }
+
+                    $vectorJson = json_encode($vector);
+                    DB::table('embeddings')->insert([
+                        'table_name' => $table,
+                        'row_id' => $rowId,
+                        'content_hash' => $hash,
+                        'vector' => $vectorJson,
+                        'created_at' => now(),
+                    ]);
+                    $embedded++;
+                    $remaining--;
+                } catch (\Throwable $e) {
+                    $errors[] = $table.':'.($rowArr['id'] ?? '?').': '.$e->getMessage();
+                }
+            }
+        }
+
+        if ($pruneOrphans) {
+            try {
+                self::pruneOrphanEmbeddings();
+            } catch (\Throwable $e) {
+                $errors[] = 'prune: '.$e->getMessage();
+            }
+        }
+
+        return compact('embedded', 'errors');
+    }
+
+    public static function pruneOrphanEmbeddings(): void
+    {
+        foreach (array_keys(self::$tableQueries) as $table) {
+            try {
+                DB::statement(
+                    'DELETE e FROM embeddings e LEFT JOIN `'.$table.'` t ON t.id = e.row_id WHERE e.table_name = ? AND t.id IS NULL',
+                    [$table]
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Embedding prune failed for '.$table.': '.$e->getMessage());
+            }
+        }
     }
 
     private static function getConfig(): ?array

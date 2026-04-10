@@ -1,10 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { query } from '$lib/server/db';
-import { fetchGeneral } from '$lib/server/data';
 import { redisGet, redisSet } from '$lib/server/redis';
-import OpenAI from 'openai';
-import crypto from 'crypto';
 import type { RequestHandler } from './$types';
 
 const GITHUB_GRAPHQL = 'https://api.github.com/graphql';
@@ -67,47 +64,6 @@ async function saveActivityToDb(
 		params.push(item.repo, item.title, item.type, item.date, item.oid, item.private ? 1 : 0, item.additions ?? null, item.deletions ?? null);
 	}
 	await query(`INSERT IGNORE INTO github_activity (repo, title, type, created_at, oid, is_private, additions, deletions) VALUES ${values}`, params);
-}
-
-async function embedNewActivity() {
-	try {
-		const generalData = await fetchGeneral();
-		const embUrl = ((generalData.embedding_url as string) ?? '').trim();
-		const embKey = ((generalData.embedding_key as string) ?? '').trim();
-		const embModel = ((generalData.embedding_model as string) ?? '').trim();
-		if (!embUrl || !embKey || !embModel) return;
-
-		let baseURL = embUrl.replace(/\/+$/, '');
-		if (baseURL.endsWith('/embeddings')) baseURL = baseURL.replace(/\/embeddings$/, '');
-		const client = new OpenAI({ baseURL, apiKey: embKey });
-
-		const rows = await query<{ id: number; repo: string; title: string; type: string }>(
-			'SELECT ga.id, ga.repo, ga.title, ga.type FROM github_activity ga LEFT JOIN embeddings e ON e.table_name = ? AND e.row_id = ga.id WHERE e.id IS NULL',
-			['github_activity']
-		);
-
-		const BATCH_SIZE = 20;
-		for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-			const batch = rows.slice(i, i + BATCH_SIZE);
-			const texts = batch.map((r) => `GitHub ${r.type} in ${r.repo}: ${r.title}`);
-			try {
-				const res = await client.embeddings.create({ model: embModel, input: texts });
-				for (let j = 0; j < batch.length; j++) {
-					const vector = res.data[j]?.embedding;
-					if (!vector) continue;
-					const hash = crypto.createHash('sha256').update(texts[j]).digest('hex');
-					await query('INSERT INTO embeddings (table_name, row_id, content_hash, vector, created_at) VALUES (?, ?, ?, ?, NOW())', [
-						'github_activity',
-						batch[j].id,
-						hash,
-						JSON.stringify(vector)
-					]);
-				}
-			} catch {}
-		}
-
-		await query('DELETE e FROM embeddings e LEFT JOIN github_activity ga ON ga.id = e.row_id WHERE e.table_name = ? AND ga.id IS NULL', ['github_activity']);
-	} catch {}
 }
 
 async function getLastSyncTime(): Promise<number> {
@@ -639,7 +595,6 @@ async function syncAllActivity(username: string, token: string, repos: any[], cr
 		syncIssues(username, token, createdYear).catch(() => {})
 	]);
 	await setLastSyncTime();
-	embedNewActivity().catch((err) => console.error('[GitHub embed]', err));
 }
 
 async function getTopRepos() {
