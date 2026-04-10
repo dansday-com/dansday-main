@@ -228,6 +228,7 @@ class EmbeddingService
                     }
 
                     $chunks = self::chunkText($text);
+                    DB::table('embeddings')->where('table_name', $table)->where('row_id', $rowId)->delete();
                     $allOk = true;
                     foreach ($chunks as $chunkIndex => $chunk) {
                         $vector = self::callApi($config, $chunk);
