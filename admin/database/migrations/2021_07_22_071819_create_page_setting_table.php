@@ -14,7 +14,6 @@ class CreatePageSettingTable extends Migration
             $table->text('description');
             $table->text('analytics_code')->nullable();
             $table->text('social_links');
-            $table->text('image_favicon');
 
             $table->timestamps();
         });

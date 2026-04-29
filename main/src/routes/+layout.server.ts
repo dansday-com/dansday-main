@@ -12,15 +12,6 @@ function toAsciiBanner(text: string | null | undefined, font = 'Standard'): stri
 	}
 }
 
-function resolveUrl(url: string | null | undefined, base: string): string {
-	if (!url || typeof url !== 'string') return '';
-	const b = base.replace(/\/$/, '');
-	if (url.startsWith('http://') || url.startsWith('https://')) return url;
-	const path = url.startsWith('/') ? url : `/${url}`;
-	if (path.startsWith('/uploads/')) return `${b}${path}`;
-	return `${b}${path}`;
-}
-
 export const load: LayoutServerLoad = async () => {
 	try {
 		const publicBase = env.ADMIN_PUBLIC_URL?.replace(/\/$/, '') ?? '';
@@ -51,17 +42,12 @@ export const load: LayoutServerLoad = async () => {
 			if (typeof raw === 'string') socialLinks = JSON.parse(raw) ?? [];
 			else if (Array.isArray(raw)) socialLinks = raw;
 		} catch {}
-		const defaultFavicon = resolveUrl((general.image_favicon as string) ?? null, publicBase);
-
-		let favicons: Array<{ rel: string; href: string; sizes?: string; type?: string }> = [];
-		if (defaultFavicon && general.image_favicon && typeof general.image_favicon === 'string') {
-			const dirUrl = defaultFavicon.substring(0, defaultFavicon.lastIndexOf('/'));
-			favicons.push({ rel: 'icon', type: 'image/png', href: `${dirUrl}/favicon-96x96.png`, sizes: '96x96' });
-			favicons.push({ rel: 'icon', type: 'image/svg+xml', href: `${dirUrl}/favicon.svg` });
-			favicons.push({ rel: 'shortcut icon', href: `${dirUrl}/favicon.ico` });
-			favicons.push({ rel: 'apple-touch-icon', sizes: '180x180', href: `${dirUrl}/apple-touch-icon.png` });
-			favicons.push({ rel: 'manifest', href: `${dirUrl}/site.webmanifest` });
-		}
+		const defaultFavicon = '/favicon.svg';
+		const favicons: Array<{ rel: string; href: string; sizes?: string; type?: string }> = [
+			{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+			{ rel: 'shortcut icon', href: '/favicon.svg' },
+			{ rel: 'manifest', href: '/site.webmanifest' }
+		];
 
 		const projectsListMeta = {
 			title: siteName ? `Projects | ${siteName}` : 'Projects',

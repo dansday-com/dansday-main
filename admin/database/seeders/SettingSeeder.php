@@ -17,7 +17,6 @@ class SettingSeeder extends Seeder
             'ai_key'         => '',
             'ai_model'       => '',
             'social_links'   => '[{"title":"fab fa-linkedin-in","text":"http://#"}]',
-            'image_favicon'  => 'uploads/img/general/favicon/favicon.png',
         ]);
     }
 }
