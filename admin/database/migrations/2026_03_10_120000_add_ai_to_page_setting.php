@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('page_setting', function (Blueprint $table) {
-            $table->string('ai_url', 500)->nullable()->after('image_favicon');
+            $table->string('ai_url', 500)->nullable()->after('social_links');
             $table->string('ai_key', 500)->nullable()->after('ai_url');
             $table->string('ai_model', 255)->nullable()->after('ai_key');
         });

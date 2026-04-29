@@ -79,7 +79,6 @@ return [
     'generate_with_ai'          => 'Generate with AI',
     'home'                      => 'Home',
     'image'                     => 'Image',
-    'image_favicon'             => 'Favicon image',
     'image_requirements'        => 'Requirements: JPG, JPEG or PNG',
     'image_requirements_png'    => 'Requirements: JPG, JPEG or PNG',
     'info'                      => 'Information',

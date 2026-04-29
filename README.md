@@ -1,91 +1,59 @@
-## Dansday – Svelte + Laravel (Docker)
+# Dansday
 
 Simple monorepo for the public site (`main`, SvelteKit) and the admin panel (`admin`, Laravel) running with Docker Compose.
 
-### First time? What you need
-
-You only need this on your machine:
-
-| Need | Why |
-|------|-----|
-| **Git** | To clone the repo |
-| **Docker** | To run the app and database |
-| **Docker Compose** | To start all services (included with Docker Desktop) |
-| **Make** | To run `make up` / `make down` (built-in on macOS/Linux; on Windows use [Docker Desktop](https://www.docker.com/products/docker-desktop/) and WSL2 or Git Bash) |
-
-You do **not** need PHP, Node.js, Composer, or npm installed — everything runs inside Docker.
-
-Ports **80**, **8080**, **3306**, and **6379** must be free.
+The project is open source under the MIT license.
 
 ---
 
-### How to run (first time)
+## Features
 
-**Step 1 – Clone the repo**
+### Frontend (public site – `main`)
 
-```bash
-git clone https://github.com/YOUR_USERNAME/dansday-svelte-laravel.git
-cd dansday-svelte-laravel
-```
+- **SvelteKit** with **Vite** for fast development and production builds
+- **TypeScript** for type safety
+- **Tailwind CSS** for styling
 
-**Step 2 – Install & build (one time, but safe to re-run)**
+### Admin (dashboard – `admin`)
 
-This runs inside Docker and will install dependencies **and** build the apps for production:
+- **Laravel 12** application (PHP 8.5+)
+- **SCSS (Sass)** styles in `admin/resources/sass`
+- **Bootstrap** (CSS + JS), **jQuery**, **Popper.js**
+- **Axios**, **Lodash**, **Font Awesome** assets
+- MySQL and Redis integration
 
-```bash
-make install
-```
+### Infrastructure & services
 
-**Step 3 – Start everything**
+- **Docker** and **Docker Compose** for containerization
+- **MySQL** database used by both `main` and `admin`
+- **Redis** for cache / queues / sessions (Laravel)
+- **Make** commands: `up`, `down`, `install`, `update`
 
-```bash
-make up
-```
+---
 
-Then open:
+## Tech stack
 
-- **Frontend**: http://localhost  
-- **Admin**: http://localhost:8080  
+Versions match `package.json` at release (caret ranges; run `npm ls` for the exact tree).
 
-**Stop:** `make down`
+| Area | Technologies |
+|------|--------------|
+| Frontend framework | [SvelteKit](https://kit.svelte.dev/), [Svelte](https://svelte.dev/), [Vite](https://vitejs.dev/) |
+| Language | [TypeScript](https://www.typescriptlang.org/) |
+| Styling | [Tailwind CSS](https://tailwindcss.com/) |
+| Backend framework | [Laravel 12](https://laravel.com/) (PHP 8.5+) |
+| Database | [MySQL](https://www.mysql.com/) via [mysql2](https://github.com/sidorares/node-mysql2) |
+| Cache / sessions | [Redis](https://redis.io/) |
+| HTTP client | [Axios](https://axios-http.com/) |
+| Infrastructure | [Docker](https://www.docker.com/), [Docker Compose](https://docs.docker.com/compose/) |
 
-**Update deps (no need to start app):** `make update`
+---
 
-### Running without Docker (optional)
+## Configuration
 
-Only if you run the apps directly on your machine (no Docker): copy `main/.env.example` → `main/.env` and `admin/.env.example` → `admin/.env`, fill in your database and URLs, and for admin run `php artisan key:generate`.
+Environment variables drive database credentials, sessions, and service configuration. Copy **`.env.example`** to **`.env`** and adjust for your deployment.
 
-### What’s running (services)
+---
 
-- **main**
-  - SvelteKit app
-  - Runs in Docker, exposed on port **80** (internal `npm run dev` on port 3000)
+## License
 
-- **admin**
-  - Laravel 12 application (PHP 8.5+)
-  - Served on port **8080**
-
-- **mysql**
-  - MySQL database
-  - Used by both `main` and `admin`
-
-- **redis**
-  - Redis for cache / queues / sessions (Laravel)
-
-### Tech stack
-
-- **Frontend (public site – `main`)**
-  - **SvelteKit**, **Vite**
-  - **TypeScript**
-  - **Tailwind CSS**
-
-- **Admin (dashboard – `admin`)**
-  - **Laravel 12** (PHP 8.5+)
-  - **SCSS (Sass)** styles in `admin/resources/sass`
-  - **Bootstrap** (CSS + JS), **jQuery**, **Popper.js**
-  - **Axios**, **Lodash**, **Font Awesome** assets
-  - MySQL, Redis
-
-- **Infrastructure / Tooling**
-  - **Docker**, **Docker Compose**
-  - Make: `up`, `down`, `install`, `update`
+MIT · Author: Akbar Yudhanto · Version: 2.3.0

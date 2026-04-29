@@ -4,10 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\General;
 use App\Models\User;
-use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class GeneralController extends Controller
@@ -33,16 +31,12 @@ class GeneralController extends Controller
 
     public function update(Request $request, General $general)
     {
-        $general = General::find(1);
         $data = [
             'title'          => $request->input('title'),
             'description'    => $request->input('description'),
             'analytics_code' => $request->input('analytics_code'),
             'social_links'   => $request->input('social_links'),
-            'image_favicon'  => $request->file('image_favicon'),
-            'image_favicon_current' => $request->input('image_favicon_current'),
         ];
-        $route_image_favicon = $data['image_favicon_current'];
 
         $validate = Validator::make($data, [
             'title'          => ['string', 'max:55'],
@@ -57,165 +51,10 @@ class GeneralController extends Controller
                 ->withInput();
         }
 
-        $disk = Storage::disk('uploads');
-        $directory = 'img/general/favicon';
-
-        if (! empty($data['image_favicon'])) {
-            $validate = Validator::make($data, [
-                'image_favicon' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
-            ]);
-            if ($validate->fails()) {
-                return redirect('/admin/general')
-                    ->with('error-validation', '')
-                    ->withErrors($validate)
-                    ->withInput();
-            }
-            $pathname = $data['image_favicon']->getPathname();
-            $ext = $data['image_favicon']->guessExtension();
-            if ($ext === null || $ext === '' || ! in_array(strtolower($ext), ['jpg', 'jpeg', 'png'], true)) {
-                return redirect('/admin/general')
-                    ->with('error-validation', '')
-                    ->withErrors(['image_favicon' => ['The file could not be recognized as a valid image (jpg, jpeg or png).']])
-                    ->withInput();
-            }
-            $size = @getimagesize($pathname);
-            if ($size === false || ! isset($size[0], $size[1]) || $size[0] < 1 || $size[1] < 1) {
-                return redirect('/admin/general')
-                    ->with('error-validation', '')
-                    ->withErrors(['image_favicon' => ['The file could not be read as an image.']])
-                    ->withInput();
-            }
-            $width = (int) $size[0];
-            $height = (int) $size[1];
-
-            if ($route_image_favicon != '' && uploads_path_safe_to_delete($route_image_favicon)) {
-                $dirForDisk = uploads_path_for_disk($route_image_favicon);
-                if ($dirForDisk !== '') {
-                    $parent = dirname($dirForDisk);
-                    if ($disk->exists($parent)) {
-                        $existing = $disk->files($parent);
-                        foreach ($existing as $file) {
-                            $disk->delete($file);
-                        }
-                    }
-                }
-
-                $publicFaviconDir = public_path('favicon');
-                if (is_dir($publicFaviconDir)) {
-                    $filesToDelete = [
-                        'favicon.ico',
-                        'favicon-96x96.png',
-                        'favicon.svg',
-                        'apple-touch-icon.png',
-                        'site.webmanifest',
-                        'web-app-manifest-192x192.png',
-                        'web-app-manifest-512x512.png',
-                    ];
-                    foreach ($filesToDelete as $file) {
-                        $filePath = $publicFaviconDir . '/' . $file;
-                        if (file_exists($filePath)) {
-                            @unlink($filePath);
-                        }
-                    }
-                }
-            }
-
-            @ini_set('memory_limit', '256M');
-            $route_image_favicon = 'uploads/' . $directory . '/favicon.' . $ext;
-            $isPng = strtolower($ext) === 'png';
-            $source = $isPng ? @imagecreatefrompng($pathname) : @imagecreatefromjpeg($pathname);
-            if ($source === false) {
-                return redirect('/admin/general')
-                    ->with('error-validation', '')
-                    ->withErrors(['image_favicon' => ['The file could not be processed as a valid image.']])
-                    ->withInput();
-            }
-
-            $tempDir = sys_get_temp_dir() . '/favicon_' . uniqid();
-            mkdir($tempDir, 0755, true);
-            try {
-                $faviconPath = $tempDir . '/source_favicon.' . $ext;
-                if ($isPng) {
-                    @imagepng($source, $faviconPath, 0);
-                } else {
-                    @imagejpeg($source, $faviconPath, 100);
-                }
-
-                \Illuminate\Support\Facades\Artisan::call('favicon:generate', [
-                    'source' => $faviconPath,
-                    '--force' => true,
-                    '--silent' => true,
-                ]);
-
-                $filesToCopy = [
-                    'favicon.ico',
-                    'favicon-96x96.png',
-                    'favicon.svg',
-                    'apple-touch-icon.png',
-                    'site.webmanifest',
-                    'web-app-manifest-192x192.png',
-                    'web-app-manifest-512x512.png',
-                ];
-
-                foreach ($filesToCopy as $file) {
-                    $generatedFile = public_path('favicon/' . $file);
-                    if (file_exists($generatedFile)) {
-                        $disk->putFileAs($directory, new File($generatedFile), $file);
-                    }
-                }
-
-                $route_image_favicon = 'uploads/' . $directory . '/favicon.ico';
-            } finally {
-                if (isset($source) && $source !== false) {
-                    imagedestroy($source);
-                }
-                if (isset($tempDir) && is_dir($tempDir)) {
-                    foreach (glob($tempDir . '/*') ?: [] as $f) {
-                        @unlink($f);
-                    }
-                    @rmdir($tempDir);
-                }
-            }
-        }
-        if (empty($data['image_favicon']) && empty($data['image_favicon_current']) && ! empty($general->image_favicon) && uploads_path_safe_to_delete($general->image_favicon)) {
-            $dirForDisk = uploads_path_for_disk($general->image_favicon);
-            if ($dirForDisk !== '') {
-                $parent = dirname($dirForDisk);
-                if ($disk->exists($parent)) {
-                    $existing = $disk->files($parent);
-                    foreach ($existing as $file) {
-                        $disk->delete($file);
-                    }
-                }
-            }
-
-            $publicFaviconDir = public_path('favicon');
-            if (is_dir($publicFaviconDir)) {
-                $filesToDelete = [
-                    'favicon.ico',
-                    'favicon-96x96.png',
-                    'favicon.svg',
-                    'apple-touch-icon.png',
-                    'site.webmanifest',
-                    'web-app-manifest-192x192.png',
-                    'web-app-manifest-512x512.png',
-                ];
-                foreach ($filesToDelete as $file) {
-                    $filePath = $publicFaviconDir . '/' . $file;
-                    if (file_exists($filePath)) {
-                        @unlink($filePath);
-                    }
-                }
-            }
-
-            $route_image_favicon = '';
-        }
-
         $data_new = [
             'title'          => $data['title'],
             'description'    => $data['description'],
             'analytics_code' => $data['analytics_code'],
-            'image_favicon'  => $route_image_favicon,
             'social_links'   => $data['social_links'],
         ];
         General::where('id', 1)->update($data_new);
