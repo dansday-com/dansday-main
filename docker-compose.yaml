@@ -8,6 +8,7 @@ services:
       PORT: 80
       BASE_URL: ${BASE_URL:-http://localhost}
       ADMIN_PUBLIC_URL: ${ADMIN_PUBLIC_URL:-http://localhost}
+      PUBLIC_UPLOADS_URL: ${PUBLIC_UPLOADS_URL:-}
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT:-3306}
       DB_DATABASE: ${DB_DATABASE}
@@ -37,5 +38,13 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       SESSION_DRIVER: redis
       QUEUE_CONNECTION: redis
+      UPLOADS_DISK_DRIVER: ${UPLOADS_DISK_DRIVER:-local}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-auto}
+      AWS_BUCKET: ${AWS_BUCKET:-}
+      AWS_ENDPOINT: ${AWS_ENDPOINT:-}
+      AWS_URL: ${AWS_URL:-}
+      AWS_USE_PATH_STYLE_ENDPOINT: ${AWS_USE_PATH_STYLE_ENDPOINT:-true}
     expose:
       - "80"

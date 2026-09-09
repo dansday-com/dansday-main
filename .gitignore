@@ -28,6 +28,6 @@ admin/assets/admin/css/manifest.json
 # Uploads (user content, not tracked; keep default image and .htaccess)
 admin/public/uploads/*
 !admin/public/uploads/.htaccess
-!admin/public/uploads/img/
-admin/public/uploads/img/*
-!admin/public/uploads/img/image_default.png
+!admin/public/uploads/admin/
+admin/public/uploads/admin/*
+!admin/public/uploads/admin/image_default.png

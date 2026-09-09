@@ -56,7 +56,7 @@ class LinkedInPlanningTest extends TestCase
     public static function conflictingMedia(): array
     {
         return [
-            'image'    => [['image' => 'uploads/img/articles/a.png']],
+            'image'    => [['image' => 'uploads/admin/articles/a.png']],
             'document' => [['document' => 'media/linkedin/documents/a.pdf', 'document_title' => 'x']],
             'video'    => [['video' => 'media/linkedin/videos/a.mp4']],
             'images'   => [['images' => [['path' => 'a.png'], ['path' => 'b.png']]]],

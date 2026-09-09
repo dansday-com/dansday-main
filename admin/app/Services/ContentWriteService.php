@@ -767,9 +767,9 @@ class ContentWriteService
         }
 
         $path = uploads_path_for_disk($image);
-        if ($path === '' || ! str_starts_with($path, 'img/')) {
+        if ($path === '' || ! str_starts_with($path, 'admin/')) {
             throw new ContentWriteException(
-                "Image must be an absolute URL or a path under uploads/img/, e.g. uploads/img/articles/foo.png. Got \"{$image}\"."
+                "Image must be an absolute URL or a path under uploads/admin/, e.g. uploads/admin/articles/foo.png. Got \"{$image}\"."
             );
         }
 

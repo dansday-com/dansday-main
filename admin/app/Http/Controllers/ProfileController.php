@@ -59,7 +59,7 @@ class ProfileController extends Controller
                             $disk->delete($p);
                         }
                     }
-                    $route_image = 'uploads/' . $data["image_profile"]->storeAs('img/profile', 'profile_image_' . mt_rand(100, 999) . '.' . $data["image_profile"]->guessExtension(), 'uploads');
+                    $route_image = 'uploads/' . $data["image_profile"]->storeAs('admin/profile', 'profile_image_' . mt_rand(100, 999) . '.' . $data["image_profile"]->guessExtension(), 'uploads');
                 }
                 if ($data["pass_current"] != '' || $data["pass_new_1"] != '' || $data["pass_new_2"] != ''){
                     $validate = Validator::make($data, [

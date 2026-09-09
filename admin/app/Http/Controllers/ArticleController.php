@@ -63,13 +63,13 @@ class ArticleController extends Controller
 
         $disk = Storage::disk('uploads');
         $route_image = $data['image']
-            ? 'uploads/' . $data['image']->storeAs('img/articles', 'post_image_' . Str::random(24) . '.' . $data['image']->guessExtension(), 'uploads')
+            ? 'uploads/' . $data['image']->storeAs('admin/articles', 'post_image_' . Str::random(24) . '.' . $data['image']->guessExtension(), 'uploads')
             : '';
 
-        $tempFiles = $disk->files('img/temp');
+        $tempFiles = $disk->files('admin/temp');
         foreach ($tempFiles as $tempPath) {
             $name = basename($tempPath);
-            $destPath = 'img/articles/' . $name;
+            $destPath = 'admin/articles/' . $name;
             if ($disk->exists($tempPath)) {
                 $disk->put($destPath, $disk->get($tempPath));
                 $disk->delete($tempPath);
@@ -80,7 +80,7 @@ class ArticleController extends Controller
         $post->enable = ($data['enable'] == 'on') ? 1 : 0;
         $post->title = $data['title'];
         $post->short_desc = $data['short_desc'];
-        $post->description = str_replace([$disk->url('img/temp'), 'uploads/img/temp'], [$disk->url('img/articles'), 'uploads/img/articles'], $data['description']);
+        $post->description = str_replace([$disk->url('admin/temp'), 'uploads/admin/temp'], [$disk->url('admin/articles'), 'uploads/admin/articles'], $data['description']);
         $post->image = $route_image;
         $post->category_id = $data['category'];
         $post->save();
@@ -146,7 +146,7 @@ class ArticleController extends Controller
                     $disk->delete($p);
                 }
             }
-            $route_image = 'uploads/' . $data['image']->storeAs('img/articles', 'post_image_' . Str::random(24) . '.' . $data['image']->guessExtension(), 'uploads');
+            $route_image = 'uploads/' . $data['image']->storeAs('admin/articles', 'post_image_' . Str::random(24) . '.' . $data['image']->guessExtension(), 'uploads');
         } elseif ($data['image_current'] == '' || $data['image_current'] === null) {
             $post = Article::find($id);
             if ($post && $post->image != '' && uploads_path_safe_to_delete($post->image)) {
@@ -158,10 +158,10 @@ class ArticleController extends Controller
             $route_image = '';
         }
 
-        $tempFiles = $disk->files('img/temp');
+        $tempFiles = $disk->files('admin/temp');
         foreach ($tempFiles as $tempPath) {
             $name = basename($tempPath);
-            $destPath = 'img/articles/' . $name;
+            $destPath = 'admin/articles/' . $name;
             if ($disk->exists($tempPath)) {
                 $disk->put($destPath, $disk->get($tempPath));
                 $disk->delete($tempPath);
@@ -172,7 +172,7 @@ class ArticleController extends Controller
             'enable'      => ($data['enable'] == 'on') ? 1 : 0,
             'title'       => $data['title'],
             'short_desc'  => $data['short_desc'],
-            'description' => str_replace([$disk->url('img/temp'), 'uploads/img/temp'], [$disk->url('img/articles'), 'uploads/img/articles'], $data['description']),
+            'description' => str_replace([$disk->url('admin/temp'), 'uploads/admin/temp'], [$disk->url('admin/articles'), 'uploads/admin/articles'], $data['description']),
             'image'       => $route_image,
             'category_id' => $data['category'],
         ]);

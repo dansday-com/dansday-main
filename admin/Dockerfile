@@ -107,6 +107,6 @@ ENV EMBEDDING_WORKER_SLEEP=1
 ENV EMBEDDING_WORKER_IDLE=5
 ENV EMBEDDING_WORKER_PRUNE_SECONDS=300
 
-RUN cp public/uploads/img/image_default.png /tmp/image_default.png
+RUN cp public/uploads/admin/image_default.png /tmp/image_default.png
 
 CMD ["/usr/local/bin/admin-entrypoint.sh"]
