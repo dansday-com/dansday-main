@@ -54,7 +54,7 @@
                                             <label for="image" class="form-label d-flex justify-content-between">
                                                 {{ __('content.image') }}
                                                 @if($project->image != '')
-                                                <span class="fw-normal fst-italic remove-image text-primary" data-target="image" data-url="{{ asset('/') }}"><i class="fas fa-times mr-1"></i>{{ __('content.remove_image') }}</span>
+                                                <span class="fw-normal fst-italic remove-image text-primary" data-target="image" data-url="{{ upload_url(null) }}"><i class="fas fa-times mr-1"></i>{{ __('content.remove_image') }}</span>
                                                 @endif
                                             </label>
                                             <div class="d-flex p-3 mb-2 bg-gray-200 justify-content-center">

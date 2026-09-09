@@ -394,7 +394,7 @@ $(document).ready(function () {
             $('input[name="' + target + '_current"]').val('');
             $('input[name="' + target + '"]').val('');
             if ($(".previewImage_" + target).length) {
-                $(".previewImage_" + target).attr("src", url + "uploads/img/image_default.png");
+                $(".previewImage_" + target).attr("src", url);
             }
         });
     }

@@ -12,7 +12,7 @@
                 <span class="mr-2 d-none d-lg-inline small">{{ $user->name }}</span>
                 @php
                 if ($user->image != null) {
-                    echo '<img src="'.asset('/').$user->image.'" alt="'.$user->name.'" class="img-fluid rounded-circle bg-gray-200 p-1" />';
+                    echo '<img src="'.upload_url($user->image).'" alt="'.$user->name.'" class="img-fluid rounded-circle bg-gray-200 p-1" />';
                 } else {
                     echo '<i class="fas fa-user-circle h4 m-0"></i>';
                 }
@@ -25,7 +25,7 @@
                     <div class="flex-shrink-0">
                         @php
                         if ($user->image != null) {
-                            echo '<img src="'.asset('/').$user->image.'" alt="'.$user->name.'" class="img-fluid rounded-circle bg-gray-200 p-1" />';
+                            echo '<img src="'.upload_url($user->image).'" alt="'.$user->name.'" class="img-fluid rounded-circle bg-gray-200 p-1" />';
                         } else {
                             echo '<i class="fas fa-user-circle h4 m-0"></i>';
                         }
