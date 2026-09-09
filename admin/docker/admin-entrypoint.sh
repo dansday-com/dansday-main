@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-mkdir -p public/uploads/img && cp -n /tmp/image_default.png public/uploads/img/image_default.png || true
+mkdir -p public/uploads/img && cp -n /tmp/image_default.png public/uploads/admin/image_default.png || true
 
 mkdir -p storage/app/media/linkedin/documents storage/app/media/linkedin/videos || true
 

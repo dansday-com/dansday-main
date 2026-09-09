@@ -45,10 +45,12 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        $appUrl = rtrim(config('app.url', env('APP_URL', 'http://localhost')), '/');
-        config([
-            'filesystems.disks.uploads.root' => public_path('uploads'),
-            'filesystems.disks.uploads.url'   => $appUrl.'/uploads',
-        ]);
+        if (config('filesystems.disks.uploads.driver') === 'local') {
+            $appUrl = rtrim(config('app.url', env('APP_URL', 'http://localhost')), '/');
+            config([
+                'filesystems.disks.uploads.root' => public_path('uploads'),
+                'filesystems.disks.uploads.url'   => $appUrl.'/uploads',
+            ]);
+        }
     }
 }

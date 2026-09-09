@@ -12,9 +12,9 @@ use ZipArchive;
 class McpUploadController extends Controller
 {
     private const KINDS = [
-        'article'  => ['disk' => 'uploads', 'folder' => 'img/articles',       'prefix' => 'post_image',    'family' => 'image',    'max_kb' => 8192],
-        'project'  => ['disk' => 'uploads', 'folder' => 'img/projects',       'prefix' => 'project_image', 'family' => 'image',    'max_kb' => 8192],
-        'inline'   => ['disk' => 'uploads', 'folder' => 'img/temp',           'prefix' => 'img',           'family' => 'image',    'max_kb' => 8192],
+        'article'  => ['disk' => 'uploads', 'folder' => 'admin/articles',       'prefix' => 'post_image',    'family' => 'image',    'max_kb' => 8192],
+        'project'  => ['disk' => 'uploads', 'folder' => 'admin/projects',       'prefix' => 'project_image', 'family' => 'image',    'max_kb' => 8192],
+        'inline'   => ['disk' => 'uploads', 'folder' => 'admin/temp',           'prefix' => 'img',           'family' => 'image',    'max_kb' => 8192],
         'document' => ['disk' => 'media',   'folder' => 'linkedin/documents', 'prefix' => 'document',      'family' => 'document', 'max_kb' => 102400],
         'video'    => ['disk' => 'media',   'folder' => 'linkedin/videos',    'prefix' => 'video',         'family' => 'video',    'max_kb' => 204800],
     ];

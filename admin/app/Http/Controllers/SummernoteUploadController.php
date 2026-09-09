@@ -12,7 +12,7 @@ class SummernoteUploadController extends Controller
     {
         $request->validate([
             'file'   => ['required', 'file', 'image', 'mimes:jpg,jpeg,png'],
-            'folder' => ['required', 'string', 'in:uploads/img/temp'],
+            'folder' => ['required', 'string', 'in:uploads/admin/temp'],
             'code'   => ['nullable', 'string', 'max:100'],
         ]);
 
@@ -24,7 +24,7 @@ class SummernoteUploadController extends Controller
 
         $code = $request->input('code', 'img');
         $name = $code . '_' . Str::random(24) . '.' . $ext;
-        $path = $file->storeAs('img/temp', $name, 'uploads');
+        $path = $file->storeAs('admin/temp', $name, 'uploads');
 
         return response(Storage::disk('uploads')->url($path), 200, [
             'Content-Type' => 'text/plain',

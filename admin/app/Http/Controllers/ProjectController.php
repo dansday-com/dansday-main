@@ -62,13 +62,13 @@ class ProjectController extends Controller
 
         $disk = Storage::disk('uploads');
         $route_image = $data['image']
-            ? 'uploads/' . $data['image']->storeAs('img/projects', 'project_image_' . Str::random(24) . '.' . $data['image']->guessExtension(), 'uploads')
+            ? 'uploads/' . $data['image']->storeAs('admin/projects', 'project_image_' . Str::random(24) . '.' . $data['image']->guessExtension(), 'uploads')
             : '';
 
-        $tempFiles = $disk->files('img/temp');
+        $tempFiles = $disk->files('admin/temp');
         foreach ($tempFiles as $tempPath) {
             $name = basename($tempPath);
-            $destPath = 'img/projects/' . $name;
+            $destPath = 'admin/projects/' . $name;
             if ($disk->exists($tempPath)) {
                 $disk->put($destPath, $disk->get($tempPath));
                 $disk->delete($tempPath);
@@ -80,7 +80,7 @@ class ProjectController extends Controller
         $project->title = $data['title'];
 
         $project->short_desc = $data['short_desc'] ?? '';
-        $project->description = str_replace([$disk->url('img/temp'), 'uploads/img/temp'], [$disk->url('img/projects'), 'uploads/img/projects'], $data['description']);
+        $project->description = str_replace([$disk->url('admin/temp'), 'uploads/admin/temp'], [$disk->url('admin/projects'), 'uploads/admin/projects'], $data['description']);
         $project->image = $route_image;
         $project->category_id = $data['category'];
         $project->save();
@@ -145,7 +145,7 @@ class ProjectController extends Controller
                     $disk->delete($p);
                 }
             }
-            $route_image = 'uploads/' . $data['image']->storeAs('img/projects', 'project_image_' . Str::random(24) . '.' . $data['image']->guessExtension(), 'uploads');
+            $route_image = 'uploads/' . $data['image']->storeAs('admin/projects', 'project_image_' . Str::random(24) . '.' . $data['image']->guessExtension(), 'uploads');
         } elseif ($data['image_current'] == '' || $data['image_current'] === null) {
             $proj = Project::find($id);
             if ($proj && $proj->image != '' && uploads_path_safe_to_delete($proj->image)) {
@@ -157,10 +157,10 @@ class ProjectController extends Controller
             $route_image = '';
         }
 
-        $tempFiles = $disk->files('img/temp');
+        $tempFiles = $disk->files('admin/temp');
         foreach ($tempFiles as $tempPath) {
             $name = basename($tempPath);
-            $destPath = 'img/projects/' . $name;
+            $destPath = 'admin/projects/' . $name;
             if ($disk->exists($tempPath)) {
                 $disk->put($destPath, $disk->get($tempPath));
                 $disk->delete($tempPath);
@@ -171,7 +171,7 @@ class ProjectController extends Controller
             'enable'      => ($data['enable'] == 'on') ? 1 : 0,
             'title'       => $data['title'],
             'short_desc'  => $data['short_desc'] ?? '',
-            'description' => str_replace([$disk->url('img/temp'), 'uploads/img/temp'], [$disk->url('img/projects'), 'uploads/img/projects'], $data['description']),
+            'description' => str_replace([$disk->url('admin/temp'), 'uploads/admin/temp'], [$disk->url('admin/projects'), 'uploads/admin/projects'], $data['description']),
             'image'       => $route_image,
             'category_id' => $data['category'],
         ]);

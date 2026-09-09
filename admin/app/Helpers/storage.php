@@ -3,12 +3,12 @@
 use Illuminate\Support\Facades\Storage;
 
 const UPLOADS_ALLOWED_PREFIXES = [
-    'img/articles/',
-    'img/projects/',
-    'img/profile/',
-    'img/general/',
-    'img/temp/',
-    'img/work/',
+    'admin/articles/',
+    'admin/projects/',
+    'admin/profile/',
+    'admin/general/',
+    'admin/temp/',
+    'admin/work/',
 ];
 
 const MEDIA_ALLOWED_PREFIXES = [
@@ -114,8 +114,8 @@ if (! function_exists('upload_url')) {
     function upload_url(?string $path): string
     {
         $disk = Storage::disk('uploads');
-        $default = 'img/image_default.png';
-        $path = uploads_path_for_disk($path ?: 'uploads/img/image_default.png');
+        $default = 'admin/image_default.png';
+        $path = uploads_path_for_disk($path ?: 'uploads/admin/image_default.png');
         $path = $path ?: $default;
         return $disk->exists($path) ? $disk->url($path) : $disk->url($default);
     }

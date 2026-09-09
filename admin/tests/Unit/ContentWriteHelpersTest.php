@@ -127,9 +127,9 @@ class ContentWriteHelpersTest extends TestCase
 
     public function test_upload_paths_are_normalised_to_a_single_form(): void
     {
-        $this->assertSame('uploads/img/articles/a.png', $this->call('normalizeImage', ['uploads/img/articles/a.png']));
-        $this->assertSame('uploads/img/articles/a.png', $this->call('normalizeImage', ['img/articles/a.png']));
-        $this->assertSame('uploads/img/projects/b.jpg', $this->call('normalizeImage', ['/uploads/img/projects/b.jpg']));
+        $this->assertSame('uploads/admin/articles/a.png', $this->call('normalizeImage', ['uploads/admin/articles/a.png']));
+        $this->assertSame('uploads/admin/articles/a.png', $this->call('normalizeImage', ['admin/articles/a.png']));
+        $this->assertSame('uploads/admin/projects/b.jpg', $this->call('normalizeImage', ['/uploads/admin/projects/b.jpg']));
     }
 
     public static function rejectedImagePaths(): array
@@ -208,7 +208,7 @@ class ContentWriteHelpersTest extends TestCase
         return [
             'escaped code sample' => ['<pre><code>if (a &lt; b &amp;&amp; c &gt; d) { return &lt;T&gt;(x); }</code></pre>'],
             'article markup'      => ['<h2>Title</h2><p>Text with <strong>bold</strong> and <a href="/x">link</a>.</p><ul><li>one</li></ul>'],
-            'image'               => ['<img src="uploads/img/articles/a.png" alt="a" />'],
+            'image'               => ['<img src="uploads/admin/articles/a.png" alt="a" />'],
             'table'               => ['<table><thead><tr><th>a</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table>'],
             'video'               => ['<video controls><source src="/v.mp4" type="video/mp4"></video>'],
             'prose with tag word' => ['<p>I wrote a description of my transcription work.</p>'],

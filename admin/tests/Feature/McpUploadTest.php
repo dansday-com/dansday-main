@@ -75,7 +75,7 @@ class McpUploadTest extends TestCase
         $response->assertOk();
         $path = $response->json('path');
 
-        $this->assertStringStartsWith('uploads/img/articles/', $path);
+        $this->assertStringStartsWith('uploads/admin/articles/', $path);
         $this->assertSame('png', $response->json('type'));
         $this->assertNotNull($response->json('url'));
         Storage::disk('uploads')->assertExists(str_replace('uploads/', '', $path));

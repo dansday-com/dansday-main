@@ -360,7 +360,7 @@ class LinkedInService
         $path = uploads_path_for_disk($source);
         $disk = Storage::disk('uploads');
 
-        if ($path === '' || ! str_starts_with($path, 'img/') || ! $disk->exists($path)) {
+        if ($path === '' || ! str_starts_with($path, 'admin/') || ! $disk->exists($path)) {
             throw new ContentWriteException("No uploaded image at \"{$source}\". Upload it to /mcp/uploads first.");
         }
 
