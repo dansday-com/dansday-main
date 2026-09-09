@@ -82,6 +82,7 @@ Versions match `composer.json` and `package.json` at release.
 | Backend            | [Laravel 12](https://laravel.com/) (PHP 8.5+) on [FrankenPHP](https://frankenphp.dev/)            |
 | Database           | [MySQL](https://www.mysql.com/), shared by both apps                                             |
 | Cache / sessions   | [Redis](https://redis.io/)                                                                       |
+| Object storage     | S3-compatible ([Cloudflare R2](https://developers.cloudflare.com/r2/)), local disk for dev       |
 | AI providers       | Any OpenAI-compatible chat and embeddings endpoint                                               |
 | AI tooling         | [Model Context Protocol](https://modelcontextprotocol.io)                                        |
 | Observability      | [OpenTelemetry](https://opentelemetry.io/)                                                       |
@@ -93,6 +94,7 @@ Versions match `composer.json` and `package.json` at release.
 
 - Copy **`.env.example`** to **`.env`** and set the database and Redis values. MySQL and Redis are not in the Compose stack — point them at your own. Then `make up`.
 - **`APP_URL` must be the admin host exactly.** The LinkedIn callback is derived from it, and article links are built from it with a leading `admin.` stripped.
+- **Uploads** default to the local `public/uploads` volume. Set `UPLOADS_DISK_DRIVER=s3` with the `AWS_*` keys to serve them from an S3-compatible bucket instead; keys are stored under `admin/` and `AWS_URL` is the bucket's public base. Point the public site at the same base with `PUBLIC_UPLOADS_URL`. For Cloudflare R2, `AWS_DEFAULT_REGION` must be `auto` and `AWS_USE_PATH_STYLE_ENDPOINT` must be `true`.
 - **AI providers, models and prompts** are configured in the panel, not `.env`, and stored per site in the database. Each needs its URL, model and key before it switches on.
 - **MCP** lives at the domain root, not under `/admin`, so a path-prefix proxy needs its own `/mcp` rule. Mint a token in the panel, then point a client at it with `claude mcp add --transport http dansday https://<admin-host>/mcp --header "Authorization: Bearer mcp_live_..."`.
 - **LinkedIn** needs an app at [linkedin.com/developers/apps](https://www.linkedin.com/developers/apps) with the **Share on LinkedIn** and **Sign In with LinkedIn using OpenID Connect** products, both self-serve. Register `https://<admin-host>/admin/linkedin/callback`, set `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET`, then connect from the panel. Tokens last two months and cannot refresh themselves.
@@ -104,4 +106,4 @@ Found a vulnerability? Email **security@dansday.com** instead of opening an issu
 
 ---
 
-MIT · Author: Akbar Yudhanto · Version: 2.4.0
+MIT · Author: Akbar Yudhanto · Version: 2.5.0
