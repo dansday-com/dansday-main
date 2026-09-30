@@ -23,9 +23,20 @@ export const load: LayoutServerLoad = async () => {
 		const hasModel = Boolean(general.ai_model && typeof general.ai_model === 'string' && general.ai_model.trim() !== '');
 		const aiTerminalConfigured = hasUrl && hasKey && hasModel;
 
-		delete general.ai_key;
-		delete general.ai_url;
-		delete general.ai_model;
+		for (const secret of [
+			'ai_key',
+			'ai_url',
+			'ai_model',
+			'search_api_url',
+			'search_api_key',
+			'search_model',
+			'fetch_api_url',
+			'fetch_api_key',
+			'fetch_model',
+			'linkedin_access_token'
+		]) {
+			delete general[secret];
+		}
 
 		const homeRecord = (home as Record<string, unknown>) ?? {};
 		const section = (sectionData as Record<string, unknown>) ?? {};

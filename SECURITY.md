@@ -25,7 +25,7 @@ Out of scope:
 - Anything needing an admin session or an MCP token that you already own. An MCP token is designed to grant full content read and write, including deletes — using one as intended is not a vulnerability.
 - Self-hosted installs misconfigured against the guidance below.
 - Findings from an automated scanner with no working exploit, including dependency alerts already listed in this repository's Dependabot page.
-- Any third-party AI or embedding provider you configure in the panel — report those to the vendor.
+- Any third-party AI, web search or web fetch provider you configure in the panel — report those to the vendor.
 - Rate limits, missing headers or version disclosure with no demonstrated impact.
 
 ## Testing rules
@@ -44,8 +44,8 @@ You own the security of your own deployment:
 - Put both apps behind HTTPS. The panel authenticates with a session cookie and the MCP endpoint with a bearer token — over plain HTTP both travel in the clear.
 - Do not expose the MySQL or Redis port to the internet. Both `main` and `admin` connect directly to MySQL.
 - Give each app its own database user, not root.
-- **Provider keys live in the database**, in the `page_setting` row, not `.env` — AI and embedding keys alongside the LinkedIn access token in plaintext. Treat the database as credential storage and restrict access accordingly.
-- The AI and embedding endpoints you configure in the panel are fetched by the server. Only point them at hosts you trust.
+- **Provider keys live in the database**, in the `page_setting` row, not `.env` — AI, web search and web fetch keys alongside the LinkedIn access token in plaintext. Treat the database as credential storage and restrict access accordingly.
+- The AI, web search and web fetch endpoints you configure in the panel are fetched by the server. Only point them at hosts you trust. The fetch tool asks that gateway to read any URL the model picks, so the gateway, not this server, must be the one that blocks internal addresses.
 - **An MCP token is a password.** It grants full write access to your content, can publish and delete on LinkedIn under your name, and can write a file to your public web root. Mint one per client so you can revoke one without breaking the rest, and audit with `php artisan mcp:token --list`.
 - Tokens are stored as SHA-256 hashes, so a database read does not hand over usable tokens — but the same row holds the provider keys above. `confirm=true` on the LinkedIn tools guards against accident, not against a hostile client.
 - Only posts and comments this server made can be edited or deleted. LinkedIn will not let it enumerate the rest of your feed, which bounds what a leaked token can reach there. Revoke LinkedIn access from LinkedIn's own **Settings → Data privacy → Permitted services**; clearing the `linkedin_*` columns only stops this app using the token.

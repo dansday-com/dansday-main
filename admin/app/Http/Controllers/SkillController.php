@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use App\Services\EmbeddingService;
 
 class SkillController extends Controller
 {
@@ -54,7 +53,6 @@ class SkillController extends Controller
                 $skill->title = $data["title"];
                 $skill->order = $order;
                 $skill->save();
-                EmbeddingService::embedRow('skill', $skill->id);
                 return redirect('/admin/skills') -> with('ok-add', '');
             }
         } else {
@@ -98,7 +96,6 @@ class SkillController extends Controller
                     "order"=>$data['order'],
                 );
                 Skill::where("id", $id)->update($data_new);
-                EmbeddingService::embedRow('skill', $id);
                 return redirect('/admin/skills') -> with('ok-update', '');
             }
         } else {
@@ -148,7 +145,6 @@ class SkillController extends Controller
         if(!empty($validate)){
             $type = $validate[0]['type'];
             Skill::where("id", $validate[0]['id'])->delete();
-            EmbeddingService::deleteRow('skill', $validate[0]['id']);
             $skills = DB::table('skill')
                 ->where('type', '=', $type)
                 ->orderBy('order', 'asc')

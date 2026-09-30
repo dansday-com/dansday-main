@@ -27,8 +27,6 @@ Route::middleware(['auth', 'XSS'])->group(function () {
     Route::put('admin/home', [App\Http\Controllers\PageHomeController::class, 'update']);
     Route::post('admin/summernote/upload', App\Http\Controllers\SummernoteUploadController::class)->name('admin.summernote.upload');
     Route::post('admin/ai-generate', [App\Http\Controllers\AiGenerateController::class, 'generate'])->name('admin.ai.generate');
-    Route::post('admin/embed-all', [App\Http\Controllers\EmbeddingController::class, 'embedAllAsync'])->name('admin.embed.all');
-    Route::get('admin/embed-status', [App\Http\Controllers\EmbeddingController::class, 'embedStatus'])->name('admin.embed.status');
 });
 
 Route::namespace('Admin')->middleware(['auth', 'XSS'])->group(function () {

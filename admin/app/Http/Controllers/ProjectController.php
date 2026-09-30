@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use App\Services\EmbeddingService;
 use Illuminate\Support\Str;
 
 class ProjectController extends Controller
@@ -84,7 +83,6 @@ class ProjectController extends Controller
         $project->image = $route_image;
         $project->category_id = $data['category'];
         $project->save();
-        EmbeddingService::embedRow('projects', $project->id);
         return redirect('/admin/projects/projects')->with('ok-add', '');
     }
 
@@ -175,7 +173,6 @@ class ProjectController extends Controller
             'image'       => $route_image,
             'category_id' => $data['category'],
         ]);
-        EmbeddingService::embedRow('projects', $id);
         return redirect('/admin/projects/projects')->with('ok-update', '');
     }
 
@@ -191,7 +188,6 @@ class ProjectController extends Controller
                 }
             }
             Project::where('id', $id)->delete();
-            EmbeddingService::deleteRow('projects', $id);
             return redirect('/admin/projects/projects')->with('ok-delete', '');
         }
         return redirect('/admin/projects/projects')->with('no-delete', '');

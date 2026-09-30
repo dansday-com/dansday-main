@@ -1,17 +1,18 @@
 import { json } from '@sveltejs/kit';
 import { fetchGeneral, fetchSection } from '$lib/server/data';
-import { createRetrieval } from '$lib/server/terminal/search';
 import { buildDataNote, buildTerminalTools, runTerminalTool } from '$lib/server/terminal/tools';
+import { buildWebTools, isWebTool, runWebTool, webConfigFrom } from '$lib/server/terminal/web';
 import OpenAI from 'openai';
 import type { RequestHandler } from './$types';
 import loggerProvider from '../../../../otel/logger.js';
 
 const MAX_RECENT = 10;
-const MAX_TOOL_ITERATIONS = 8;
+const REQUEST_TIMEOUT_MS = 120_000;
+const MAX_TOOL_ITERATIONS = 5;
 
-function normalizeBaseUrl(rawUrl: string, suffix: string): string {
+function normalizeBaseUrl(rawUrl: string): string {
 	const trimmed = rawUrl.trim().replace(/\/+$/, '');
-	return trimmed.endsWith(suffix) ? trimmed.slice(0, -suffix.length) : trimmed;
+	return trimmed.endsWith('/chat/completions') ? trimmed.slice(0, -'/chat/completions'.length) : trimmed;
 }
 
 function buildCompletionParams(model: string, reasoning: string) {
@@ -31,32 +32,66 @@ function buildCompletionParams(model: string, reasoning: string) {
 	return {
 		model,
 		...(useThinking ? { reasoning_effort: (isGemini && reasoning === 'xhigh' ? 'high' : reasoning) as any } : {}),
-		...(!isGemini ? { frequency_penalty: 1.2 } : {}),
+		...(!isGemini ? { frequency_penalty: 0.3 } : {}),
 		...thinkingKwargs
 	};
 }
 
-async function summarizeOlder(openai: OpenAI, model: string, older: any[]): Promise<string> {
-	const conversationText = older
-		.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content)
-		.map((m) => `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
-		.join('\n');
+async function callChatCompletions(
+	client: OpenAI,
+	params: ReturnType<typeof buildCompletionParams>,
+	messages: OpenAI.Chat.ChatCompletionMessageParam[],
+	tools: OpenAI.Chat.ChatCompletionTool[],
+	onToolCall: (name: string, args: Record<string, any>) => Promise<string>
+): Promise<string> {
+	const loop = [...messages];
+	const toolResultCache = new Map<string, string>();
+	let lastContent = '';
 
-	if (!conversationText.trim()) return '';
+	for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+		const lastIteration = i === MAX_TOOL_ITERATIONS - 1;
+		const offerTools = tools.length > 0 && !lastIteration;
 
-	const completion = await openai.chat.completions.create({
-		model,
-		messages: [
-			{
-				role: 'system',
-				content:
-					'Summarize this conversation history in 2-4 concise sentences. Focus on what was discussed, what questions were asked, and what answers were given. Keep it factual and brief.'
-			},
-			{ role: 'user', content: conversationText }
-		]
-	});
+		const completion = await client.chat.completions.create({
+			...params,
+			...(offerTools ? { tools, tool_choice: 'auto' as const } : {}),
+			messages: loop
+		} as any);
 
-	return completion.choices?.[0]?.message?.content?.trim() ?? '';
+		const choice = completion.choices?.[0]?.message;
+		if (!choice) return lastContent;
+
+		if (typeof choice.content === 'string' && choice.content.trim()) lastContent = choice.content;
+
+		if (!choice.tool_calls?.length) return choice.content ?? lastContent;
+
+		loop.push(choice);
+
+		const pending = new Map<string, Promise<string>>();
+
+		for (const call of choice.tool_calls as any[]) {
+			const cacheKey = `${call.function.name}:${call.function.arguments ?? ''}`;
+			if (toolResultCache.has(cacheKey) || pending.has(cacheKey)) continue;
+			let args: Record<string, any> = {};
+			try {
+				args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+			} catch {
+				args = {};
+			}
+			pending.set(cacheKey, onToolCall(call.function.name, args));
+		}
+
+		const keys = [...pending.keys()];
+		const settled = await Promise.all(pending.values());
+		keys.forEach((key, index) => toolResultCache.set(key, settled[index]));
+
+		for (const call of choice.tool_calls as any[]) {
+			const cacheKey = `${call.function.name}:${call.function.arguments ?? ''}`;
+			loop.push({ role: 'tool', tool_call_id: call.id, content: toolResultCache.get(cacheKey) as string });
+		}
+	}
+
+	return lastContent;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -68,92 +103,37 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const generalData = await fetchGeneral();
-		const openaiUrl = (generalData.ai_url as string | null)?.trim() ?? '';
-		const openaiKey = (generalData.ai_key as string | null)?.trim() ?? '';
-		const openaiModel = (generalData.ai_model as string | null)?.trim() ?? '';
+		const apiUrl = (generalData.ai_url as string | null)?.trim() ?? '';
+		const apiKey = (generalData.ai_key as string | null)?.trim() ?? '';
+		const model = (generalData.ai_model as string | null)?.trim() ?? '';
 		const terminalPrompt = (generalData.ai_terminal_prompt as string | null)?.trim() ?? '';
 		const terminalReasoning = (generalData.ai_terminal_reasoning as string | null) ?? 'none';
 
-		if (!openaiUrl || !openaiKey || !openaiModel) {
+		if (!apiUrl || !apiKey || !model) {
 			return json({
-				response: 'Error: AI Terminal is not configured. Please set the OpenAI URL, Key, and Model in the admin settings.'
+				response: 'Error: AI Terminal is not configured. Please set the AI URL, Key, and Model in the admin settings.'
 			});
 		}
 
-		const openai = new OpenAI({ baseURL: normalizeBaseUrl(openaiUrl, '/chat/completions'), apiKey: openaiKey });
-
-		const embeddingUrl = (generalData.embedding_url as string | null)?.trim() ?? '';
-		const embeddingKey = (generalData.embedding_key as string | null)?.trim() ?? '';
-		const embeddingModel = (generalData.embedding_model as string | null)?.trim() ?? '';
-		const embeddingClient =
-			embeddingUrl && embeddingKey && embeddingModel ? new OpenAI({ baseURL: normalizeBaseUrl(embeddingUrl, '/embeddings'), apiKey: embeddingKey }) : null;
-
-		const retrieval = createRetrieval({ client: embeddingClient, model: embeddingModel }, { client: openai, model: openaiModel });
+		const client = new OpenAI({ baseURL: normalizeBaseUrl(apiUrl), apiKey, timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 });
 
 		const section = await fetchSection();
-		const tools = buildTerminalTools(section);
+		const webConfig = webConfigFrom(generalData);
+		const siteTools = buildTerminalTools(section);
+		const tools = [...siteTools, ...buildWebTools(webConfig)];
 
 		const today = new Date().toISOString().slice(0, 10);
-		const dataNote = buildDataNote(tools);
-		const systemContent = [terminalPrompt.replaceAll('{{today}}', today), dataNote].filter(Boolean).join('\n\n');
+		const systemContent = [terminalPrompt.replaceAll('{{today}}', today), buildDataNote(siteTools)].filter(Boolean).join('\n\n');
 
-		let conversationMessages: OpenAI.Chat.ChatCompletionMessageParam[] = messages;
-		if (messages.length > MAX_RECENT) {
-			const summary = await summarizeOlder(openai, openaiModel, messages.slice(0, -MAX_RECENT));
-			conversationMessages = [
-				...(summary
-					? [
-							{ role: 'user' as const, content: `[Previous conversation summary: ${summary}]` },
-							{ role: 'assistant' as const, content: 'Understood.' }
-						]
-					: []),
-				...messages.slice(-MAX_RECENT)
-			];
-		}
+		const conversation = (messages as OpenAI.Chat.ChatCompletionMessageParam[]).filter((m) => m.role !== 'system').slice(-MAX_RECENT);
 
-		conversationMessages = conversationMessages.filter((m) => m.role !== 'system');
-
-		const loop: OpenAI.Chat.ChatCompletionMessageParam[] = [
-			...(systemContent ? [{ role: 'system' as const, content: systemContent }] : []),
-			...conversationMessages
-		];
-
-		const completionParams = buildCompletionParams(openaiModel, terminalReasoning);
-		const toolResultCache = new Map<string, string>();
-
-		let fullResponse = '';
-		for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-			const offerTools = tools.length > 0 && i < MAX_TOOL_ITERATIONS - 1;
-
-			const completion = await openai.chat.completions.create({
-				...completionParams,
-				...(offerTools ? { tools, tool_choice: 'auto' as const } : {}),
-				messages: loop
-			} as any);
-
-			const message = completion.choices?.[0]?.message;
-			if (!message) break;
-
-			if (typeof message.content === 'string' && message.content.trim()) fullResponse = message.content;
-
-			if (!message.tool_calls || message.tool_calls.length === 0) break;
-
-			loop.push(message);
-
-			for (const call of message.tool_calls as any[]) {
-				const cacheKey = `${call.function.name}:${call.function.arguments ?? ''}`;
-				if (!toolResultCache.has(cacheKey)) {
-					let args: Record<string, any> = {};
-					try {
-						args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-					} catch {
-						args = {};
-					}
-					toolResultCache.set(cacheKey, await runTerminalTool(call.function.name, args, section, retrieval));
-				}
-				loop.push({ role: 'tool', tool_call_id: call.id, content: toolResultCache.get(cacheKey) as string });
-			}
-		}
+		const fullResponse = await callChatCompletions(
+			client,
+			buildCompletionParams(model, terminalReasoning),
+			[...(systemContent ? [{ role: 'system' as const, content: systemContent }] : []), ...conversation],
+			tools,
+			(name, args) => (isWebTool(name) ? runWebTool(name, args, webConfig) : runTerminalTool(name, args, section))
+		);
 
 		if (loggerProvider) {
 			const logger = loggerProvider.getLogger('terminal');
@@ -175,7 +155,14 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		return json({ response: fullResponse });
 	} catch (error: any) {
-		console.error('Terminal API Error:', error);
-		return json({ response: `Error: ${error.message}` });
+		const status = error instanceof OpenAI.APIError ? error.status : null;
+		console.error(`Terminal API Error${status ? ` (${status})` : ''}:`, error);
+		const notice =
+			status === 401 || status === 403
+				? 'The AI API key was rejected. Please check the admin settings.'
+				: status === 429
+					? 'The AI service is rate limited right now. Please try again in a moment.'
+					: 'Something went wrong while contacting the AI service.';
+		return json({ response: `Error: ${notice}` });
 	}
 };

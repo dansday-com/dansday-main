@@ -36,7 +36,7 @@ A portfolio site that looks like a terminal, and the Laravel panel that runs it.
 
 - **Articles and projects** - categories, per-item visibility and SEO metadata, sorted server side.
 - **About page** - built from skills, experience, services and testimonials, each reorderable.
-- **Terminal** - answers questions from your own content using semantic search.
+- **Terminal** - answers questions from your own content through tool calls, and from the live web when search and fetch are configured.
 - **Contribute** - live GitHub stats: commits, PRs, reviews, issues and a contribution heatmap per year.
 - **Sitemap and `robots.txt`** - generated from live content.
 
@@ -52,7 +52,6 @@ A portfolio site that looks like a terminal, and the Laravel panel that runs it.
 - **47 tools over `POST /mcp`** - articles, projects, categories, the about page and site sections, all readable and writable by an AI client. Bodies are HTML, and `created_at` is writable so posts can be backdated.
 - **Per-client tokens** - minted in the panel or with `php artisan mcp:token`. Shown once, stored as a SHA-256 hash, revoked one at a time.
 - **File uploads** - `POST /mcp/uploads` takes JPG and PNG to 8MB for site images, PDF, DOC, DOCX, PPT and PPTX to 100MB, and MP4 or MOV to 200MB. The type comes from sniffing the file, never its name. LinkedIn media is stored outside the web root.
-- **Embeddings stay in sync** - every write updates the index, so AI recall never goes stale.
 
 ### LinkedIn
 
@@ -65,8 +64,8 @@ A portfolio site that looks like a terminal, and the Laravel panel that runs it.
 ### AI
 
 - **Article and project generation** - against any OpenAI-compatible endpoint, with tool calling so the model searches your existing work before writing.
-- **Hybrid retrieval** - MySQL full-text (BM25) fused with embedding similarity via reciprocal rank fusion.
-- **Embedding worker** - keeps the index current in the background.
+- **Tool-based recall** - the model queries MySQL full-text search directly, so there is no index to build or keep in sync.
+- **Web search and fetch** - optional `search_web` and `fetch_web_page` tools against a gateway's `/search` and `/web/fetch` routes, offered only when their URL, key and model are all set.
 
 ---
 
@@ -83,7 +82,7 @@ Versions match `composer.json` and `package.json` at release.
 | Database           | [MySQL](https://www.mysql.com/), shared by both apps                                             |
 | Cache / sessions   | [Redis](https://redis.io/)                                                                       |
 | Object storage     | S3-compatible ([Cloudflare R2](https://developers.cloudflare.com/r2/)), local disk for dev       |
-| AI providers       | Any OpenAI-compatible chat and embeddings endpoint                                               |
+| AI providers       | Any OpenAI-compatible chat endpoint, plus optional web search and fetch routes                   |
 | AI tooling         | [Model Context Protocol](https://modelcontextprotocol.io)                                        |
 | Observability      | [OpenTelemetry](https://opentelemetry.io/)                                                       |
 | Infrastructure     | [Docker](https://www.docker.com/), [Docker Compose](https://docs.docker.com/compose/)             |
@@ -106,4 +105,4 @@ Found a vulnerability? Email **security@dansday.com** instead of opening an issu
 
 ---
 
-MIT · Author: Akbar Yudhanto · Version: 2.5.0
+MIT · Author: Akbar Yudhanto · Version: 2.6.0

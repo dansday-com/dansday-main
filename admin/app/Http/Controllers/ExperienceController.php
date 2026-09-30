@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use App\Services\EmbeddingService;
 
 class ExperienceController extends Controller
 {
@@ -60,7 +59,6 @@ class ExperienceController extends Controller
                 $experience->description = $data["description"];
                 $experience->order = $order;
                 $experience->save();
-                EmbeddingService::embedRow('experience', $experience->id);
                 return redirect('/admin/experiences') -> with('ok-add', '');
             }
         } else {
@@ -111,7 +109,6 @@ class ExperienceController extends Controller
                     "order"=>$data['order'],
                 );
                 Experience::where("id", $id)->update($data_new);
-                EmbeddingService::embedRow('experience', $id);
                 return redirect('/admin/experiences') -> with('ok-update', '');
             }
         } else {
@@ -161,7 +158,6 @@ class ExperienceController extends Controller
         if(!empty($validate)){
             $type = $validate[0]['type'];
             Experience::where("id", $validate[0]['id'])->delete();
-            EmbeddingService::deleteRow('experience', $validate[0]['id']);
             $experiences = DB::table('experience')
                 ->where('type', '=', $type)
                 ->orderBy('order', 'asc')

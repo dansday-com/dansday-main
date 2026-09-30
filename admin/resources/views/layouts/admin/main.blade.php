@@ -40,7 +40,6 @@
 <script>
     window.summernoteUploadUrl = "{{ route('admin.summernote.upload') }}";
     window.adminAiGenerateUrl = "{{ route('admin.ai.generate') }}";
-    window.adminEmbedAllUrl = "{{ route('admin.embed.all') }}";
 </script>
 <script src="{{ asset('assets/js/jquery.min.js') }}" defer></script>
 <script src="{{ asset('assets/bootstrap/js/bootstrap.bundle.min.js') }}" defer></script>
