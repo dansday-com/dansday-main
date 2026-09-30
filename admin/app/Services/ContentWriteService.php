@@ -43,7 +43,6 @@ class ContentWriteService
         }
 
         $article->save();
-        EmbeddingService::embedRow('articles', $article->id);
 
         return self::showArticle($article->id);
     }
@@ -89,7 +88,6 @@ class ContentWriteService
         }
 
         Article::where('id', $id)->update($update);
-        EmbeddingService::embedRow('articles', $id);
 
         return self::showArticle($id);
     }
@@ -105,7 +103,6 @@ class ContentWriteService
         self::deleteUpload($article->image);
 
         Article::where('id', $id)->delete();
-        EmbeddingService::deleteRow('articles', $id);
 
         return ['deleted' => true, 'id' => $id, 'title' => $title];
     }
@@ -154,7 +151,6 @@ class ContentWriteService
         }
 
         $project->save();
-        EmbeddingService::embedRow('projects', $project->id);
 
         return self::showProject($project->id);
     }
@@ -200,7 +196,6 @@ class ContentWriteService
         }
 
         Project::where('id', $id)->update($update);
-        EmbeddingService::embedRow('projects', $id);
 
         return self::showProject($id);
     }
@@ -216,7 +211,6 @@ class ContentWriteService
         self::deleteUpload($project->image);
 
         Project::where('id', $id)->delete();
-        EmbeddingService::deleteRow('projects', $id);
 
         return ['deleted' => true, 'id' => $id, 'title' => $title];
     }
@@ -340,8 +334,6 @@ class ContentWriteService
         $skill->order = self::nextOrder('skill', ['type' => $input['type']]);
         $skill->save();
 
-        EmbeddingService::embedRow('skill', $skill->id);
-
         return self::showAbout('skill', $skill->id);
     }
 
@@ -367,7 +359,6 @@ class ContentWriteService
         }
 
         Skill::where('id', $id)->update($update);
-        EmbeddingService::embedRow('skill', $id);
 
         return self::showAbout('skill', $id);
     }
@@ -388,8 +379,6 @@ class ContentWriteService
         $experience->description = $input['description'];
         $experience->order       = self::nextOrder('experience', ['type' => $input['type']]);
         $experience->save();
-
-        EmbeddingService::embedRow('experience', $experience->id);
 
         return self::showAbout('experience', $experience->id);
     }
@@ -419,7 +408,6 @@ class ContentWriteService
         }
 
         Experience::where('id', $id)->update($update);
-        EmbeddingService::embedRow('experience', $id);
 
         return self::showAbout('experience', $id);
     }
@@ -438,8 +426,6 @@ class ContentWriteService
         $service->info        = $input['info'];
         $service->order       = self::nextOrder('service');
         $service->save();
-
-        EmbeddingService::embedRow('service', $service->id);
 
         return self::showAbout('service', $service->id);
     }
@@ -468,7 +454,6 @@ class ContentWriteService
         }
 
         Service::where('id', $id)->update($update);
-        EmbeddingService::embedRow('service', $id);
 
         return self::showAbout('service', $id);
     }
@@ -487,8 +472,6 @@ class ContentWriteService
         $testimonial->{self::testimonialBodyColumn()} = $input['text'];
         $testimonial->order   = self::nextOrder('testimonial');
         $testimonial->save();
-
-        EmbeddingService::embedRow('testimonial', $testimonial->id);
 
         return self::showAbout('testimonial', $testimonial->id);
     }
@@ -518,7 +501,6 @@ class ContentWriteService
         }
 
         Testimonial::where('id', $id)->update($update);
-        EmbeddingService::embedRow('testimonial', $id);
 
         return self::showAbout('testimonial', $id);
     }
@@ -533,7 +515,6 @@ class ContentWriteService
         }
 
         DB::table($table)->where('id', $id)->delete();
-        EmbeddingService::deleteRow($kind, $id);
 
         $scope = property_exists($row, 'type') ? ['type' => $row->type] : [];
         self::resequence($table, $scope);

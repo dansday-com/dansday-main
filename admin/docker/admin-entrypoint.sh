@@ -13,7 +13,7 @@ if [ "$role" != "scheduler" ]; then
 fi
 
 if [ "$role" = "scheduler" ]; then
-	exec /bin/sh -c 'exec php artisan embeddings:work --sleep=${EMBEDDING_WORKER_SLEEP:-1} --idle=${EMBEDDING_WORKER_IDLE:-5} --prune-seconds=${EMBEDDING_WORKER_PRUNE_SECONDS:-300}'
+	exec /bin/sh -c 'exec php artisan linkedin:work --idle=${LINKEDIN_WORKER_IDLE:-60} --max=${LINKEDIN_WORKER_MAX:-5}'
 fi
 
 if [ "$role" = "web" ]; then

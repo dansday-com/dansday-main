@@ -46,7 +46,7 @@ The admin panel seeds itself on first visit when no settings row exists, so a fr
 | `main/src/lib/components`  | Shared Svelte components and layout                                       |
 | `main/src/lib/server`      | Server-only data access — MySQL, Redis, query helpers                     |
 | `admin/app/Http`           | Admin controllers and middleware                                          |
-| `admin/app/Services`       | AI generation, embeddings, similar content, shared content writes, LinkedIn |
+| `admin/app/Services`       | AI generation, web tools, shared content writes, LinkedIn                 |
 | `admin/app/Mcp`            | MCP tool definitions and the registry behind `POST /mcp`                  |
 | `admin/app/Models`         | Eloquent models; note several map to singular table names (`skill`, …)    |
 | `admin/app/Support`        | Standalone helpers with no framework ties — `SafeUrlFetcher`              |
@@ -65,7 +65,7 @@ Both apps read the same database, so a migration in `admin` can break `main`. Ch
 3. Match the surrounding code — same naming, same idiom, same structure. The existing code is light on comments; make the code and the UI copy explain themselves.
 4. Touching panel-facing strings? Add the key to `admin/resources/lang/en`, and delete the keys for any feature you remove.
 5. Changing the schema? Add a migration rather than editing an existing one, and check whether `main` reads the affected columns.
-6. Adding content fields? Update **both** write paths — the HTTP controller and `ContentWriteService` (used by MCP) — and keep `EmbeddingService` in sync so AI recall does not go stale.
+6. Adding content fields? Update **both** write paths — the HTTP controller and `ContentWriteService` (used by MCP) — and the full-text index if the field should be searchable by the AI tools.
 7. Format and verify before pushing:
 
 ```bash

@@ -171,61 +171,6 @@ $(document).ready(function () {
             });
     });
 
-    $(document).on('click', '#embed-all-btn', function () {
-        var $btn = $(this);
-        var $status = $('#embed-all-status');
-        var originalHtml = $btn.html();
-
-        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
-        $status.text('');
-
-        fetch(window.adminEmbedAllUrl || '/admin/embed-all', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-            .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-            .then(function (data) {
-                if (data.started) {
-                    $status.removeClass('text-danger').addClass('text-info').text('Embedding ' + data.total + ' rows...');
-                    pollEmbedStatus($btn, $status, originalHtml, data.total);
-                }
-            })
-            .catch(function () {
-                $status.removeClass('text-success').addClass('text-danger').text('Request failed.');
-                $btn.prop('disabled', false).html(originalHtml);
-            });
-    });
-
-    function pollEmbedStatus($btn, $status, originalHtml, total) {
-        var poll = setInterval(function () {
-            fetch('/admin/embed-status', {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    $status.text('Embedded ' + data.embedded + ' / ' + data.total + ' rows...');
-                    if (data.embedded >= total) {
-                        clearInterval(poll);
-                        $status.removeClass('text-info').addClass('text-success').text('Done! ' + data.embedded + ' embedded.');
-                        $btn.prop('disabled', false).html(originalHtml);
-                    }
-                })
-                .catch(function () {
-                    clearInterval(poll);
-                    $status.removeClass('text-info').addClass('text-success').text('Embedding completed in background.');
-                    $btn.prop('disabled', false).html(originalHtml);
-                });
-        }, 3000);
-    }
-
     /**
      * Copy the value of another field to the clipboard.
      *

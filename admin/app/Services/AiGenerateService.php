@@ -5,10 +5,15 @@ namespace App\Services;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Sbsaga\Toon\Facades\Toon;
 
 class AiGenerateService
 {
+    private const MAX_TOOL_ITERATIONS = 5;
+    private const REQUEST_TIMEOUT = 180;
+    private const MAX_CONTENT_ROWS = 12;
+    private const MAX_ACTIVITY_ROWS = 20;
+    private const MAX_DESCRIPTION_CHARS = 1400;
+
     private static function toolDefinitions(): array
     {
         return [
@@ -99,7 +104,6 @@ class AiGenerateService
             $endpoint .= '/chat/completions';
         }
 
-        $embeddingClient = self::buildEmbeddingClient($general);
         $section = self::getEnabledSections();
 
         try {
@@ -111,19 +115,23 @@ class AiGenerateService
             }
             $messages[] = ['role' => 'user', 'content' => $prompt];
 
-            $tools = self::toolDefinitions();
+            $webConfig = WebToolsService::config($general);
+            $tools = [...self::toolDefinitions(), ...WebToolsService::toolDefinitions($webConfig)];
             $baseParams = self::buildModelParams($model, $reasoning);
+            $toolResultCache = [];
+            $lastContent = '';
 
-            for ($i = 0; $i < 10; $i++) {
-                $body = array_filter([
+            for ($i = 0; $i < self::MAX_TOOL_ITERATIONS; $i++) {
+                $offerTools = $i < self::MAX_TOOL_ITERATIONS - 1;
+
+                $body = [
                     'model' => $model,
                     'messages' => $messages,
-                    'tools' => $tools,
-                    'tool_choice' => $i === 0 ? 'required' : 'auto',
+                    ...($offerTools ? ['tools' => $tools, 'tool_choice' => 'auto'] : []),
                     ...$baseParams,
-                ], fn($v) => $v !== null);
+                ];
 
-                $res = Http::connectTimeout(10)->timeout(600)
+                $res = Http::connectTimeout(10)->timeout(self::REQUEST_TIMEOUT)
                     ->withHeaders([
                         'Accept' => 'application/json',
                         'Content-Type' => 'application/json',
@@ -145,49 +153,40 @@ class AiGenerateService
                 $message = data_get($json, 'choices.0.message');
                 if (!$message) break;
 
+                $content = trim((string) ($message['content'] ?? ''));
+                if ($content !== '') {
+                    $lastContent = $content;
+                }
+
                 $toolCalls = $message['tool_calls'] ?? [];
                 if (empty($toolCalls)) {
-                    $text = trim((string) ($message['content'] ?? ''));
-                    if ($text === '') {
-                        $text = trim((string) data_get($json, 'choices.0.text', ''));
+                    if ($content === '') {
+                        $content = trim((string) data_get($json, 'choices.0.text', '')) ?: $lastContent;
                     }
-                    return ['text' => $text];
+                    return ['text' => $content];
                 }
 
                 $messages[] = $message;
 
                 foreach ($toolCalls as $tc) {
                     $toolName = $tc['function']['name'] ?? '';
-                    $toolArgs = json_decode($tc['function']['arguments'] ?? '{}', true) ?: [];
-                    $result = self::executeTool($toolName, $toolArgs, $section, $embeddingClient);
+                    $rawArgs = $tc['function']['arguments'] ?? '';
+                    $cacheKey = $toolName . ':' . $rawArgs;
+                    if (!array_key_exists($cacheKey, $toolResultCache)) {
+                        $toolArgs = json_decode($rawArgs ?: '{}', true) ?: [];
+                        $toolResultCache[$cacheKey] = WebToolsService::isWebTool($toolName)
+                            ? WebToolsService::run($toolName, $toolArgs, $webConfig)
+                            : self::executeTool($toolName, $toolArgs, $section);
+                    }
                     $messages[] = [
                         'role' => 'tool',
                         'tool_call_id' => $tc['id'],
-                        'content' => $result,
+                        'content' => $toolResultCache[$cacheKey],
                     ];
                 }
             }
 
-            $body = array_filter([
-                'model' => $model,
-                'messages' => $messages,
-                ...$baseParams,
-            ], fn($v) => $v !== null);
-
-            $res = Http::connectTimeout(10)->timeout(600)
-                ->withHeaders([
-                    'Accept' => 'application/json',
-                    'Content-Type' => 'application/json',
-                ])
-                ->withToken($key)
-                ->post($endpoint, $body);
-
-            if (!$res->successful()) {
-                return ['error' => __('content.ai_unavailable')];
-            }
-
-            $text = trim((string) data_get($res->json(), 'choices.0.message.content', ''));
-            return ['text' => $text];
+            return ['text' => $lastContent];
         } catch (\Throwable $e) {
             Log::error('AI generate failed', [
                 'model' => $model,
@@ -198,11 +197,11 @@ class AiGenerateService
         }
     }
 
-    private static function executeTool(string $name, array $args, array $section, ?array $embeddingClient): string
+    private static function executeTool(string $name, array $args, array $section): string
     {
         switch ($name) {
             case 'search':
-                return self::toolSearch($args, $section, $embeddingClient);
+                return self::toolSearch($args, $section);
             case 'count':
                 return self::toolCount($args, $section);
             default:
@@ -271,113 +270,7 @@ class AiGenerateService
         return preg_replace('/\s+/', ' ', trim($text));
     }
 
-    private static function cosineSimilarity(array $a, array $b): float
-    {
-        $dot = 0;
-        $normA = 0;
-        $normB = 0;
-        $len = min(count($a), count($b));
-        for ($i = 0; $i < $len; $i++) {
-            $dot += $a[$i] * $b[$i];
-            $normA += $a[$i] * $a[$i];
-            $normB += $b[$i] * $b[$i];
-        }
-        $denom = sqrt($normA) * sqrt($normB);
-        return $denom === 0.0 ? 0.0 : $dot / $denom;
-    }
-
-    private static function embedQuery(?array $embeddingClient, string $text): ?array
-    {
-        if (!$embeddingClient) return null;
-
-        $endpoint = rtrim($embeddingClient['url'], '/');
-        if (!str_ends_with($endpoint, '/embeddings')) {
-            $endpoint .= '/embeddings';
-        }
-
-        $res = Http::connectTimeout(5)->timeout(15)
-            ->withHeaders(['Accept' => 'application/json', 'Content-Type' => 'application/json'])
-            ->withToken($embeddingClient['key'])
-            ->post($endpoint, ['model' => $embeddingClient['model'], 'input' => $text]);
-
-        if (!$res->successful()) return null;
-
-        $vector = data_get($res->json(), 'data.0.embedding');
-        return is_array($vector) ? $vector : null;
-    }
-
-    private static function semanticSearch(?array $embeddingClient, string $text): array
-    {
-        if (!$embeddingClient) return [];
-
-        try {
-            $queryVector = self::embedQuery($embeddingClient, $text);
-            if (!$queryVector) return [];
-
-            $scored = [];
-            DB::table('embeddings')
-                ->select('table_name', 'row_id', 'vector')
-                ->orderBy('id')
-                ->chunk(100, function ($rows) use ($queryVector, &$scored) {
-                    foreach ($rows as $emb) {
-                        $vector = json_decode($emb->vector, true);
-                        if (!$vector) continue;
-                        $similarity = self::cosineSimilarity($queryVector, $vector);
-                        if ($similarity >= 0.3) {
-                            $scored[] = [
-                                'table_name' => $emb->table_name,
-                                'row_id' => $emb->row_id,
-                                'similarity' => $similarity,
-                            ];
-                        }
-                    }
-                });
-
-            usort($scored, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
-            return array_slice($scored, 0, 20);
-        } catch (\Throwable $e) {
-            Log::warning('Semantic search failed: ' . $e->getMessage());
-            return [];
-        }
-    }
-
-    private static function rrfSort(array $bm25Rows, array $semanticScoreMap, string $tableName, ?string $bm25Key = null): array
-    {
-        if (empty($bm25Rows)) return $bm25Rows;
-        $K = 60;
-        $sorted = [];
-        foreach ($bm25Rows as $rank => $row) {
-            $bm25Score = ($bm25Key && isset($row[$bm25Key])) ? 1 / ($K + $rank + 1) : 0;
-            $semScore = $semanticScoreMap["{$tableName}:{$row['id']}"] ?? 0;
-            $row['_rrfScore'] = $bm25Score + 1.5 * $semScore;
-            $sorted[] = $row;
-        }
-        usort($sorted, fn($a, $b) => ($b['_rrfScore'] ?? 0) <=> ($a['_rrfScore'] ?? 0));
-        return $sorted;
-    }
-
-    private static function mergeSemanticRows(array $existing, array $semanticHits, string $tableName, string $selectSql): array
-    {
-        $sIds = [];
-        foreach ($semanticHits as $h) {
-            if ($h['table_name'] === $tableName) {
-                $sIds[] = $h['row_id'];
-            }
-        }
-        if (empty($sIds)) return $existing;
-
-        $existingIds = array_column($existing, 'id');
-        $existingIdSet = array_flip($existingIds);
-        $missingIds = array_filter($sIds, fn($id) => !isset($existingIdSet[$id]));
-        if (empty($missingIds)) return $existing;
-
-        $placeholders = implode(',', array_fill(0, count($missingIds), '?'));
-        $extra = DB::select("{$selectSql} WHERE id IN ({$placeholders})", array_values($missingIds));
-        $extra = array_map(fn($r) => (array) $r, $extra);
-        return array_merge($existing, $extra);
-    }
-
-    private static function toolSearch(array $args, array $section, ?array $embeddingClient): string
+    private static function toolSearch(array $args, array $section): string
     {
         $rawKeyword = trim($args['keyword'] ?? '');
         $hasKeyword = $rawKeyword !== '';
@@ -406,16 +299,6 @@ class AiGenerateService
         $wantProjects = $projectsOn && (!$hasDateFilter || $t === 'project');
         $wantGh = $contributeOn && ($wantAll || in_array($t, $ghTypes));
 
-        $semanticHits = [];
-        $semanticScoreMap = [];
-        if ($hasKeyword && $embeddingClient) {
-            $semanticHits = self::semanticSearch($embeddingClient, $rawKeyword);
-            $K = 60;
-            foreach ($semanticHits as $rank => $h) {
-                $semanticScoreMap["{$h['table_name']}:{$h['row_id']}"] = 1 / ($K + $rank + 1);
-            }
-        }
-
         $result = [];
 
         if ($articlesOn && ($wantAll || $t === 'article')) {
@@ -431,20 +314,15 @@ class AiGenerateService
                 }
                 $rows = DB::select(
                     "SELECT id, title, description, created_at{$scoreCol} FROM articles WHERE enable = 1{$ftFilter}{$dateClause}" .
-                    ($hasKeyword ? ' ORDER BY relevance DESC' : ' ORDER BY created_at DESC'),
+                    ($hasKeyword ? ' ORDER BY relevance DESC' : ' ORDER BY created_at DESC') . ' LIMIT ' . self::MAX_CONTENT_ROWS,
                     [...$ftParams, ...$dp]
                 );
                 $rows = array_map(fn($r) => (array) $r, $rows);
 
-                if ($hasKeyword) {
-                    $rows = self::mergeSemanticRows($rows, $semanticHits, 'articles', 'SELECT id, title, description, created_at FROM articles');
-                    $rows = self::rrfSort($rows, $semanticScoreMap, 'articles', 'relevance');
-                }
-
                 if (!empty($rows)) {
                     $result['articles'] = array_map(fn($r) => [
                         'title' => $r['title'],
-                        'description' => self::stripHtml($r['description']),
+                        'description' => mb_substr(self::stripHtml($r['description']), 0, self::MAX_DESCRIPTION_CHARS),
                         'created_at' => $r['created_at'],
                     ], $rows);
                 }
@@ -466,15 +344,10 @@ class AiGenerateService
                 }
                 $rows = DB::select(
                     "SELECT id, title, description, category_id, created_at{$scoreCol} FROM projects WHERE enable = 1{$ftFilter}{$dateClause}" .
-                    ($hasKeyword ? ' ORDER BY relevance DESC' : ' ORDER BY created_at DESC'),
+                    ($hasKeyword ? ' ORDER BY relevance DESC' : ' ORDER BY created_at DESC') . ' LIMIT ' . self::MAX_CONTENT_ROWS,
                     [...$ftParams, ...$dp]
                 );
                 $rows = array_map(fn($r) => (array) $r, $rows);
-
-                if ($hasKeyword) {
-                    $rows = self::mergeSemanticRows($rows, $semanticHits, 'projects', 'SELECT id, title, description, category_id, created_at FROM projects');
-                    $rows = self::rrfSort($rows, $semanticScoreMap, 'projects', 'relevance');
-                }
 
                 $catMap = [];
                 try {
@@ -487,7 +360,7 @@ class AiGenerateService
                 if (!empty($rows)) {
                     $result['projects'] = array_map(fn($r) => [
                         'title' => $r['title'],
-                        'description' => self::stripHtml($r['description']),
+                        'description' => mb_substr(self::stripHtml($r['description']), 0, self::MAX_DESCRIPTION_CHARS),
                         'category' => $catMap[$r['category_id']] ?? null,
                         'created_at' => $r['created_at'],
                     ], $rows);
@@ -512,48 +385,10 @@ class AiGenerateService
                     $typeParams = [$t];
                 }
                 $rows = DB::select(
-                    "SELECT id, repo, title, type, additions, deletions, created_at FROM github_activity WHERE 1=1{$typeFilter}{$ftFilter}{$dateClause} ORDER BY created_at DESC",
+                    "SELECT id, repo, title, type, additions, deletions, created_at FROM github_activity WHERE 1=1{$typeFilter}{$ftFilter}{$dateClause} ORDER BY created_at DESC LIMIT " . self::MAX_ACTIVITY_ROWS,
                     [...$typeParams, ...$ftParams, ...$dp]
                 );
                 $rows = array_map(fn($r) => (array) $r, $rows);
-
-                if ($hasKeyword) {
-                    $bm25IdSet = array_flip(array_column($rows, 'id'));
-                    $bm25RankMap = [];
-                    foreach ($rows as $rank => $r) {
-                        $bm25RankMap[$r['id']] = $rank;
-                    }
-
-                    $sIds = [];
-                    foreach ($semanticHits as $h) {
-                        if ($h['table_name'] === 'github_activity') {
-                            $sIds[] = $h['row_id'];
-                        }
-                    }
-                    if (!empty($sIds)) {
-                        $missingIds = array_filter($sIds, fn($id) => !isset($bm25IdSet[$id]));
-                        if (!empty($missingIds)) {
-                            $placeholders = implode(',', array_fill(0, count($missingIds), '?'));
-                            $extra = DB::select(
-                                "SELECT id, repo, title, type, additions, deletions, created_at FROM github_activity WHERE id IN ({$placeholders})",
-                                array_values($missingIds)
-                            );
-                            $rows = array_merge($rows, array_map(fn($r) => (array) $r, $extra));
-                        }
-                    }
-
-                    $K = 60;
-                    $sorted = [];
-                    foreach ($rows as $r) {
-                        $bm25Rank = $bm25RankMap[$r['id']] ?? null;
-                        $bm25Score = $bm25Rank !== null ? 1 / ($K + $bm25Rank + 1) : 0;
-                        $semScore = $semanticScoreMap["github_activity:{$r['id']}"] ?? 0;
-                        $r['_rrfScore'] = $bm25Score + 1.5 * $semScore;
-                        $sorted[] = $r;
-                    }
-                    usort($sorted, fn($a, $b) => ($b['_rrfScore'] ?? 0) <=> ($a['_rrfScore'] ?? 0));
-                    $rows = $sorted;
-                }
 
                 if (!empty($rows)) {
                     $result['activity'] = [
@@ -576,10 +411,6 @@ class AiGenerateService
             try {
                 $rows = DB::select('SELECT id, title, type FROM skill ORDER BY `order` ASC');
                 $rows = array_map(fn($r) => (array) $r, $rows);
-                if ($hasKeyword) {
-                    $rows = self::mergeSemanticRows($rows, $semanticHits, 'skill', 'SELECT id, title, type FROM skill');
-                    $rows = self::rrfSort($rows, $semanticScoreMap, 'skill');
-                }
                 if (!empty($rows)) {
                     $result['skills'] = array_map(fn($r) => ['title' => $r['title'], 'type' => $r['type']], $rows);
                 }
@@ -590,10 +421,6 @@ class AiGenerateService
             try {
                 $rows = DB::select('SELECT id, title, type, period, description FROM experience ORDER BY `order` ASC');
                 $rows = array_map(fn($r) => (array) $r, $rows);
-                if ($hasKeyword) {
-                    $rows = self::mergeSemanticRows($rows, $semanticHits, 'experience', 'SELECT id, title, type, period, description FROM experience');
-                    $rows = self::rrfSort($rows, $semanticScoreMap, 'experience');
-                }
                 if (!empty($rows)) {
                     $result['experiences'] = array_map(fn($r) => [
                         'title' => $r['title'],
@@ -609,10 +436,6 @@ class AiGenerateService
             try {
                 $rows = DB::select('SELECT id, title, description FROM service ORDER BY `order` ASC');
                 $rows = array_map(fn($r) => (array) $r, $rows);
-                if ($hasKeyword) {
-                    $rows = self::mergeSemanticRows($rows, $semanticHits, 'service', 'SELECT id, title, description FROM service');
-                    $rows = self::rrfSort($rows, $semanticScoreMap, 'service');
-                }
                 if (!empty($rows)) {
                     $result['services'] = array_map(fn($r) => ['title' => $r['title'], 'description' => self::stripHtml($r['description'])], $rows);
                 }
@@ -623,10 +446,6 @@ class AiGenerateService
             try {
                 $rows = DB::select('SELECT id, name, company, description FROM testimonial ORDER BY `order` ASC');
                 $rows = array_map(fn($r) => (array) $r, $rows);
-                if ($hasKeyword) {
-                    $rows = self::mergeSemanticRows($rows, $semanticHits, 'testimonial', 'SELECT id, name, company, description FROM testimonial');
-                    $rows = self::rrfSort($rows, $semanticScoreMap, 'testimonial');
-                }
                 if (!empty($rows)) {
                     $result['testimonials'] = array_map(fn($r) => ['name' => $r['name'], 'company' => $r['company'], 'description' => self::stripHtml($r['description'])], $rows);
                 }
@@ -654,7 +473,7 @@ class AiGenerateService
             $result['hint'] = self::emptyResultHint($args, 'search');
         }
 
-        return Toon::encode($result);
+        return json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     private static function toolCount(array $args, array $section): string
@@ -764,16 +583,7 @@ class AiGenerateService
             $result['hint'] = self::emptyResultHint($args, 'count');
         }
 
-        return Toon::encode($result);
-    }
-
-    private static function buildEmbeddingClient(object $general): ?array
-    {
-        $url = trim($general->embedding_url ?? '');
-        $key = trim($general->embedding_key ?? '');
-        $model = trim($general->embedding_model ?? '');
-        if (!$url || !$key || !$model) return null;
-        return ['url' => $url, 'key' => $key, 'model' => $model];
+        return json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     private static function buildModelParams(string $model, string $reasoning): array
@@ -785,7 +595,7 @@ class AiGenerateService
         $params = [];
 
         if (!$isGemini) {
-            $params['frequency_penalty'] = 1.2;
+            $params['frequency_penalty'] = 0.3;
         }
 
         if ($useThinking) {

@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use App\Services\EmbeddingService;
 
 class ServiceController extends Controller
 {
@@ -50,7 +49,6 @@ class ServiceController extends Controller
                 $service->order = $data['order'];
                 $service->info = $data['info'];
                 $service->save();
-                EmbeddingService::embedRow('service', $service->id);
                 return redirect('/admin/services') -> with('ok-add', '');
             }
         } else {
@@ -99,7 +97,6 @@ class ServiceController extends Controller
                     "info"=>$data['info'],
                 );
                 Service::where("id", $id)->update($data_new);
-                EmbeddingService::embedRow('service', $id);
                 return redirect('/admin/services') -> with('ok-update', '');
             }
         } else {
@@ -146,7 +143,6 @@ class ServiceController extends Controller
        $validate = Service::where("id", $id)->get();
        if(!empty($validate)){
             Service::where("id", $validate[0]['id'])->delete();
-            EmbeddingService::deleteRow('service', $validate[0]['id']);
             $services = DB::table('service')
                ->orderBy('order', 'asc')
                ->get() ;

@@ -9,7 +9,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use App\Services\EmbeddingService;
 use Illuminate\Support\Str;
 
 class ArticleController extends Controller
@@ -84,7 +83,6 @@ class ArticleController extends Controller
         $post->image = $route_image;
         $post->category_id = $data['category'];
         $post->save();
-        EmbeddingService::embedRow('articles', $post->id);
         return redirect('/admin/articles/posts')->with('ok-add', '');
     }
 
@@ -176,7 +174,6 @@ class ArticleController extends Controller
             'image'       => $route_image,
             'category_id' => $data['category'],
         ]);
-        EmbeddingService::embedRow('articles', $id);
         return redirect('/admin/articles/posts')->with('ok-update', '');
     }
 
@@ -192,7 +189,6 @@ class ArticleController extends Controller
                 }
             }
             Article::where('id', $id)->delete();
-            EmbeddingService::deleteRow('articles', $id);
             return redirect('/admin/articles/posts')->with('ok-delete', '');
         }
         return redirect('/admin/articles/posts')->with('no-delete', '');

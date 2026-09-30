@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Validator;
 
 class AiController extends Controller
 {
+    private const SECRET_KEYS = ['ai_key', 'search_api_key', 'fetch_api_key'];
+
     public function index()
     {
         $general = General::find(1);
@@ -33,21 +35,21 @@ class AiController extends Controller
             'ai_content_reasoning'    => $request->input('ai_content_reasoning'),
             'ai_article_prompt'       => $request->input('ai_article_prompt'),
             'ai_project_prompt'       => $request->input('ai_project_prompt'),
-            'embedding_url'           => $request->input('embedding_url'),
-            'embedding_key'           => $request->input('embedding_key'),
-            'embedding_model'         => $request->input('embedding_model'),
+            'search_api_url'          => $request->input('search_api_url'),
+            'search_api_key'          => $request->input('search_api_key'),
+            'search_model'            => $request->input('search_model'),
+            'fetch_api_url'           => $request->input('fetch_api_url'),
+            'fetch_api_key'           => $request->input('fetch_api_key'),
+            'fetch_model'             => $request->input('fetch_model'),
         ];
 
         $general = General::find(1);
 
-        $currentKeyMask = ($general && !empty($general->ai_key)) ? preg_replace('/./', '*', $general->ai_key) : null;
-        if ($currentKeyMask && $data['ai_key'] === $currentKeyMask) {
-            $data['ai_key'] = null;
-        }
-
-        $currentEmbKeyMask = ($general && !empty($general->embedding_key)) ? preg_replace('/./', '*', $general->embedding_key) : null;
-        if ($currentEmbKeyMask && $data['embedding_key'] === $currentEmbKeyMask) {
-            $data['embedding_key'] = null;
+        foreach (self::SECRET_KEYS as $key) {
+            $currentKeyMask = ($general && !empty($general->{$key})) ? preg_replace('/./', '*', $general->{$key}) : null;
+            if ($currentKeyMask && $data[$key] === $currentKeyMask) {
+                $data[$key] = null;
+            }
         }
 
         $validate = Validator::make($data, [
@@ -60,9 +62,12 @@ class AiController extends Controller
             'ai_content_reasoning'    => ['nullable', 'string', 'in:none,minimal,low,medium,high,xhigh'],
             'ai_article_prompt'       => ['nullable', 'string'],
             'ai_project_prompt'       => ['nullable', 'string'],
-            'embedding_url'           => ['nullable', 'string', 'max:500'],
-            'embedding_key'           => ['nullable', 'string', 'max:500'],
-            'embedding_model'         => ['nullable', 'string', 'max:255'],
+            'search_api_url'          => ['nullable', 'string', 'max:500'],
+            'search_api_key'          => ['nullable', 'string', 'max:500'],
+            'search_model'            => ['nullable', 'string', 'max:255'],
+            'fetch_api_url'           => ['nullable', 'string', 'max:500'],
+            'fetch_api_key'           => ['nullable', 'string', 'max:500'],
+            'fetch_model'             => ['nullable', 'string', 'max:255'],
         ]);
         if ($validate->fails()) {
             return redirect('/admin/ai')
@@ -80,14 +85,15 @@ class AiController extends Controller
             'ai_content_reasoning'    => $data['ai_content_reasoning'] ?? null,
             'ai_article_prompt'       => $data['ai_article_prompt'] ? trim($data['ai_article_prompt']) : null,
             'ai_project_prompt'       => $data['ai_project_prompt'] ? trim($data['ai_project_prompt']) : null,
-            'embedding_url'           => $data['embedding_url'] ? trim($data['embedding_url']) : null,
-            'embedding_model'         => $data['embedding_model'] ? trim((string) $data['embedding_model']) : null,
+            'search_api_url'          => $data['search_api_url'] ? trim($data['search_api_url']) : null,
+            'search_model'            => $data['search_model'] ? trim((string) $data['search_model']) : null,
+            'fetch_api_url'           => $data['fetch_api_url'] ? trim($data['fetch_api_url']) : null,
+            'fetch_model'             => $data['fetch_model'] ? trim((string) $data['fetch_model']) : null,
         ];
-        if (!empty($data['ai_key'])) {
-            $data_new['ai_key'] = trim($data['ai_key']);
-        }
-        if (!empty($data['embedding_key'])) {
-            $data_new['embedding_key'] = trim($data['embedding_key']);
+        foreach (self::SECRET_KEYS as $key) {
+            if (!empty($data[$key])) {
+                $data_new[$key] = trim($data[$key]);
+            }
         }
 
         General::where('id', 1)->update($data_new);

@@ -86,43 +86,40 @@
                                 </div>
                             </div>
                         </div>
-                        <hr class="my-4">
-                        <h6 class="font-weight-bold text-primary mb-3">Embedding (Optional)</h6>
-                        <p class="text-muted small mb-3">Configure an embedding API for semantic search. Leave all fields empty to use keyword search only.</p>
-                        <p class="text-muted small mb-3">New content (including synced GitHub activity) is picked up by the embedding worker (<code class="small">php artisan embeddings:work</code>), which processes <strong>one missing row at a time</strong> with pauses—not once per minute on a timer. It runs in Docker via supervisord next to the web server. Use “Generate All Embeddings” for a full refresh or when text changed.</p>
-                        <div class="mb-3">
-                            <button type="button" id="embed-all-btn" class="btn btn-outline-secondary btn-sm" title="Generate All Embeddings">
-                                <i class="fas fa-database me-1"></i> Generate All Embeddings
-                            </button>
-                            <span id="embed-all-status" class="ms-2 small text-muted"></span>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group mb-4">
-                                    <label for="embedding_url" class="form-label">Embedding API URL</label>
-                                    <input class="form-control @error('embedding_url') is-invalid @enderror" type="url" name="embedding_url" value="{{ old('embedding_url', $general->embedding_url ?? '') }}" placeholder="https://..." autocomplete="off" />
-                                    <div class="form-text">Base URL for the embedding API endpoint.</div>
-                                    @error('embedding_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @foreach([
+                            'search' => ['title' => 'Web Search (Optional)', 'desc' => 'Lets the AI look things up on the web. Fill all three to enable it.', 'model' => 'searxng'],
+                            'fetch' => ['title' => 'Web Fetch (Optional)', 'desc' => 'Lets the AI read a web page by its URL. Fill all three to enable it.', 'model' => 'jina-reader'],
+                        ] as $tool => $meta)
+                            <hr class="my-4">
+                            <h6 class="font-weight-bold text-primary mb-3">{{ $meta['title'] }}</h6>
+                            <p class="text-muted small mb-3">{{ $meta['desc'] }}</p>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-4">
+                                        <label for="{{ $tool }}_api_url" class="form-label">API URL</label>
+                                        <input class="form-control @error($tool.'_api_url') is-invalid @enderror" type="url" name="{{ $tool }}_api_url" value="{{ old($tool.'_api_url', $general->{$tool.'_api_url'} ?? '') }}" placeholder="https://your-gateway.example.com/v1" autocomplete="off" />
+                                        <div class="form-text">Base URL of the gateway.</div>
+                                        @error($tool.'_api_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-4">
+                                        <label for="{{ $tool }}_api_key" class="form-label">API Key</label>
+                                        <input class="form-control @error($tool.'_api_key') is-invalid @enderror" type="password" name="{{ $tool }}_api_key" value="{{ ($general->{$tool.'_api_key'} ?? '') !== '' ? preg_replace('/./', '*', $general->{$tool.'_api_key'}) : '' }}" autocomplete="new-password" />
+                                        <div class="form-text">Leave blank to keep the current key.</div>
+                                        @error($tool.'_api_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-4">
+                                        <label for="{{ $tool }}_model" class="form-label">Model</label>
+                                        <input class="form-control @error($tool.'_model') is-invalid @enderror" type="text" name="{{ $tool }}_model" value="{{ old($tool.'_model', $general->{$tool.'_model'} ?? '') }}" placeholder="{{ $meta['model'] }}" autocomplete="off" />
+                                        <div class="form-text">Model name sent to the gateway.</div>
+                                        @error($tool.'_model')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group mb-4">
-                                    <label for="embedding_key" class="form-label">Embedding API Key</label>
-                                    <input class="form-control @error('embedding_key') is-invalid @enderror" type="password" name="embedding_key" value="{{ ($general->embedding_key ?? '') !== '' ? preg_replace('/./', '*', $general->embedding_key) : '' }}" autocomplete="new-password" />
-                                    <div class="form-text">API key for the embedding service. Leave blank to keep current.</div>
-                                    @error('embedding_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group mb-4">
-                                    <label for="embedding_model" class="form-label">Embedding Model</label>
-                                    <input class="form-control @error('embedding_model') is-invalid @enderror" type="text" name="embedding_model" value="{{ old('embedding_model', $general->embedding_model ?? '') }}" placeholder="text-embedding-3-small" autocomplete="off" />
-                                    <div class="form-text">Model name for generating embeddings.</div>
-                                    @error('embedding_model')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                </div>
-                            </div>
-                        </div>
-
+                        @endforeach
                         <div class="mt-3">
                             <button type="submit" class="btn btn-primary">{{ __('content.update') }}</button>
                         </div>

@@ -1,9 +1,8 @@
 import { env } from '$env/dynamic/private';
 import type OpenAI from 'openai';
-import { encode as toToon } from '@toon-format/toon';
 import { fetchGeneral, fetchHome } from '../data';
 import { query } from '../db';
-import { hybridSearch, type Retrieval } from './search';
+import { fullTextQuery, search } from './search';
 import {
 	DEFAULT_ACTIVITY,
 	DEFAULT_ARTICLES,
@@ -87,9 +86,9 @@ interface ContentRow {
 	created_at: string;
 }
 
-async function runContentSearch(r: Retrieval, args: Record<string, any>, table: 'articles' | 'projects', categoryTable: string, max: number, fallback: number) {
+async function runContentSearch(args: Record<string, any>, table: 'articles' | 'projects', categoryTable: string, max: number, fallback: number) {
 	const df = buildDateFilter(args);
-	const { rows, total } = await hybridSearch<ContentRow>(r, {
+	const { rows, total } = await search<ContentRow>({
 		table,
 		fields: 'id, title, short_desc, description, category_id, created_at',
 		where: 'enable = 1',
@@ -211,10 +210,10 @@ interface ActivityRow {
 	created_at: string;
 }
 
-async function runActivitySearch(r: Retrieval, args: Record<string, any>) {
+async function runActivitySearch(args: Record<string, any>) {
 	const df = buildDateFilter(args);
 	const type = ACTIVITY_TYPES.includes(args?.type) ? args.type : null;
-	const { rows, total } = await hybridSearch<ActivityRow>(r, {
+	const { rows, total } = await search<ActivityRow>({
 		table: 'github_activity',
 		fields: 'id, repo, title, type, additions, deletions, created_at',
 		where: '1=1',
@@ -244,13 +243,7 @@ async function runActivitySearch(r: Retrieval, args: Record<string, any>) {
 function activityFilters(args: Record<string, any>) {
 	const df = buildDateFilter(args);
 	const type = ACTIVITY_TYPES.includes(args?.type) ? args.type : null;
-	const raw = keyword(args);
-	const ftQuery = raw
-		.split(/[\s\-]+/)
-		.map((w) => w.replace(/[+><~*"@()]/g, ''))
-		.filter((w) => w.length > 0)
-		.map((w) => `${w}*`)
-		.join(' ');
+	const ftQuery = fullTextQuery(keyword(args));
 
 	const clause = `${type ? ' AND type = ?' : ''}${ftQuery ? ' AND MATCH(repo, title) AGAINST(? IN BOOLEAN MODE)' : ''}${df.clause}`;
 	const params = [...(type ? [type] : []), ...(ftQuery ? [ftQuery] : []), ...df.params];
@@ -361,13 +354,7 @@ async function runSiteInfo() {
 
 async function runCount(section: Section, args: Record<string, any>) {
 	const df = buildDateFilter(args);
-	const raw = keyword(args);
-	const ftQuery = raw
-		.split(/[\s\-]+/)
-		.map((w) => w.replace(/[+><~*"@()]/g, ''))
-		.filter((w) => w.length > 0)
-		.map((w) => `${w}*`)
-		.join(' ');
+	const ftQuery = fullTextQuery(keyword(args));
 
 	const type = COUNT_TYPES.includes(args?.type) ? String(args.type) : null;
 	const wantAll = !type;
@@ -477,19 +464,19 @@ export function buildDataNote(tools: OpenAI.Chat.ChatCompletionTool[]): string {
 	return `[System] Everything you know about this site comes from your tools, one area at a time: ${names.join(', ')}.${readNote} Call only the ones the question actually needs — each returns the newest or closest matches for its own area and nothing else, so do not call them all to answer one question. Never answer from memory about what is on this site, and never invent a title, a repo, a date or a number that a tool did not give you. If a tool comes back empty, say plainly that there is nothing matching rather than filling the gap yourself.`;
 }
 
-export async function runTerminalTool(name: string, args: Record<string, any>, section: Section, retrieval: Retrieval): Promise<string> {
+export async function runTerminalTool(name: string, args: Record<string, any>, section: Section): Promise<string> {
 	const result = await (async () => {
 		switch (name) {
 			case 'search_articles':
-				return runContentSearch(retrieval, args, 'articles', 'article_categories', MAX_ARTICLES, DEFAULT_ARTICLES);
+				return runContentSearch(args, 'articles', 'article_categories', MAX_ARTICLES, DEFAULT_ARTICLES);
 			case 'search_projects':
-				return runContentSearch(retrieval, args, 'projects', 'project_categories', MAX_PROJECTS, DEFAULT_PROJECTS);
+				return runContentSearch(args, 'projects', 'project_categories', MAX_PROJECTS, DEFAULT_PROJECTS);
 			case 'read_article':
 				return runContentRead(args, 'articles', 'article_categories');
 			case 'read_project':
 				return runContentRead(args, 'projects', 'project_categories');
 			case 'search_activity':
-				return runActivitySearch(retrieval, args);
+				return runActivitySearch(args);
 			case 'get_activity_stats':
 				return runActivityStats(args);
 			case 'get_about':
@@ -503,5 +490,5 @@ export async function runTerminalTool(name: string, args: Record<string, any>, s
 		}
 	})().catch((error: Error) => fail('tool_failed', { tool: name, message: error.message }));
 
-	return toToon(result as Record<string, unknown>);
+	return JSON.stringify(result);
 }
