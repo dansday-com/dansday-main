@@ -12,7 +12,7 @@ By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Contribut
 
 ## Local setup
 
-You need Node.js 25 and PHP 8.5 (the versions the Docker images pin), plus MySQL, and Redis for the panel's cache, queues and sessions. Neither is in the Compose stack — point `DB_*` and `REDIS_*` at your own instances.
+You need Node.js 25 and PHP 8.5 (the versions the Docker images pin), plus MySQL, and Redis for the panel's cache, queues and sessions. To skip installing them, `make demo` runs both apps with MySQL and Redis in containers.
 
 ```bash
 git clone https://github.com/dansday-com/dansday-main.git

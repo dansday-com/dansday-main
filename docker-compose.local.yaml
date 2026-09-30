@@ -1,0 +1,59 @@
+services:
+  main:
+    ports:
+      - "3000:80"
+    environment:
+      BASE_URL: http://localhost:3000
+      ADMIN_PUBLIC_URL: http://localhost:8080
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: dansday
+      DB_USERNAME: dansday
+      DB_PASSWORD: dansday
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  admin:
+    ports:
+      - "8080:2222"
+    environment:
+      APP_URL: http://localhost:8080
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: dansday
+      DB_USERNAME: dansday
+      DB_PASSWORD: dansday
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: dansday
+      MYSQL_USER: dansday
+      MYSQL_PASSWORD: dansday
+      MYSQL_ROOT_PASSWORD: dansday
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-udansday", "-pdansday"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
