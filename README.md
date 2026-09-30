@@ -105,4 +105,4 @@ Found a vulnerability? Email **security@dansday.com** instead of opening an issu
 
 ---
 
-MIT · Author: Akbar Yudhanto · Version: 2.6.0
+MIT · Author: Akbar Yudhanto · Version: 2.5.0
