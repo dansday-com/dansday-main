@@ -10,8 +10,8 @@ class SettingSeeder extends Seeder
     public function run()
     {
         DB::table('page_setting')->insert([
-            'title'          => 'Dansday Portfolio',
-            'description'    => 'A great portfolio to show your work created with Laravel',
+            'title'          => 'My Portfolio',
+            'description'    => 'Articles, projects and experience, served from a terminal.',
             'analytics_code' => '',
             'ai_url'         => '',
             'ai_key'         => '',

@@ -1,0 +1,72 @@
+name: Feature request
+description: Suggest a page, a panel change or a new MCP tool
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Anything that adds a page, changes the database schema or reshapes a panel section starts here rather than as a pull request — a short discussion beats a rejected branch.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: No existing page, panel setting or MCP tool already covers this.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to publish or automate, and why does the current site, panel or MCP server not cover it? Describe the problem before the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: How you imagine it working.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part does it belong to?
+      multiple: true
+      options:
+        - Public site
+        - Terminal
+        - Panel
+        - AI generation
+        - MCP server
+        - LinkedIn
+        - Self-hosting and Docker
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: placement
+    attributes:
+      label: Where it appears
+      description: Which page, panel screen or MCP tool it lives in, and what a visitor or an AI client would see.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: Another tool, a manual workaround, or an existing MCP tool that almost fits.
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Would you like to build it?
+      options:
+        - label: I am willing to open a pull request for this.
+          required: false
