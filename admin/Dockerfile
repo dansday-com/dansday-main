@@ -24,7 +24,7 @@ RUN composer install \
 COPY . .
 RUN composer run-script post-autoload-dump || true
 
-FROM dunglas/frankenphp:1.12.1-php8.5-alpine AS runner
+FROM dunglas/frankenphp:1.13.2-php8.5-alpine AS runner
 
 RUN apk add --no-cache \
     curl \
