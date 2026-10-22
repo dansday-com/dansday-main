@@ -13,7 +13,7 @@ if (endpoint?.trim()) {
 		const logExporter = new OTLPLogExporter({});
 		loggerProvider = new LoggerProvider({
 			resource,
-			processors: [new BatchLogRecordProcessor(logExporter)]
+			processors: [new BatchLogRecordProcessor({ exporter: logExporter })]
 		});
 		const flushInterval = setInterval(() => loggerProvider?.forceFlush().catch(() => {}), 5000);
 		if (flushInterval.unref) flushInterval.unref();

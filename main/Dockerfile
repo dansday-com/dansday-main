@@ -1,5 +1,5 @@
 # ── Stage 1: Build ──────────────────────────────────────────────
-FROM node:25.8.1-alpine AS builder
+FROM node:26.12.1-alpine AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────
-FROM node:25.8.1-alpine AS runner
+FROM node:26.12.1-alpine AS runner
 
 WORKDIR /app
 
